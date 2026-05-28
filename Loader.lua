@@ -2,10 +2,10 @@
 -- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (BUG FIXES VERSION) ]]
 -- ========================================================================
 
--- 1. LOAD UI LIBRARY DARI GITHUB
+-- 1. LOAD UI LIBRARY FROM GITHUB
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/Ui%20Library.lua"))()
 
--- 2. SETUP LAYANAN ROBLOX UTAMA
+-- 2. SETUP MAIN ROBLOX SERVICES
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local RunService = game:GetService("RunService")
@@ -17,15 +17,17 @@ local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
 -- ========================================================
--- [[ VARIABEL STATE INTERNAL & FISIKA ]]
+-- [[ INTERNAL STATE & PHYSICS VARIABLES ]]
 -- ========================================================
 local SavedCFrame = nil
 local SelectedPlayer = nil
 local originalVelocity = Vector3.new(0, 0, 0)
 local originalRotVelocity = Vector3.new(0, 0, 0)
+local FlingFailsafeActive = false
+local OriginalCFrameBeforeFling = nil
 
 -- ========================================================================
--- [[ KUSTOMISASI TEKS TOMBOL EKSTERNAL ]]
+-- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
 -- ========================================================================
 local ExtButtonTexts = {
     Aimbot = "AIM",
@@ -40,7 +42,7 @@ local ExtButtonTexts = {
     LoadPos = "LOAD_POS"
 }
 
--- 3. KONFIGURASI FITUR INTERNAL (MM2 & MOVEMENT)
+-- 3. INTERNAL FEATURE CONFIGURATION (MM2 & MOVEMENT)
 local Settings = {
     CameraAimbot = false,
     HitboxExpander = false,
@@ -51,6 +53,7 @@ local Settings = {
     EspInnocent = true,
     EspSheriff = true,
     EspMurderer = true,
+    CoinESP = false,
     AutoGrabGun = false, 
     TargetPart = "HumanoidRootPart",
     HitboxSize = 20,
@@ -79,17 +82,17 @@ local Settings = {
     SpinPower = 30,
     SpinExtEnabled = false,
     
-    -- Konfigurasi Coin Farm
+    -- Coin Farm Configuration
     CoinFarmEnabled = false,
 
-    -- Fitur Integrasi Tambahan (Dari Louis Lite HUD)
+    -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
     AntiVoid = false,
     AntiFling = false,
     TouchFling = false,
     FlingPower = 100,
     
-    -- Konfigurasi Teleport & Tombol Eksternal
+    -- Teleport & External Button Configuration
     TpSheriffExtEnabled = false,
     TpMurderExtEnabled = false,
     FlingMurderExtEnabled = false,
@@ -100,7 +103,7 @@ local Settings = {
 local OriginalFOV = Camera.FieldOfView
 
 -- ========================================================
--- [[ SISTEM CLEANUP RE-EXECUTION ]]
+-- [[ RE-EXECUTION CLEANUP SYSTEM ]]
 -- ========================================================
 if _G.LouisConnections then
     for _, conn in pairs(_G.LouisConnections) do
@@ -128,7 +131,7 @@ local function SafeDrawing(className)
     return drawing
 end
 
--- Membersihkan Billboard Name ESP dari eksekusi sebelumnya
+-- Cleaning Billboard Name ESP from previous execution
 for _, player in ipairs(Players:GetPlayers()) do
     pcall(function()
         if player.Character then
@@ -140,7 +143,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 -- ========================================================
--- [[ FITUR GRAPHICS: POTATO OPTIMIZATION ]]
+-- [[ GRAPHICS FEATURES: POTATO OPTIMIZATION ]]
 -- ========================================================
 local function ApplyPotato()
     pcall(function()
@@ -185,7 +188,7 @@ local function LoadSavedPosition()
 end
 
 -- ========================================================
--- [[ LOGIKA EMULASI TEKNIS DETEKSI ROLE (MM2) ]]
+-- [[ ROLE DETECTION LOGICAL EMULATION (MM2) ]]
 -- ========================================================
 local function GetMM2Role(Player)
     if not Player or not Player.Character then return "Innocent" end
@@ -269,7 +272,7 @@ local function GetTargetForInnocentOrSheriff()
 end
 
 -- ========================================================
--- [[ LOGIKA FITUR 1: CAMERA AIMBOT (PREDICTION ENGINE) ]]
+-- [[ FEATURE 1 LOGIC: CAMERA AIMBOT (PREDICTION ENGINE) ]]
 -- ========================================================
 local FOVCircle = SafeDrawing("Circle")
 FOVCircle.Color = Color3.fromRGB(255, 0, 255)
@@ -303,7 +306,7 @@ local function GetPredictedPosition(targetPart)
     return predictedPos
 end
 
--- AIMBOT DAPAT BEKERJA KETIKA MEMEGANG PISAU/PISOL ATAU SAAT MENJADI MURDER
+-- AIMBOT WORKS WHEN HOLDING KNIFE/GUN OR AS MURDERER
 SafeConnect(RunService.RenderStepped, function()
     if Settings.CameraAimbot and LocalPlayer.Character then
         local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun")
@@ -324,7 +327,7 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ========================================================
--- [[ LOGIKA FITUR 2: DOUBLE JUMP & INFINITE JUMP ]]
+-- [[ FEATURE 2 LOGIC: DOUBLE JUMP & INFINITE JUMP ]]
 -- ========================================================
 local HasDoubleJumped = false
 local CanDoubleJump = false
@@ -366,7 +369,7 @@ end)
 table.insert(_G.LouisConnections, DoubleJumpReq)
 
 -- ========================================================
--- [[ LOGIKA FITUR 3: GUN GRABBER ENGINE ]]
+-- [[ FEATURE 3 LOGIC: GUN GRABBER ENGINE ]]
 -- ========================================================
 local IsGrabbing = false
 local function SafeInstantTween(targetPart)
@@ -463,7 +466,7 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ LOGIKA DETEKSI DAN FARM COIN (CEPAT & DIOPTIMALKAN) ]]
+-- [[ COIN DETECTION AND FARM ENGINE ]]
 -- ========================================================
 local function GetPing()
     local ping = 0.05
@@ -535,7 +538,7 @@ local function CollectCoin(coinPart)
         end
     end
     
-    -- Jeda pengumpulan dikurangi dari 0.9s menjadi 0.25s + Ping untuk performa cepat tanpa terdeteksi
+    -- Collection delay set to 0.25s + Ping for fast performance
     root.CFrame = targetCFrame
     task.wait(0.25 + GetPing())
     
@@ -561,7 +564,7 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ LOGIKA FITUR 4: KILL AURA & TELEPORT ALL ]]
+-- [[ FEATURE 4 LOGIC: KILL AURA & TELEPORT ALL ]]
 -- ========================================================
 task.spawn(function()
     while true do
@@ -615,7 +618,73 @@ local function TeleportAllPlayersToMe()
 end
 
 -- ========================================================
--- [[ LOGIKA FITUR 5: TELEPORTS & TARGET SELECTIONS ]]
+-- [[ COIN ESP ENGINE ]]
+-- ========================================================
+local function ApplyCoinESP()
+    if not Settings.ESP or not Settings.CoinESP then 
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v.Name == "LouisCoinESP" then v:Destroy() end
+        end
+        return 
+    end
+    
+    local coinContainers = {}
+    for _, v in ipairs(Workspace:GetChildren()) do
+        if v.Name == "CoinContainer" then
+            table.insert(coinContainers, v)
+        else
+            local container = v:FindFirstChild("CoinContainer")
+            if container then table.insert(coinContainers, container) end
+        end
+    end
+    
+    local coinsToHighlight = {}
+    if #coinContainers > 0 then
+        for _, container in ipairs(coinContainers) do
+            for _, coin in ipairs(container:GetChildren()) do
+                table.insert(coinsToHighlight, coin)
+            end
+        end
+    else
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v.Name == "Coin_Server" then
+                table.insert(coinsToHighlight, v)
+            end
+        end
+    end
+
+    for _, coin in ipairs(coinsToHighlight) do
+        local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
+        if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "LouisCoinESP"
+            highlight.FillColor = Color3.fromRGB(255, 215, 0)
+            highlight.FillTransparency = 0.4
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.OutlineTransparency = 0
+            highlight.Adornee = coinPart
+            highlight.Parent = coinPart
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        if Settings.ESP and Settings.CoinESP then
+            pcall(ApplyCoinESP)
+        else
+            pcall(function()
+                for _, v in ipairs(Workspace:GetDescendants()) do
+                    if v.Name == "LouisCoinESP" then v:Destroy() end
+                end
+            end)
+        end
+        task.wait(1)
+    end
+end)
+
+-- ========================================================
+-- [[ FEATURE 5 LOGIC: TELEPORTS & TARGET SELECTIONS ]]
 -- ========================================================
 local function TeleportToSheriff()
     local target = GetTargetByRole("Sheriff")
@@ -658,7 +727,7 @@ local function FlingPlayer(targetPlayer)
         Settings.TouchFling = true
         
         task.spawn(function()
-            -- Durasi diperpanjang ke 150 iterasi (~3 detik) untuk menjamin transfer momentum fling berhasil
+            -- Duration extended to 150 iterations (~3 seconds) to guarantee fling momentum transfer
             for i = 1, 150 do
                 if not targetRoot or not targetHum or targetHum.Health <= 0 or not root or not char:FindFirstChild("HumanoidRootPart") then
                     break
@@ -679,8 +748,6 @@ end
 -- ========================================================================
 local SpinVelocity
 local FlingVelocity
-local FlingFailsafeActive = false
-local OriginalCFrameBeforeFling = nil
 
 local NoclipConnection
 local function ToggleNoclip(state)
@@ -793,7 +860,7 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ SISTEM FLY DAN INPUT (MOBILE & PC COMPATIBLE) ]]
+-- [[ FLY SYSTEM AND INPUT (MOBILE & PC COMPATIBLE) ]]
 -- ========================================================
 local function GetFlyDirection()
     local direction = Vector3.new(0, 0, 0)
@@ -825,12 +892,12 @@ local function GetFlyDirection()
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if hum then
         if hum.MoveDirection.Magnitude > 0 then
-            -- Memadukan arah joystick virtual dengan arah hadap kamera (untuk naik/turun vertikal mobile)
+            -- Mixing virtual joystick direction with camera look direction (for mobile vertical flight)
             local camLook = Camera.CFrame.LookVector
             direction = direction + (hum.MoveDirection + Vector3.new(0, camLook.Y * 1.2, 0))
         end
         
-        -- Tombol Lompat Mobile (Virtual Jump)
+        -- Mobile Jump Button (Virtual Jump)
         if hum.Jump then
             direction = direction + Vector3.new(0, 1, 0)
         end
@@ -878,7 +945,7 @@ local function UpdateFlyState(state)
     end
 end
 
--- SISTEM SPIN (Physical Angular Velocity)
+-- SPIN SYSTEM (Physical Angular Velocity)
 local function UpdateSpinState(state)
     Settings.SpinEnabled = state
     local char = LocalPlayer.Character
@@ -899,70 +966,64 @@ local function UpdateSpinState(state)
 end
 
 -- ========================================================================
--- [[ FLING INSTANT (AUTO TELEPORT TERHADAP TARGET + PERPUTARAN EKSTREM) ]]
+-- [[ FLING INSTANT (INTEGRATED FROM PROTECTED CODES - FILE 2) ]]
 -- ========================================================================
 local function UpdateFlingState(role, state)
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if not state then
-        if FlingVelocity then FlingVelocity:Destroy() end
-        if hum then hum.PlatformStand = false end
-        if OriginalCFrameBeforeFling and root then
-            root.CFrame = OriginalCFrameBeforeFling
-            root.Velocity = Vector3.new(0,0,0)
-            root.RotVelocity = Vector3.new(0,0,0)
-        end
-        FlingFailsafeActive = false
-        OriginalCFrameBeforeFling = nil
-        return
-    end
-    
-    if root and hum then
-        if not FlingFailsafeActive then
-            FlingFailsafeActive = true
-            OriginalCFrameBeforeFling = root.CFrame
-        end
-        
-        hum.PlatformStand = true
-        
-        FlingVelocity = Instance.new("BodyAngularVelocity")
-        FlingVelocity.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-        FlingVelocity.AngularVelocity = Vector3.new(0, 15000, 0)
-        FlingVelocity.Parent = root
-        
-        task.spawn(function()
-            while (Settings.AutoFlingMurder or Settings.AutoFlingSheriff) and FlingFailsafeActive and root and hum and hum.Health > 0 do
-                local targetPlayer = GetTargetByRole(role)
-                if targetPlayer and targetPlayer.Character then
-                    local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    local tHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
-                    
-                    if tRoot and tHum and tHum.Health > 0 then
-                        -- Teleportasi mengunci langsung pada musuh target
-                        root.CFrame = tRoot.CFrame * CFrame.new(0, 0, 0)
-                        root.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
-                        
-                        -- Mengaktifkan tabrakan fisik agar transfer energi fling terjadi
-                        for _, child in ipairs(char:GetDescendants()) do
-                            if child:IsA("BasePart") then child.CanCollide = true end
-                        end
-                    else
-                        task.wait(0.1)
-                    end
-                else
-                    task.wait(0.1)
-                end
-                task.wait()
-            end
-            UpdateFlingState(role, false)
-        end)
+    if role == "Murderer" then
+        Settings.AutoFlingMurder = state
+    elseif role == "Sheriff" then
+        Settings.AutoFlingSheriff = state
     end
 end
 
+task.spawn(function()
+    while true do
+        local character = LocalPlayer.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+        if root and humanoid and humanoid.Health > 0 then
+            if Settings.AutoFlingMurder or Settings.AutoFlingSheriff then
+                local targetRole = Settings.AutoFlingMurder and "Murderer" or "Sheriff"
+                local targetPlayer = GetTargetByRole(targetRole)
+
+                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    if not FlingFailsafeActive then
+                        FlingFailsafeActive = true
+                        OriginalCFrameBeforeFling = root.CFrame
+                    end
+
+                    local tRoot = targetPlayer.Character.HumanoidRootPart
+                    root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
+                    root.Velocity = Vector3.new(99999, 99999, 99999)
+                    
+                    for _, child in ipairs(character:GetDescendants()) do
+                        if child:IsA("BasePart") then child.CanCollide = false end
+                    end
+                else
+                    if FlingFailsafeActive then
+                        Settings.AutoFlingMurder = false
+                        Settings.AutoFlingSheriff = false
+                        root.Velocity = Vector3.new(0, 0, 0)
+                        root.RotVelocity = Vector3.new(0, 0, 0)
+                        task.wait(0.1)
+                        if OriginalCFrameBeforeFling then
+                            root.CFrame = OriginalCFrameBeforeFling
+                        end
+                        FlingFailsafeActive = false
+                        OriginalCFrameBeforeFling = nil
+                        
+                        if _G.SyncFlingButtons then _G.SyncFlingButtons() end
+                    end
+                end
+            end
+        end
+        task.wait()
+    end
+end)
+
 -- ========================================================
--- [[ LOGIKA FITUR 6: SISTEM NAME ESP & HIGHLIGHT ESP ]]
+-- [[ FEATURE 6 LOGIC: NAME ESP & HIGHLIGHT ESP SYSTEM ]]
 -- ========================================================
 local function ApplyNameESP(player)
     if not player or not player.Character then return end
@@ -1016,7 +1077,7 @@ local function ClearNameESP(player)
 end
 
 -- ========================================================
--- [[ LOOP UTAMA VISUALS (HITBOX EXPANDER, ESP & TRACERS) ]]
+-- [[ MAIN VISUALS LOOP (HITBOX EXPANDER, ESP & TRACERS) ]]
 -- ========================================================
 local ActiveTracers = {}
 local function ClearAllTracers()
@@ -1127,7 +1188,7 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ========================================================================
--- [[ INISIALISASI TOMBOL EKSTERNAL DARI UI LIBRARY ]]
+-- [[ EXTERNAL BUTTON INITIALIZATION FROM UI LIBRARY ]]
 -- ========================================================================
 local ExtAimbotBtn = Library:CreateExternalButton("Aimbot", ExtButtonTexts.Aimbot, UDim2.new(0, 20, 0.5, -55), function()
     Settings.CameraAimbot = not Settings.CameraAimbot
@@ -1213,7 +1274,7 @@ ExtSavePosBtn:SetVisible(false)
 ExtLoadPosBtn:SetVisible(false)
 
 -- ========================================================================
--- [[ STRUKTUR MENU UI ]]
+-- [[ MAIN MENU STRUCTURE ]]
 -- ========================================================================
 local Window = Library:CreateWindow("LOUIS MM2 EDITION", "Modern generic hub")
 Window:BindToggleKey(Enum.KeyCode.RightControl)
@@ -1246,7 +1307,7 @@ TabCombat:CreateButton("Teleport & Stack All Players to Me", function()
     Library:Notify("Combat Teleport", "Stacked all players for ez kill!", 2.5)
 end)
 
-TabCombat:CreateParagraph("Touch Fling (Sistem Tabrak)", "Gaya rotasi fisik instan saat karakter menyentuh musuh.")
+TabCombat:CreateParagraph("Touch Fling (Collision System)", "Instant physical rotation style when character touches the enemy.")
 TabCombat:CreateToggle("Activate Touch Fling", false, function(state)
     Settings.TouchFling = state
 end)
@@ -1255,7 +1316,7 @@ TabCombat:CreateSlider("Fling Velocity Power multiplier", 1, 200, Settings.Fling
     Settings.FlingPower = val
 end)
 
-TabCombat:CreateToggle("Anti Fling (Resisten Tabrak)", false, function(state)
+TabCombat:CreateToggle("Anti Fling (Collision Resistance)", false, function(state)
     Settings.AntiFling = state
 end)
 
@@ -1302,6 +1363,15 @@ TabVisuals:CreateToggle("Show Billboard Names + Roles", false, function(state)
     Settings.NameESP = state
 end)
 
+TabVisuals:CreateToggle("Coin Highlight ESP", false, function(state)
+    Settings.CoinESP = state
+    if not state then
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v.Name == "LouisCoinESP" then v:Destroy() end
+        end
+    end
+end)
+
 TabVisuals:CreateParagraph("Filter ESP Targets", "Filter who glows in ESP.")
 TabVisuals:CreateToggle("Render Murderer Glow", true, function(state)
     Settings.EspMurderer = state
@@ -1331,7 +1401,7 @@ end)
 -- --- TAB 4: MOVEMENT & UTILITY ---
 local TabMovement = Window:CreateTab("Utility Movement", "rbxassetid://4483362458")
 
-TabMovement:CreateParagraph("Speed & Jump Modifiers", "Ubah kecepatan jalan dan kekuatan lompatan.")
+TabMovement:CreateParagraph("Speed & Jump Modifiers", "Modify walk speed and jump power.")
 TabMovement:CreateToggle("Custom Walk Speed", false, function(state)
     Settings.SpeedWalkEnabled = state
     if not state and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -1365,7 +1435,7 @@ TabMovement:CreateToggle("Show Double Jump Floating Button [DJ]", false, functio
     ExtDoubleJumpBtn:SetVisible(state)
 end)
 
-TabMovement:CreateToggle("Infinite Jump (Lompat Tanpa Batas)", false, function(state)
+TabMovement:CreateToggle("Infinite Jump (Infinite Jumping)", false, function(state)
     Settings.InfiniteJump = state
 end)
 
@@ -1408,22 +1478,22 @@ TabMovement:CreateSlider("Spin Speed Rotator", 1, 100, Settings.SpinPower, funct
     if Settings.SpinEnabled then UpdateSpinState(true) end
 end)
 
-TabMovement:CreateParagraph("Positions & Anti-Void", "Simpan posisi koordinat atau amankan karakter dari Void.")
+TabMovement:CreateParagraph("Positions & Anti-Void", "Save coordinate position or secure the character from the Void.")
 TabMovement:CreateToggle("Activate Anti Void Mode", false, function(state)
     Settings.AntiVoid = state
 end)
 
-TabMovement:CreateButton("Simpan Koordinat Karakter (POS)", function()
+TabMovement:CreateButton("Save Character Coordinates (POS)", function()
     SavePosition()
-    Library:Notify("Position Saved", "Koordinat CFrame berhasil disimpan secara lokal.", 2)
+    Library:Notify("Position Saved", "CFrame coordinates successfully saved locally.", 2)
 end)
 
-TabMovement:CreateButton("Teleport ke Koordinat Tersimpan", function()
+TabMovement:CreateButton("Teleport to Saved Coordinates", function()
     if SavedCFrame then
         LoadSavedPosition()
-        Library:Notify("Position Loaded", "Karakter berhasil diteleportasikan ke koordinat simpanan.", 2)
+        Library:Notify("Position Loaded", "Character successfully teleported to saved coordinates.", 2)
     else
-        Library:Notify("Error", "Belum ada koordinat tersimpan! Tekan tombol di atas terlebih dahulu.", 2.5)
+        Library:Notify("Error", "No saved coordinates yet! Press the save button first.", 2.5)
     end
 end)
 
@@ -1436,13 +1506,13 @@ end)
 -- --- TAB 5: MM2 SPECIAL UTILITIES ---
 local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 
-TabSpecial:CreateParagraph("Coin Autofarm", "Secara otomatis memindai dan mengambil koin di peta.")
+TabSpecial:CreateParagraph("Coin Autofarm", "Automatically scan and collect coins on the map.")
 TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
 end)
 
 -- ========================================================================
--- [[ LOGIKA PENGAMBIL PLAYER AKTIF DINAMIS ]]
+-- [[ DYNAMIC ACTIVE PLAYER RETRIEVER LOGIC ]]
 -- ========================================================================
 local function GetPlayerNames()
     local names = {}
@@ -1454,10 +1524,10 @@ local function GetPlayerNames()
     return names
 end
 
-TabSpecial:CreateParagraph("Target Operations", "Pilih pemain target secara dinamis untuk meluncurkan serangan atau teleport.")
+TabSpecial:CreateParagraph("Target Operations", "Dynamically select a target player to launch attacks or teleport.")
 
 local TargetDropdown
-TargetDropdown = TabSpecial:CreateDropdown("Pilih Player Target", GetPlayerNames(), "", function(selectedName)
+TargetDropdown = TabSpecial:CreateDropdown("Select Target Player", GetPlayerNames(), "", function(selectedName)
     local target = Players:FindFirstChild(selectedName)
     if target then
         SelectedPlayer = target
@@ -1465,7 +1535,7 @@ TargetDropdown = TabSpecial:CreateDropdown("Pilih Player Target", GetPlayerNames
     end
 end)
 
-TabSpecial:CreateButton("Perbarui Daftar Player (Refresh)", function()
+TabSpecial:CreateButton("Update Player List (Refresh)", function()
     local currentNames = GetPlayerNames()
     if TargetDropdown then
         if TargetDropdown.Refresh then
@@ -1474,7 +1544,7 @@ TabSpecial:CreateButton("Perbarui Daftar Player (Refresh)", function()
             pcall(function() TargetDropdown:Update(currentNames) end)
         end
     end
-    Library:Notify("Player List", "Daftar pemain berhasil diperbarui!", 1.5)
+    Library:Notify("Player List", "Player list successfully updated!", 1.5)
 end)
 
 SafeConnect(Players.PlayerAdded, function()
@@ -1495,21 +1565,21 @@ SafeConnect(Players.PlayerRemoving, function()
     end
 end)
 
-TabSpecial:CreateButton("Luncurkan Fling ke Target Karakter Terpilih", function()
+TabSpecial:CreateButton("Launch Fling at Selected Target Character", function()
     if SelectedPlayer then
-        Library:Notify("Fling Attack", "Meluncurkan serangan fisik fling ke " .. SelectedPlayer.DisplayName, 2)
+        Library:Notify("Fling Attack", "Launching physical fling attack at " .. SelectedPlayer.DisplayName, 2)
         FlingPlayer(SelectedPlayer)
     else
-        Library:Notify("Error", "Pilih target karakter terlebih dahulu pada Dropdown di atas!", 2.5)
+        Library:Notify("Error", "Select a target character from the dropdown above first!", 2.5)
     end
 end)
 
-TabSpecial:CreateButton("Teleport Instan ke Target Karakter Terpilih", function()
+TabSpecial:CreateButton("Instant Teleport to Selected Target Character", function()
     if SelectedPlayer then
         TpToPlayer(SelectedPlayer)
-        Library:Notify("Instant Teleport", "Tiba di lokasi " .. SelectedPlayer.DisplayName, 1.5)
+        Library:Notify("Instant Teleport", "Arrived at the location of " .. SelectedPlayer.DisplayName, 1.5)
     else
-        Library:Notify("Error", "Pilih target karakter terlebih dahulu pada Dropdown di atas!", 2.5)
+        Library:Notify("Error", "Select a target character from the dropdown above first!", 2.5)
     end
 end)
 
@@ -1579,7 +1649,7 @@ TabSpecial:CreateToggle("Lock Main UI Dragging", false, function(state)
 end)
 
 -- ========================================================================
--- [[ SISTEM RESPONDERS & EVENT CONNECTIONS (PERSISTENCE) ]]
+-- [[ RESPONDERS SYSTEM & EVENT CONNECTIONS (PERSISTENCE) ]]
 -- ========================================================================
 _G.SyncFlingButtons = function()
     Library:Notify("Fling Update", "States updated.", 1.2)
@@ -1604,7 +1674,7 @@ SafeConnect(LocalPlayer.CharacterAdded, function(char)
     if Settings.SpinEnabled then UpdateSpinState(true) end
 end)
 
--- Bind Tombol Keybind Cepat Keyboard
+-- Keyboard Quick Keybind Connection
 SafeConnect(UserInputService.InputBegan, function(input, gameProcessed)
     if gameProcessed then return end
     local key = input.KeyCode
@@ -1627,4 +1697,4 @@ SafeConnect(UserInputService.InputBegan, function(input, gameProcessed)
     end
 end)
 
-print("[LOUIS HUB]: Loader MM2 Siap Digunakan.")
+print("[LOUIS HUB]: MM2 Loader Ready to Use.")
