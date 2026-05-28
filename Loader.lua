@@ -1,6 +1,6 @@
 -- ========================================================================
 -- [[ LOUIS HUB - PREMIUM FUNCTIONAL LOADER (MM2 EDITION) ]]
--- AUTH: Louis | VERSION: 13.5.2 (Unified Logic - No Security)
+-- AUTH: Louis | VERSION: 13.7.0 (Unified Logic with Integrated Lite Features)
 -- ========================================================================
 
 -- 1. LOAD UI LIBRARY DARI GITHUB
@@ -13,8 +13,18 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
+
+-- ========================================================
+-- [[ VARIABEL STATE INTERNAL & FISIKA ]]
+-- ========================================================
+local SavedCFrame = nil
+local SelectedPlayer = nil
+local originalVelocity = Vector3.new(0, 0, 0)
+local originalRotVelocity = Vector3.new(0, 0, 0)
+local CurrentCoinTween = nil
 
 -- ========================================================================
 -- [[ KUSTOMISASI TEKS TOMBOL EKSTERNAL ]]
@@ -68,6 +78,18 @@ local Settings = {
     SpinEnabled = false,
     SpinPower = 30,
     SpinExtEnabled = false,
+    
+    -- Konfigurasi Coin Farm
+    CoinFarmEnabled = false,
+    CoinFarmMethod = "Instant", -- "Instant" atau "Tween"
+    CoinFarmSpeed = 100,
+
+    -- Fitur Integrasi Tambahan (Dari Louis Lite HUD)
+    InfiniteJump = false,
+    AntiVoid = false,
+    AntiFling = false,
+    TouchFling = false,
+    FlingPower = 100,
     
     -- Konfigurasi Teleport & Tombol Eksternal
     TpSheriffExtEnabled = false,
@@ -144,6 +166,23 @@ local function ApplyPotato()
         end
         for _, v in ipairs(workspace:GetDescendants()) do pcall(Clean, v) end
     end)
+end
+
+-- ========================================================
+-- [[ POSITIONS UTILITIES ]]
+-- ========================================================
+local function SavePosition()
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        SavedCFrame = root.CFrame
+    end
+end
+
+local function LoadSavedPosition()
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if root and SavedCFrame then
+        root.CFrame = SavedCFrame
+    end
 end
 
 -- ========================================================
@@ -282,7 +321,7 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ========================================================
--- [[ LOGIKA FITUR 2: DOUBLE JUMP SYSTEM ]]
+-- [[ LOGIKA FITUR 2: DOUBLE JUMP & INFINITE JUMP ]]
 -- ========================================================
 local HasDoubleJumped = false
 local CanDoubleJump = false
@@ -309,6 +348,13 @@ local DoubleJumpReq = UserInputService.JumpRequest:Connect(function()
     local character = LocalPlayer.Character
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     local root = character and character:FindFirstChild("HumanoidRootPart")
+    
+    -- Infinite Jump (Sistem Lompat Tanpa Batas dari Lite HUD)
+    if humanoid and Settings.InfiniteJump then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+    
+    -- Double Jump
     if humanoid and root and humanoid.Health > 0 and Settings.DoubleJumpEnabled then
         if CanDoubleJump and not HasDoubleJumped then
             HasDoubleJumped = true
@@ -416,6 +462,136 @@ task.spawn(function()
 end)
 
 -- ========================================================
+-- [[ LOGIKA DETEKSI DAN FARM COIN (MM2) ]]
+-- ========================================================
+local function GetNearestCoin()
+    local character = LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    
+    local closestCoin = nil
+    local shortestDistance = math.huge
+    
+    -- Pemindaian cepat folder CoinContainer di workspace map aktif
+    local coinContainers = {}
+    for _, v in ipairs(Workspace:GetChildren()) do
+        if v.Name == "CoinContainer" then
+            table.insert(coinContainers, v)
+        else
+            local container = v:FindFirstChild("CoinContainer")
+            if container then table.insert(coinContainers, container) end
+        end
+    end
+    
+    if #coinContainers > 0 then
+        for _, container in ipairs(coinContainers) do
+            for _, coin in ipairs(container:GetChildren()) do
+                local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
+                if coinPart then
+                    local distance = (root.Position - coinPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestCoin = coinPart
+                    end
+                end
+            end
+        end
+    else
+        -- Metode Fallback: Pemindaian total objek bermana Coin_Server
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v.Name == "Coin_Server" then
+                local coinPart = v:IsA("BasePart") and v or v:FindFirstChild("Coin") or v:FindFirstChild("MainCoin") or v:FindFirstChildOfClass("BasePart")
+                if coinPart then
+                    local distance = (root.Position - coinPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestCoin = coinPart
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestCoin
+end
+
+local function CollectCoin(coinPart)
+    local character = LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root or not coinPart or not coinPart.Parent then return end
+    
+    local targetCFrame = coinPart.CFrame
+    
+    -- Menonaktifkan tabrakan fisik karakter agar tidak tersangkut objek lain
+    local originalCollides = {}
+    for _, child in ipairs(character:GetDescendants()) do
+        if child:IsA("BasePart") then
+            table.insert(originalCollides, {part = child, oldState = child.CanCollide})
+            child.CanCollide = false
+        end
+    end
+    
+    if Settings.CoinFarmMethod == "Instant" then
+        root.CFrame = targetCFrame
+        task.wait(0.12) -- Jeda kecil agar pengumpulan terdaftar pada server
+    else
+        -- Metode Tween (Perpindahan Halus)
+        local distance = (root.Position - targetCFrame.Position).Magnitude
+        local duration = distance / math.max(1, Settings.CoinFarmSpeed)
+        
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        CurrentCoinTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+        CurrentCoinTween:Play()
+        
+        local completed = false
+        local connection
+        connection = CurrentCoinTween.Completed:Connect(function()
+            completed = true
+        end)
+        
+        while not completed and Settings.CoinFarmEnabled and coinPart.Parent do
+            for _, info in ipairs(originalCollides) do
+                info.part.CanCollide = false
+            end
+            task.wait()
+        end
+        
+        if CurrentCoinTween then
+            CurrentCoinTween:Cancel()
+            CurrentCoinTween = nil
+        end
+        if connection then connection:Disconnect() end
+        task.wait(0.05)
+    end
+    
+    -- Mengembalikan kondisi tabrakan fisik karakter
+    for _, info in ipairs(originalCollides) do
+        if info.part and info.part.Parent then
+            info.part.CanCollide = info.oldState
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        if Settings.CoinFarmEnabled then
+            local nearest = GetNearestCoin()
+            if nearest then
+                CollectCoin(nearest)
+            else
+                task.wait(0.5) -- Menunggu koin baru muncul jika habis
+            end
+        else
+            if CurrentCoinTween then
+                CurrentCoinTween:Cancel()
+                CurrentCoinTween = nil
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- ========================================================
 -- [[ LOGIKA FITUR 4: KILL AURA & TELEPORT ALL ]]
 -- ========================================================
 task.spawn(function()
@@ -490,6 +666,64 @@ local function TeleportToMurderer()
     end
 end
 
+-- Teleport ke pemain target (Lite HUD)
+local function TpToPlayer(targetPlayer)
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if root and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        root.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+    end
+end
+
+-- ========================================================================
+-- [[ LITE HUD TARGET OPERATIONS (FLING TARGET SPESIFIK & CYCLE) ]]
+-- ========================================================================
+local function FlingPlayer(targetPlayer)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local oldPos = root.CFrame
+        local targetRoot = targetPlayer.Character.HumanoidRootPart
+        
+        SavePosition()
+        local originalFlingState = Settings.TouchFling
+        Settings.TouchFling = true
+        
+        task.spawn(function()
+            for i = 1, 15 do
+                if targetRoot and root and char:FindFirstChild("HumanoidRootPart") then
+                    root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 0.2)
+                end
+                task.wait(0.02)
+            end
+            Settings.TouchFling = originalFlingState
+            root.CFrame = oldPos
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end)
+    end
+end
+
+local function CycleNextPlayer()
+    local activePlayers = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(activePlayers, p)
+        end
+    end
+    if #activePlayers == 0 then
+        SelectedPlayer = nil
+        Library:Notify("Target Selection", "Tidak ada pemain lain di server.", 2)
+    else
+        local currentIndex = table.find(activePlayers, SelectedPlayer) or 0
+        local nextIndex = currentIndex + 1
+        if nextIndex > #activePlayers then
+            nextIndex = 1
+        end
+        SelectedPlayer = activePlayers[nextIndex]
+        Library:Notify("Target Selected", SelectedPlayer.DisplayName .. " (@" .. SelectedPlayer.Name .. ")", 2)
+    end
+end
+
 -- ========================================================================
 -- [[ MOBILITY PHYSICS ENGINE (FLY, NOCLIP, SPIN, FLING, SPEED, JUMP) ]]
 -- ========================================================================
@@ -521,6 +755,7 @@ local function ToggleNoclip(state)
     end
 end
 
+-- SISTEM LOOP FISIKA JANTUNG (Heartbeat) - Terintegrasi dengan Touch Fling & Anti Fling
 SafeConnect(RunService.Heartbeat, function()
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -549,10 +784,94 @@ SafeConnect(RunService.Heartbeat, function()
                 end
             end
         end
+
+        -- [LITE HUD] SISTEM FISIKA SILENT TOUCH FLING
+        if Settings.TouchFling then
+            local multiplier = Settings.FlingPower * 1000
+            originalVelocity = root.AssemblyLinearVelocity
+            originalRotVelocity = root.AssemblyAngularVelocity
+            
+            root.AssemblyLinearVelocity = Vector3.new(multiplier, multiplier, multiplier)
+            root.AssemblyAngularVelocity = Vector3.new(0, multiplier, 0)
+            
+            for _, child in ipairs(character:GetDescendants()) do
+                if child:IsA("BasePart") then
+                    child.CanCollide = false
+                end
+            end
+        end
+
+        -- [LITE HUD] SISTEM FISIKA ANTI-FLING 
+        if Settings.AntiFling and not Settings.TouchFling then
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
     end
 end)
 
--- SISTEM TERBANG (BodyVelocity & BodyGyro)
+-- [LITE HUD] RenderStepped Synchronization untuk Touch Fling
+SafeConnect(RunService.RenderStepped, function()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root and Settings.TouchFling then
+        root.AssemblyLinearVelocity = originalVelocity
+        root.AssemblyAngularVelocity = originalRotVelocity
+    end
+end)
+
+-- [LITE HUD] Loop Deteksi Sistem Anti-Void
+task.spawn(function()
+    while true do
+        if Settings.AntiVoid and LocalPlayer.Character then
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root and root.Position.Y < -80 then
+                if SavedCFrame then
+                    root.CFrame = SavedCFrame
+                else
+                    local spawns = Workspace:FindFirstChildOfClass("SpawnLocation")
+                    if not spawns and Workspace:FindFirstChild("SpawnLocations") then
+                        spawns = Workspace.SpawnLocations:FindFirstChildOfClass("SpawnLocation")
+                    end
+                    if spawns then
+                        root.CFrame = spawns.CFrame * CFrame.new(0, 3, 0)
+                    end
+                end
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            end
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- FUNGSI MEMBACA INPUT FLY SECARA VERTIKAL & HORIZONTAL
+local function GetFlyDirection()
+    local direction = Vector3.new(0, 0, 0)
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        direction = direction + Camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        direction = direction - Camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        direction = direction - Camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        direction = direction + Camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        direction = direction + Vector3.new(0, 1, 0) -- Terbang lurus ke atas
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        direction = direction - Vector3.new(0, 1, 0) -- Terbang lurus ke bawah
+    end
+    
+    if direction.Magnitude > 0 then
+        return direction.Unit
+    end
+    return Vector3.new(0, 0, 0)
+end
+
+-- SISTEM TERBANG (BodyVelocity & BodyGyro dengan Fitur Vertikal Diperbaiki)
 local function UpdateFlyState(state)
     Settings.FlyEnabled = state
     local char = LocalPlayer.Character
@@ -582,16 +901,8 @@ local function UpdateFlyState(state)
         task.spawn(function()
             while Settings.FlyEnabled and root and hum and hum.Health > 0 do
                 FlyGyro.CFrame = Camera.CFrame
-                local moveDir = hum.MoveDirection
-                local velocity = moveDir * Settings.FlySpeedValue
-                
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                    velocity = velocity + Vector3.new(0, Settings.FlySpeedValue, 0)
-                elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                    velocity = velocity + Vector3.new(0, -Settings.FlySpeedValue, 0)
-                end
-                
-                FlyVelocity.Velocity = velocity
+                local dir = GetFlyDirection()
+                FlyVelocity.Velocity = dir * Settings.FlySpeedValue
                 task.wait()
             end
             if hum then hum.PlatformStand = false end
@@ -945,6 +1256,20 @@ TabCombat:CreateButton("Teleport & Stack All Players to Me", function()
     Library:Notify("Combat Teleport", "Stacked all players for ez kill!", 2.5)
 end)
 
+-- [LITE HUD INTEGRATION] TOUCH FLING & ANTI-FLING PHYSICS
+TabCombat:CreateParagraph("Touch Fling (Sistem Tabrak)", "Gaya rotasi fisik instan saat karakter menyentuh musuh.")
+TabCombat:CreateToggle("Activate Touch Fling", false, function(state)
+    Settings.TouchFling = state
+end)
+
+TabCombat:CreateSlider("Fling Velocity Power multiplier", 1, 200, Settings.FlingPower, function(val)
+    Settings.FlingPower = val
+end)
+
+TabCombat:CreateToggle("Anti Fling (Resisten Tabrak)", false, function(state)
+    Settings.AntiFling = state
+end)
+
 TabCombat:CreateParagraph("Aimbot & Prediction", "Aimbot locks to murderer or targets based on role.")
 local AimbotToggle = TabCombat:CreateToggle("Aim Assist Lock (Holding Gun)", false, function(state)
     Settings.CameraAimbot = state
@@ -1017,7 +1342,7 @@ end)
 -- --- TAB 4: MOVEMENT & UTILITY ---
 local TabMovement = Window:CreateTab("Utility Movement", "rbxassetid://4483362458")
 
-TabMovement:CreateParagraph("Speed Hacks", "Changes walkspeeds.")
+TabMovement:CreateParagraph("Speed & Jump Modifiers", "Ubah kecepatan jalan dan kekuatan lompatan.")
 TabMovement:CreateToggle("Custom Walk Speed", false, function(state)
     Settings.SpeedWalkEnabled = state
     if not state and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -1029,7 +1354,6 @@ TabMovement:CreateSlider("Speed Force Value", 16, 120, Settings.SpeedWalkValue, 
     Settings.SpeedWalkValue = val
 end)
 
-TabMovement:CreateParagraph("Jump Hacks", "Custom jump powers.")
 TabMovement:CreateToggle("Custom Jump Power Force", false, function(state)
     Settings.JumpPowerEnabled = state
 end)
@@ -1047,8 +1371,13 @@ TabMovement:CreateToggle("Show Double Jump Floating Button [DJ]", false, functio
     ExtDoubleJumpBtn:SetVisible(state)
 end)
 
+-- [LITE HUD INTEGRATION] INFINITE JUMP
+TabMovement:CreateToggle("Infinite Jump (Lompat Tanpa Batas)", false, function(state)
+    Settings.InfiniteJump = state
+end)
+
 TabMovement:CreateParagraph("Flight & Noclip", "Movement through spaces.")
-TabMovement:CreateToggle("Velocity Fly Hack (Space/LShift)", false, function(state)
+TabMovement:CreateToggle("Velocity Fly Hack (W/A/S/D + Space/LShift)", false, function(state)
     UpdateFlyState(state)
 end)
 
@@ -1086,9 +1415,70 @@ TabMovement:CreateSlider("Spin Speed Rotator", 1, 100, Settings.SpinPower, funct
     if Settings.SpinEnabled then UpdateSpinState(true) end
 end)
 
+-- [LITE HUD INTEGRATION] POSITIONS, COORDINATES & ANTI-VOID
+TabMovement:CreateParagraph("Positions & Anti-Void", "Simpan posisi koordinat atau amankan karakter dari Void.")
+TabMovement:CreateToggle("Activate Anti Void Mode", false, function(state)
+    Settings.AntiVoid = state
+end)
+
+TabMovement:CreateButton("Simpan Koordinat Karakter (POS)", function()
+    SavePosition()
+    Library:Notify("Position Saved", "Koordinat CFrame berhasil disimpan secara lokal.", 2)
+end)
+
+TabMovement:CreateButton("Teleport ke Koordinat Tersimpan", function()
+    if SavedCFrame then
+        LoadSavedPosition()
+        Library:Notify("Position Loaded", "Karakter berhasil diteleportasikan ke koordinat simpanan.", 2)
+    else
+        Library:Notify("Error", "Belum ada koordinat tersimpan! Tekan tombol di atas terlebih dahulu.", 2.5)
+    end
+end)
+
 -- --- TAB 5: MM2 SPECIAL UTILITIES ---
 local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 
+-- Kategori: Coin Autofarm
+TabSpecial:CreateParagraph("Coin Autofarm", "Secara otomatis memindai dan mengambil koin di peta.")
+
+TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
+    Settings.CoinFarmEnabled = state
+end)
+
+TabSpecial:CreateToggle("Use Tween (Slow Movement)", false, function(state)
+    Settings.CoinFarmMethod = state and "Tween" or "Instant"
+end)
+
+TabSpecial:CreateSlider("Tween Speed Force", 1, 1000, Settings.CoinFarmSpeed, function(val)
+    Settings.CoinFarmSpeed = val
+end)
+
+-- [LITE HUD INTEGRATION] TARGET OPERATIONS (DYNAMIC ATTACK & APPROACH)
+TabSpecial:CreateParagraph("Target Operations", "Pilih pemain target secara dinamis untuk meluncurkan serangan atau teleport.")
+
+TabSpecial:CreateButton("Pilih Target Karakter Berikutnya (Cycle)", function()
+    CycleNextPlayer()
+end)
+
+TabSpecial:CreateButton("Luncurkan Fling ke Target Karakter Terpilih", function()
+    if SelectedPlayer then
+        Library:Notify("Fling Attack", "Meluncurkan serangan fisik fling ke " .. SelectedPlayer.DisplayName, 2)
+        FlingPlayer(SelectedPlayer)
+    else
+        Library:Notify("Error", "Pilih target karakter terlebih dahulu dengan tombol Cycle!", 2.5)
+    end
+end)
+
+TabSpecial:CreateButton("Teleport Instan ke Target Karakter Terpilih", function()
+    if SelectedPlayer then
+        TpToPlayer(SelectedPlayer)
+        Library:Notify("Instant Teleport", "Tiba di lokasi " .. SelectedPlayer.DisplayName, 1.5)
+    else
+        Library:Notify("Error", "Pilih target karakter terlebih dahulu dengan tombol Cycle!", 2.5)
+    end
+end)
+
+-- Kategori: Fling Glitches (Dunia MM2)
 TabSpecial:CreateParagraph("Fling Glitches", "Violent rotation engine designed to push physical targets.")
 TabSpecial:CreateButton("Auto Fling Murderer Instance", function()
     Settings.AutoFlingMurder = not Settings.AutoFlingMurder
