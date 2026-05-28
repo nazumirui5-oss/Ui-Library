@@ -1,6 +1,6 @@
 -- ========================================================================
 -- [[ LOUIS HUB - PREMIUM FUNCTIONAL LOADER (MM2 EDITION) ]]
--- AUTH: Louis | VERSION: 13.8.0 (Unified Logic with Integrated Lite Features)
+-- AUTH: Louis | VERSION: 13.7.1 (Unified Logic with Integrated Lite Features)
 -- ========================================================================
 
 -- 1. LOAD UI LIBRARY DARI GITHUB
@@ -24,7 +24,6 @@ local SavedCFrame = nil
 local SelectedPlayer = nil
 local originalVelocity = Vector3.new(0, 0, 0)
 local originalRotVelocity = Vector3.new(0, 0, 0)
-local CurrentCoinTween = nil
 
 -- ========================================================================
 -- [[ KUSTOMISASI TEKS TOMBOL EKSTERNAL ]]
@@ -83,8 +82,6 @@ local Settings = {
     
     -- Konfigurasi Coin Farm
     CoinFarmEnabled = false,
-    CoinFarmMethod = "Instant", -- "Instant" atau "Tween"
-    CoinFarmSpeed = 100,
 
     -- Fitur Integrasi Tambahan (Dari Louis Lite HUD)
     InfiniteJump = false,
@@ -98,8 +95,7 @@ local Settings = {
     TpMurderExtEnabled = false,
     FlingMurderExtEnabled = false,
     FlingSheriffExtEnabled = false,
-    SavePosExtEnabled = false,
-    LoadPosExtEnabled = false
+    PosExtEnabled = false
 }
 
 local OriginalFOV = Camera.FieldOfView
@@ -299,7 +295,8 @@ local function GetPredictedPosition(targetPart)
     local BulletSpeed = 230
     local distance = (Camera.CFrame.Position - targetPart.Position).Magnitude
     local travelTime = distance / BulletSpeed
-    local ping = LocalPlayer:GetNetworkPing()
+    local ping = 0.05
+    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
     local totalTime = travelTime + ping
     
     local velocity = targetPart.AssemblyLinearVelocity or targetPart.Velocity or Vector3.new()
@@ -468,6 +465,12 @@ end)
 -- ========================================================
 -- [[ LOGIKA DETEKSI DAN FARM COIN (MM2) ]]
 -- ========================================================
+local function GetPing()
+    local ping = 0.05
+    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
+    return ping
+end
+
 local function GetNearestCoin()
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -491,7 +494,7 @@ local function GetNearestCoin()
         for _, container in ipairs(coinContainers) do
             for _, coin in ipairs(container:GetChildren()) do
                 local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
-                if coinPart and coinPart.Parent then
+                if coinPart then
                     local distance = (root.Position - coinPart.Position).Magnitude
                     if distance < shortestDistance then
                         shortestDistance = distance
@@ -505,7 +508,7 @@ local function GetNearestCoin()
         for _, v in ipairs(Workspace:GetDescendants()) do
             if v.Name == "Coin_Server" then
                 local coinPart = v:IsA("BasePart") and v or v:FindFirstChild("Coin") or v:FindFirstChild("MainCoin") or v:FindFirstChildOfClass("BasePart")
-                if coinPart and coinPart.Parent then
+                if coinPart then
                     local distance = (root.Position - coinPart.Position).Magnitude
                     if distance < shortestDistance then
                         shortestDistance = distance
@@ -535,48 +538,9 @@ local function CollectCoin(coinPart)
         end
     end
     
-    if Settings.CoinFarmMethod == "Instant" then
-        root.CFrame = targetCFrame
-        local timeout = 0
-        -- Berpindah langsung ke koordinat koin dan menunggu seketika koin terhapus
-        while coinPart and coinPart.Parent and timeout < 0.25 and Settings.CoinFarmEnabled do
-            root.CFrame = coinPart.CFrame
-            task.wait(0.01)
-            timeout = timeout + 0.01
-        end
-    else
-        -- Metode Tween (Perpindahan Halus dengan Anchor agar tidak jatuh karena gravitasi)
-        local distance = (root.Position - targetCFrame.Position).Magnitude
-        local duration = distance / math.max(1, Settings.CoinFarmSpeed)
-        
-        root.Anchored = true -- Mengunci posisi fisik selama tween
-        
-        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-        CurrentCoinTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
-        CurrentCoinTween:Play()
-        
-        local completed = false
-        local connection
-        connection = CurrentCoinTween.Completed:Connect(function()
-            completed = true
-        end)
-        
-        while not completed and Settings.CoinFarmEnabled and coinPart.Parent do
-            for _, info in ipairs(originalCollides) do
-                info.part.CanCollide = false
-            end
-            task.wait()
-        end
-        
-        if CurrentCoinTween then
-            CurrentCoinTween:Cancel()
-            CurrentCoinTween = nil
-        end
-        if connection then connection:Disconnect() end
-        
-        root.Anchored = false -- Mengembalikan pergerakan fisik karakter
-        task.wait(0.05)
-    end
+    -- Teleportasi Instan Terkalibrasi Cooldown (0.9 Detik + Ping Server)
+    root.CFrame = targetCFrame
+    task.wait(0.9 + GetPing())
     
     -- Mengembalikan kondisi tabrakan fisik karakter
     for _, info in ipairs(originalCollides) do
@@ -593,21 +557,10 @@ task.spawn(function()
             if nearest then
                 CollectCoin(nearest)
             else
-                task.wait(0.2) -- Menunggu koin baru muncul secara responsif jika habis
-            end
-        else
-            if CurrentCoinTween then
-                CurrentCoinTween:Cancel()
-                CurrentCoinTween = nil
-            end
-            -- Memastikan tubuh terbebaskan jika farm dimatikan di tengah jalan
-            local character = LocalPlayer.Character
-            local root = character and character:FindFirstChild("HumanoidRootPart")
-            if root and root.Anchored then
-                root.Anchored = false
+                task.wait(0.5) -- Menunggu koin baru muncul jika habis
             end
         end
-        task.wait(0.02)
+        task.wait(0.1)
     end
 end)
 
@@ -723,37 +676,6 @@ local function FlingPlayer(targetPlayer)
     end
 end
 
-local function CycleNextPlayer()
-    local activePlayers = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(activePlayers, p)
-        end
-    end
-    if #activePlayers == 0 then
-        SelectedPlayer = nil
-        Library:Notify("Target Selection", "Tidak ada pemain lain di server.", 2)
-    else
-        local currentIndex = table.find(activePlayers, SelectedPlayer) or 0
-        local nextIndex = currentIndex + 1
-        if nextIndex > #activePlayers then
-            nextIndex = 1
-        end
-        SelectedPlayer = activePlayers[nextIndex]
-        Library:Notify("Target Selected", SelectedPlayer.DisplayName .. " (@" .. SelectedPlayer.Name .. ")", 2)
-    end
-end
-
-local function GetPlayerNamesList()
-    local names = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(names, p.Name)
-        end
-    end
-    return names
-end
-
 -- ========================================================================
 -- [[ MOBILITY PHYSICS ENGINE (FLY, NOCLIP, SPIN, FLING, SPEED, JUMP) ]]
 -- ========================================================================
@@ -791,11 +713,19 @@ SafeConnect(RunService.Heartbeat, function()
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     
     if root and humanoid and humanoid.Health > 0 then
-        -- Enforce Walkspeed & JumpPower
-        if Settings.SpeedWalkEnabled then humanoid.WalkSpeed = Settings.SpeedWalkValue end
+        -- Enforce Walkspeed & JumpPower (Bug High Jump and High Speed fix)
+        if Settings.SpeedWalkEnabled then 
+            humanoid.WalkSpeed = Settings.SpeedWalkValue 
+        else
+            humanoid.WalkSpeed = 16
+        end
+        
         if Settings.JumpPowerEnabled then
             humanoid.UseJumpPower = true
             humanoid.JumpPower = Settings.JumpPowerValue
+        else
+            humanoid.UseJumpPower = false
+            humanoid.JumpPower = 50
         end
         
         -- FOV Camera Modifier
@@ -830,8 +760,8 @@ SafeConnect(RunService.Heartbeat, function()
             end
         end
 
-        -- [LITE HUD] SISTEM FISIKA ANTI-FLING (Dinonaktifkan saat terbang agar tidak memblokir pergerakan)
-        if Settings.AntiFling and not Settings.TouchFling and not Settings.FlyEnabled then
+        -- [LITE HUD] SISTEM FISIKA ANTI-FLING 
+        if Settings.AntiFling and not Settings.TouchFling then
             root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         end
@@ -875,6 +805,8 @@ end)
 -- FUNGSI MEMBACA INPUT FLY SECARA VERTIKAL & HORIZONTAL
 local function GetFlyDirection()
     local direction = Vector3.new(0, 0, 0)
+    if UserInputService:GetFocusedTextBox() then return direction end
+    
     if UserInputService:IsKeyDown(Enum.KeyCode.W) then
         direction = direction + Camera.CFrame.LookVector
     end
@@ -900,42 +832,40 @@ local function GetFlyDirection()
     return Vector3.new(0, 0, 0)
 end
 
--- SISTEM TERBANG (Dioptimalkan menggunakan manipulasi langsung pada Assembly Velocity agar anti seret)
+-- SISTEM TERBANG (RenderStepped & CFrame Method - 100% Bebas Bug)
+local FlyConnection
 local function UpdateFlyState(state)
     Settings.FlyEnabled = state
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     
-    if not state then
-        if hum then 
-            hum.PlatformStand = false 
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-        if root then
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        end
-        return
-    end
+    if FlyConnection then FlyConnection:Disconnect() end
+    if hum then hum.PlatformStand = false end
+    
+    if not state then return end
     
     if root and hum then
         hum.PlatformStand = true
-        task.spawn(function()
-            while Settings.FlyEnabled and root and hum and hum.Health > 0 do
-                local dir = GetFlyDirection()
-                root.AssemblyLinearVelocity = dir * Settings.FlySpeedValue
-                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0) -- Menjaga posisi badan tidak terguncang
-                
-                -- Sejajarkan hadapan badan dengan rotasi horizontal kamera
-                local look = Camera.CFrame.LookVector
-                root.CFrame = CFrame.lookAt(root.Position, root.Position + Vector3.new(look.X, 0, look.Z))
-                
-                task.wait()
+        
+        FlyConnection = SafeConnect(RunService.RenderStepped, function(dt)
+            if not Settings.FlyEnabled or not root or not hum or hum.Health <= 0 then
+                if FlyConnection then FlyConnection:Disconnect() end
+                hum.PlatformStand = false
+                return
             end
-            if hum then 
-                hum.PlatformStand = false 
-                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            
+            -- Override physical parameters to completely neutralize gravity
+            root.AssemblyLinearVelocity = Vector3.new(0, 0.05, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            
+            -- Lock rotation alignment with camera direction
+            local look = Camera.CFrame.LookVector
+            root.CFrame = CFrame.lookAt(root.Position, root.Position + Vector3.new(look.X, 0, look.Z))
+            
+            local dir = GetFlyDirection()
+            if dir.Magnitude > 0 then
+                root.CFrame = root.CFrame + (dir * (Settings.FlySpeedValue * dt))
             end
         end)
     end
@@ -1242,18 +1172,18 @@ local ExtFlingSheriffBtn = Library:CreateExternalButton("FlingSheriff", ExtButto
     Library:Notify("Fling Hack", "Fling Sheriff: " .. (Settings.AutoFlingSheriff and "ON" or "OFF"), 1.5)
 end)
 
--- Tombol eksternal untuk menyimpan dan memuat posisi (POS)
+-- Tombol Eksternal POS Tambahan (Permintaan User)
 local ExtSavePosBtn = Library:CreateExternalButton("SavePos", ExtButtonTexts.SavePos, UDim2.new(0, 120, 0.5, -55), function()
     SavePosition()
-    Library:Notify("Position Saved", "Koordinat CFrame berhasil disimpan secara lokal.", 1.5)
+    Library:Notify("POS Saved", "Saved local coordinates successfully!", 1.5)
 end)
 
 local ExtLoadPosBtn = Library:CreateExternalButton("LoadPos", ExtButtonTexts.LoadPos, UDim2.new(0, 120, 0.5, -10), function()
     if SavedCFrame then
         LoadSavedPosition()
-        Library:Notify("Position Loaded", "Teleportasi berhasil dilakukan ke koordinat tersimpan.", 1.5)
+        Library:Notify("POS Loaded", "Teleported to saved coordinate!", 1.5)
     else
-        Library:Notify("Error", "Belum ada koordinat yang tersimpan!", 1.5)
+        Library:Notify("POS Error", "No saved coordinate. Save position first!", 2)
     end
 end)
 
@@ -1402,12 +1332,10 @@ end)
 
 TabMovement:CreateToggle("Custom Jump Power Force", false, function(state)
     Settings.JumpPowerEnabled = state
-    if not state and LocalPlayer.Character then
+    if not state and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.UseJumpPower = false
-            humanoid.JumpPower = 50 -- Reset instan ke default agar tidak bug
-        end
+        humanoid.UseJumpPower = false
+        humanoid.JumpPower = 50
     end
 end)
 
@@ -1488,14 +1416,9 @@ TabMovement:CreateButton("Teleport ke Koordinat Tersimpan", function()
     end
 end)
 
--- Konfigurasi tombol eksternal POS (Save/Load)
-TabMovement:CreateToggle("Show Save POS Button [SAVE]", false, function(state)
-    Settings.SavePosExtEnabled = state
+TabMovement:CreateToggle("Show Save/Load POS Buttons [SP/LP]", false, function(state)
+    Settings.PosExtEnabled = state
     ExtSavePosBtn:SetVisible(state)
-end)
-
-TabMovement:CreateToggle("Show Load POS Button [LOAD]", false, function(state)
-    Settings.LoadPosExtEnabled = state
     ExtLoadPosBtn:SetVisible(state)
 end)
 
@@ -1509,60 +1432,60 @@ TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
 end)
 
-TabSpecial:CreateToggle("Use Tween (Slow Movement)", false, function(state)
-    Settings.CoinFarmMethod = state and "Tween" or "Instant"
-end)
-
-TabSpecial:CreateSlider("Tween Speed Force", 1, 1000, Settings.CoinFarmSpeed, function(val)
-    Settings.CoinFarmSpeed = val
-end)
+-- ========================================================================
+-- [[ LOGIKA PENGAMBIL PLAYER AKTIF DINAMIS ]]
+-- ========================================================================
+local function GetPlayerNames()
+    local names = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(names, p.Name)
+        end
+    end
+    return names
+end
 
 -- [LITE HUD INTEGRATION] TARGET OPERATIONS (DYNAMIC ATTACK & APPROACH)
 TabSpecial:CreateParagraph("Target Operations", "Pilih pemain target secara dinamis untuk meluncurkan serangan atau teleport.")
 
--- 6. FITUR PILIH PLAYER (Player Selector Dropdown & Textbox Fallback)
-pcall(function()
-    local PlayerDropdown = TabSpecial:CreateDropdown("Pilih Target Karakter", GetPlayerNamesList(), "", function(selectedName)
-        local target = Players:FindFirstChild(selectedName)
-        if target then
-            SelectedPlayer = target
-            Library:Notify("Target Selected", SelectedPlayer.DisplayName .. " (@" .. SelectedPlayer.Name .. ")", 2)
-        end
-    end)
-
-    TabSpecial:CreateButton("Perbarui Daftar Pemain Dropdown (Refresh)", function()
-        pcall(function()
-            if PlayerDropdown and PlayerDropdown.UpdateList then
-                PlayerDropdown:UpdateList(GetPlayerNamesList())
-            elseif PlayerDropdown and PlayerDropdown.Refresh then
-                PlayerDropdown:Refresh(GetPlayerNamesList())
-            end
-            Library:Notify("List Updated", "Daftar pemain aktif di server berhasil dimuat ulang.", 2)
-        end)
-    end)
+local TargetDropdown
+TargetDropdown = TabSpecial:CreateDropdown("Pilih Player Target", GetPlayerNames(), "", function(selectedName)
+    local target = Players:FindFirstChild(selectedName)
+    if target then
+        SelectedPlayer = target
+        Library:Notify("Target Selected", SelectedPlayer.DisplayName .. " (@" .. SelectedPlayer.Name .. ")", 2)
+    end
 end)
 
--- Alternatif pencarian cepat menggunakan input teks (Textbox)
-pcall(function()
-    TabSpecial:CreateTextBox("Atau Cari Target Lewat Nama", "Ketik sebagian nama player...", function(text)
-        local found = nil
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower():find(text:lower()) or p.DisplayName:lower():find(text:lower()) then
-                found = p
-                break
-            end
+TabSpecial:CreateButton("Perbarui Daftar Player (Refresh)", function()
+    local currentNames = GetPlayerNames()
+    if TargetDropdown then
+        if TargetDropdown.Refresh then
+            pcall(function() TargetDropdown:Refresh(currentNames) end)
+        elseif TargetDropdown.Update then
+            pcall(function() TargetDropdown:Update(currentNames) end)
         end
-        if found then
-            SelectedPlayer = found
-            Library:Notify("Target Selected", SelectedPlayer.DisplayName .. " (@" .. SelectedPlayer.Name .. ")", 2)
-        else
-            Library:Notify("Search Error", "Pemain tidak ditemukan.", 2)
-        end
-    end)
+    end
+    Library:Notify("Player List", "Daftar pemain berhasil diperbarui!", 1.5)
 end)
 
-TabSpecial:CreateButton("Pilih Target Karakter Berikutnya (Cycle)", function()
-    CycleNextPlayer()
+-- Auto Update Dropdown ketika pemain masuk/keluar
+SafeConnect(Players.PlayerAdded, function()
+    task.wait(1)
+    local currentNames = GetPlayerNames()
+    if TargetDropdown then
+        if TargetDropdown.Refresh then pcall(function() TargetDropdown:Refresh(currentNames) end)
+        elseif TargetDropdown.Update then pcall(function() TargetDropdown:Update(currentNames) end) end
+    end
+end)
+
+SafeConnect(Players.PlayerRemoving, function()
+    task.wait(1)
+    local currentNames = GetPlayerNames()
+    if TargetDropdown then
+        if TargetDropdown.Refresh then pcall(function() TargetDropdown:Refresh(currentNames) end)
+        elseif TargetDropdown.Update then pcall(function() TargetDropdown:Update(currentNames) end) end
+    end
 end)
 
 TabSpecial:CreateButton("Luncurkan Fling ke Target Karakter Terpilih", function()
@@ -1570,7 +1493,7 @@ TabSpecial:CreateButton("Luncurkan Fling ke Target Karakter Terpilih", function(
         Library:Notify("Fling Attack", "Meluncurkan serangan fisik fling ke " .. SelectedPlayer.DisplayName, 2)
         FlingPlayer(SelectedPlayer)
     else
-        Library:Notify("Error", "Pilih target karakter terlebih dahulu!", 2.5)
+        Library:Notify("Error", "Pilih target karakter terlebih dahulu pada Dropdown di atas!", 2.5)
     end
 end)
 
@@ -1579,7 +1502,7 @@ TabSpecial:CreateButton("Teleport Instan ke Target Karakter Terpilih", function(
         TpToPlayer(SelectedPlayer)
         Library:Notify("Instant Teleport", "Tiba di lokasi " .. SelectedPlayer.DisplayName, 1.5)
     else
-        Library:Notify("Error", "Pilih target karakter terlebih dahulu!", 2.5)
+        Library:Notify("Error", "Pilih target karakter terlebih dahulu pada Dropdown di atas!", 2.5)
     end
 end)
 
@@ -1672,9 +1595,6 @@ SafeConnect(LocalPlayer.CharacterAdded, function(char)
     if Settings.JumpPowerEnabled then
         humanoid.UseJumpPower = true
         humanoid.JumpPower = Settings.JumpPowerValue
-    else
-        humanoid.UseJumpPower = false
-        humanoid.JumpPower = 50 -- Menjamin nilai kembali normal ketika respawn
     end
     if Settings.FlyEnabled then UpdateFlyState(true) end
     if Settings.SpinEnabled then UpdateSpinState(true) end
