@@ -1,10 +1,9 @@
 -- ========================================================================
--- [[ LOUIS HUB - PREMIUM FUNCTIONAL LOADER ]]
--- AUTH: Louis | VERSION: 13.5.2 (Unified Logic - No Security / No Embedded UI)
+-- [[ LOUIS HUB - PREMIUM FUNCTIONAL LOADER (MM2 EDITION) ]]
+-- AUTH: Louis | VERSION: 13.5.2 (Unified Logic - No Security)
 -- ========================================================================
 
--- 1. LOAD UI LIBRARY DARI GITHUB ANDA
--- (Silakan ganti URL HttpGet di bawah ini dengan link raw GitHub UI Library modern Anda!)
+-- 1. LOAD UI LIBRARY DARI GITHUB
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/Ui%20Library.lua"))()
 
 -- 2. SETUP LAYANAN ROBLOX UTAMA
@@ -20,16 +19,15 @@ local Mouse = LocalPlayer:GetMouse()
 -- ========================================================================
 -- [[ KUSTOMISASI TEKS TOMBOL EKSTERNAL ]]
 -- ========================================================================
--- Ubah teks di bawah ini untuk mengganti label pada tombol eksternal Anda!
 local ExtButtonTexts = {
-    Aimbot = "AIM",          -- Tombol Aimbot
-    GrabGun = "GRAB",        -- Tombol Ambil Pistol Manual
-    DoubleJump = "JUMP",     -- Tombol Double Jump
-    Spin = "SPIN",           -- Tombol Spin Bot
-    TpSheriff = "SHERIFF",   -- Tombol Teleport ke Sheriff
-    TpMurder = "MURDER",     -- Tombol Teleport ke Murderer
-    FlingMurder = "FLING_M", -- Tombol Fling Murderer
-    FlingSheriff = "FLING_S" -- Tombol Fling Sheriff
+    Aimbot = "AIM",
+    GrabGun = "GRAB",
+    DoubleJump = "JUMP",
+    Spin = "SPIN",
+    TpSheriff = "SHERIFF",
+    TpMurder = "MURDER",
+    FlingMurder = "FLING_M",
+    FlingSheriff = "FLING_S"
 }
 
 -- 3. KONFIGURASI FITUR INTERNAL (MM2 & MOVEMENT)
@@ -68,7 +66,7 @@ local Settings = {
     DoubleJumpExtEnabled = false,
     DragLocked = false,
     SpinEnabled = false,
-    SpinPower = 10,
+    SpinPower = 30,
     SpinExtEnabled = false,
     
     -- Konfigurasi Teleport & Tombol Eksternal
@@ -255,7 +253,6 @@ end)
 
 local function GetPredictedPosition(targetPart)
     if not targetPart then return nil end
-    
     local BulletSpeed = 230
     local distance = (Camera.CFrame.Position - targetPart.Position).Magnitude
     local travelTime = distance / BulletSpeed
@@ -272,22 +269,12 @@ SafeConnect(RunService.RenderStepped, function()
         local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun")
         if HoldsGun and HoldsGun:IsA("Tool") then
             local MyRole = GetMM2Role(LocalPlayer)
+            local TargetPart = (MyRole == "Murderer") and GetTargetForMurderer() or GetTargetForInnocentOrSheriff()
             
-            if MyRole == "Murderer" then
-                local TargetPart = GetTargetForMurderer()
-                if TargetPart then
-                    local PredictedPos = GetPredictedPosition(TargetPart)
-                    if PredictedPos then
-                        Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, PredictedPos)
-                    end
-                end
-            else
-                local TargetPart = GetTargetForInnocentOrSheriff()
-                if TargetPart then
-                    local PredictedPos = GetPredictedPosition(TargetPart)
-                    if PredictedPos then
-                        Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, PredictedPos)
-                    end
+            if TargetPart then
+                local PredictedPos = GetPredictedPosition(TargetPart)
+                if PredictedPos then
+                    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, PredictedPos)
                 end
             end
         end
@@ -346,13 +333,10 @@ local function SafeInstantTween(targetPart)
         local originalCFrame = root.CFrame
         local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.5, 0)
         
-        local noclipConnection
-        noclipConnection = SafeConnect(RunService.Stepped, function()
+        local noclipConnection = SafeConnect(RunService.Stepped, function()
             if character then
                 for _, child in ipairs(character:GetDescendants()) do
-                    if child:IsA("BasePart") then
-                        child.CanCollide = false
-                    end
+                    if child:IsA("BasePart") then child.CanCollide = false end
                 end
             end
         end)
@@ -374,10 +358,7 @@ local function SafeInstantTween(targetPart)
             root.CFrame = originalCFrame
         end
         
-        if noclipConnection then 
-            noclipConnection:Disconnect() 
-        end
-        
+        if noclipConnection then noclipConnection:Disconnect() end
         task.wait(0.3)
         IsGrabbing = false
     end
@@ -390,7 +371,6 @@ local function ScanForDroppedGun()
             if targetPart then return targetPart end
         end
     end
-    
     for _, object in ipairs(Workspace:GetDescendants()) do
         if object:IsA("TouchTransmitter") and object.Parent and object.Parent.Name:lower():find("gun") then
             local rootParent = object.Parent
@@ -416,9 +396,7 @@ end
 
 local function ClearGunOutlines()
     for _, object in ipairs(Workspace:GetDescendants()) do
-        if object.Name == "LouisGunOutline" then
-            object:Destroy()
-        end
+        if object.Name == "LouisGunOutline" then object:Destroy() end
     end
 end
 
@@ -427,12 +405,8 @@ task.spawn(function()
         if Settings.AutoGrabGun or Settings.ESP then
             local activeGun = ScanForDroppedGun()
             if activeGun then
-                if Settings.ESP then
-                    ApplyGunOutline(activeGun)
-                end
-                if Settings.AutoGrabGun then
-                    SafeInstantTween(activeGun)
-                end
+                if Settings.ESP then ApplyGunOutline(activeGun) end
+                if Settings.AutoGrabGun then SafeInstantTween(activeGun) end
             end
         else
             ClearGunOutlines()
@@ -478,9 +452,7 @@ end)
 local function TeleportAllPlayersToMe()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    
-    if not char or not root then return end
-    if GetMM2Role(LocalPlayer) ~= "Murderer" then return end
+    if not char or not root or GetMM2Role(LocalPlayer) ~= "Murderer" then return end
     
     for _, child in ipairs(char:GetDescendants()) do
         if child:IsA("BasePart") then child.CanCollide = false end
@@ -490,18 +462,15 @@ local function TeleportAllPlayersToMe()
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local tRoot = p.Character.HumanoidRootPart
             local tHum = p.Character:FindFirstChildOfClass("Humanoid")
-            
             if tHum and tHum.Health > 0 then
-                pcall(function()
-                    tRoot.CFrame = root.CFrame * CFrame.new(0, 0, -2)
-                end)
+                pcall(function() tRoot.CFrame = root.CFrame * CFrame.new(0, 0, -2) end)
             end
         end
     end
 end
 
 -- ========================================================
--- [[ LOGIKA FITUR 5: TELEPORTS & MOVEMENT ENGINE ]]
+-- [[ LOGIKA FITUR 5: TELEPORTS & TARGET SELECTIONS ]]
 -- ========================================================
 local function TeleportToSheriff()
     local target = GetTargetByRole("Sheriff")
@@ -521,152 +490,191 @@ local function TeleportToMurderer()
     end
 end
 
+-- ========================================================================
+-- [[ MOBILITY PHYSICS ENGINE (FLY, NOCLIP, SPIN, FLING, SPEED, JUMP) ]]
+-- ========================================================================
+local FlyVelocity, FlyGyro
+local SpinVelocity
+local FlingVelocity
 local FlingFailsafeActive = false
 local OriginalCFrameBeforeFling = nil
 
--- Batasan kecepatan jatuh bebas (Anti-Fling DC)
-SafeConnect(RunService.Heartbeat, function()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local root = LocalPlayer.Character.HumanoidRootPart
-        local hum = LocalPlayer.Character.Humanoid
-        if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then 
-            root.Velocity = root.Velocity.Unit * 100 
-        end
-    end
-end)
-
--- Invisible Hack Loop
-SafeConnect(RunService.Heartbeat, function()
-    local character = LocalPlayer.Character
-    if Settings.InvisibleEnabled and character and character:FindFirstChild("HumanoidRootPart") then
-        for _, child in ipairs(character:GetDescendants()) do
-            if child:IsA("BasePart") or child:IsA("Decal") then
-                if child.Name ~= "HumanoidRootPart" then
-                    child.Transparency = 1
-                end
-            end
-        end
-    end
-end)
-
--- Loop Utama Movement, Fly, Spin, Noclip, Fling
-task.spawn(function()
-    while true do
-        local character = LocalPlayer.Character
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-
-        if root and humanoid and humanoid.Health > 0 then
-            if Settings.SpeedWalkEnabled then
-                humanoid.WalkSpeed = Settings.SpeedWalkValue
-            end
-
-            if Settings.SpinEnabled then
-                root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(Settings.SpinPower), 0)
-            end
-
-            if Settings.JumpPowerEnabled then
-                humanoid.JumpPower = Settings.JumpPowerValue
-                humanoid.UseJumpPower = true
-            else
-                humanoid.UseJumpPower = false
-            end
-
-            if Settings.NoclipEnabled or Settings.FlyEnabled then
-                for _, child in ipairs(character:GetDescendants()) do
+-- Loop Enforcer & Pemantau Konfigurasi Konstan
+local NoclipConnection
+local function ToggleNoclip(state)
+    Settings.NoclipEnabled = state
+    if NoclipConnection then NoclipConnection:Disconnect() end
+    if state then
+        NoclipConnection = SafeConnect(RunService.Stepped, function()
+            if LocalPlayer.Character then
+                for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
                     if child:IsA("BasePart") then child.CanCollide = false end
                 end
             end
-
-            if Settings.CameraFOVEnabled then
-                Camera.FieldOfView = Settings.CameraFOVValue
-            else
-                Camera.FieldOfView = OriginalFOV
+        end)
+    else
+        if LocalPlayer.Character then
+            for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if child:IsA("BasePart") then child.CanCollide = true end
             end
+        end
+    end
+end
 
-            -- Fly engine berbasis constraint (Halus & Responsif)
-            if Settings.FlyEnabled then
-                local attachment = root:FindFirstChild("LouisFlyAttachment") or Instance.new("Attachment")
-                if not attachment.Parent then
-                    attachment.Name = "LouisFlyAttachment"
-                    attachment.Parent = root
-                end
+SafeConnect(RunService.Heartbeat, function()
+    local character = LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    
+    if root and humanoid and humanoid.Health > 0 then
+        -- Enforce Walkspeed & JumpPower
+        if Settings.SpeedWalkEnabled then humanoid.WalkSpeed = Settings.SpeedWalkValue end
+        if Settings.JumpPowerEnabled then
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = Settings.JumpPowerValue
+        end
+        
+        -- FOV Camera Modifier
+        if Settings.CameraFOVEnabled then
+            Camera.FieldOfView = Settings.CameraFOVValue
+        else
+            Camera.FieldOfView = OriginalFOV
+        end
 
-                local lVelocity = root:FindFirstChild("LouisFlyVelocity") or Instance.new("LinearVelocity")
-                if not lVelocity.Parent then
-                    lVelocity.Name = "LouisFlyVelocity"
-                    lVelocity.Attachment0 = attachment
-                    lVelocity.MaxForce = 9e9
-                    lVelocity.Parent = root
-                end
-
-                local aOrientation = root:FindFirstChild("LouisFlyGyro") or Instance.new("AlignOrientation")
-                if not aOrientation.Parent then
-                    aOrientation.Name = "LouisFlyGyro"
-                    aOrientation.Attachment0 = attachment
-                    aOrientation.Mode = Enum.OrientationMode.OneAttachment
-                    aOrientation.MaxTorque = 9e9
-                    aOrientation.Parent = root
-                end
-
-                aOrientation.CFrame = Camera.CFrame
-
-                local moveDirection = humanoid.MoveDirection
-                local flySpeed = Settings.FlySpeedValue
-                local velocityVector = moveDirection * flySpeed
-
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                    velocityVector = velocityVector + Vector3.new(0, flySpeed, 0)
-                elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                    velocityVector = velocityVector + Vector3.new(0, -flySpeed, 0)
-                end
-                
-                lVelocity.VectorVelocity = velocityVector
-            else
-                if root:FindFirstChild("LouisFlyAttachment") then root.LouisFlyAttachment:Destroy() end
-                if root:FindFirstChild("LouisFlyVelocity") then root.LouisFlyVelocity:Destroy() end
-                if root:FindFirstChild("LouisFlyGyro") then root.LouisFlyGyro:Destroy() end
-            end
-
-            -- Auto Fling System
-            if Settings.AutoFlingMurder or Settings.AutoFlingSheriff then
-                local targetRole = Settings.AutoFlingMurder and "Murderer" or "Sheriff"
-                local targetPlayer = GetTargetByRole(targetRole)
-
-                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    if not FlingFailsafeActive then
-                        FlingFailsafeActive = true
-                        OriginalCFrameBeforeFling = root.CFrame
-                    end
-
-                    local tRoot = targetPlayer.Character.HumanoidRootPart
-                    root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
-                    root.Velocity = Vector3.new(99999, 99999, 99999)
-                    
-                    for _, child in ipairs(character:GetDescendants()) do
-                        if child:IsA("BasePart") then child.CanCollide = false end
-                    end
-                else
-                    if FlingFailsafeActive then
-                        Settings.AutoFlingMurder = false
-                        Settings.AutoFlingSheriff = false
-                        root.Velocity = Vector3.new(0, 0, 0)
-                        root.RotVelocity = Vector3.new(0, 0, 0)
-                        task.wait(0.1)
-                        if OriginalCFrameBeforeFling then
-                            root.CFrame = OriginalCFrameBeforeFling
-                        end
-                        FlingFailsafeActive = false
-                        OriginalCFrameBeforeFling = nil
-                        
-                        if _G.SyncFlingButtons then _G.SyncFlingButtons() end
-                    end
+        -- Invisibility Hack Loop (Visual Render)
+        if Settings.InvisibleEnabled then
+            for _, child in ipairs(character:GetDescendants()) do
+                if child:IsA("BasePart") or child:IsA("Decal") then
+                    if child.Name ~= "HumanoidRootPart" then child.Transparency = 1 end
                 end
             end
         end
-        task.wait()
     end
 end)
+
+-- SISTEM TERBANG (BodyVelocity & BodyGyro)
+local function UpdateFlyState(state)
+    Settings.FlyEnabled = state
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if not state then
+        if FlyVelocity then FlyVelocity:Destroy() end
+        if FlyGyro then FlyGyro:Destroy() end
+        if hum then hum.PlatformStand = false end
+        return
+    end
+    
+    if root and hum then
+        hum.PlatformStand = true
+        
+        FlyVelocity = Instance.new("BodyVelocity")
+        FlyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        FlyVelocity.Velocity = Vector3.new(0, 0, 0)
+        FlyVelocity.Parent = root
+        
+        FlyGyro = Instance.new("BodyGyro")
+        FlyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        FlyGyro.CFrame = Camera.CFrame
+        FlyGyro.Parent = root
+        
+        task.spawn(function()
+            while Settings.FlyEnabled and root and hum and hum.Health > 0 do
+                FlyGyro.CFrame = Camera.CFrame
+                local moveDir = hum.MoveDirection
+                local velocity = moveDir * Settings.FlySpeedValue
+                
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    velocity = velocity + Vector3.new(0, Settings.FlySpeedValue, 0)
+                elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                    velocity = velocity + Vector3.new(0, -Settings.FlySpeedValue, 0)
+                end
+                
+                FlyVelocity.Velocity = velocity
+                task.wait()
+            end
+            if hum then hum.PlatformStand = false end
+            if FlyVelocity then FlyVelocity:Destroy() end
+            if FlyGyro then FlyGyro:Destroy() end
+        end)
+    end
+end
+
+-- SISTEM SPIN (Physical Angular Velocity)
+local function UpdateSpinState(state)
+    Settings.SpinEnabled = state
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if not state then
+        if SpinVelocity then SpinVelocity:Destroy() end
+        return
+    end
+    
+    if root then
+        if SpinVelocity then SpinVelocity:Destroy() end
+        SpinVelocity = Instance.new("BodyAngularVelocity")
+        SpinVelocity.MaxTorque = Vector3.new(0, 9e9, 0)
+        SpinVelocity.AngularVelocity = Vector3.new(0, Settings.SpinPower, 0)
+        SpinVelocity.Parent = root
+    end
+end
+
+-- SISTEM FLING INSTANT (High Torque Rotator)
+local function UpdateFlingState(role, state)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if not state then
+        if FlingVelocity then FlingVelocity:Destroy() end
+        if hum then hum.PlatformStand = false end
+        if OriginalCFrameBeforeFling and root then
+            root.CFrame = OriginalCFrameBeforeFling
+            root.Velocity = Vector3.new(0,0,0)
+            root.RotVelocity = Vector3.new(0,0,0)
+        end
+        FlingFailsafeActive = false
+        OriginalCFrameBeforeFling = nil
+        return
+    end
+    
+    if root and hum then
+        if not FlingFailsafeActive then
+            FlingFailsafeActive = true
+            OriginalCFrameBeforeFling = root.CFrame
+        end
+        
+        hum.PlatformStand = true
+        
+        FlingVelocity = Instance.new("BodyAngularVelocity")
+        FlingVelocity.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        FlingVelocity.AngularVelocity = Vector3.new(0, 15000, 0)
+        FlingVelocity.Parent = root
+        
+        task.spawn(function()
+            while (Settings.AutoFlingMurder or Settings.AutoFlingSheriff) and FlingFailsafeActive and root and hum and hum.Health > 0 do
+                local targetPlayer = GetTargetByRole(role)
+                local tChar = targetPlayer and targetPlayer.Character
+                local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+                
+                if tRoot and tChar:FindFirstChildOfClass("Humanoid") and tChar:FindFirstChildOfClass("Humanoid").Health > 0 then
+                    -- Aktifkan gaya tabrakan fisik agar transfer momentum berjalan
+                    for _, child in ipairs(char:GetDescendants()) do
+                        if child:IsA("BasePart") then child.CanCollide = true end
+                    end
+                    root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1, 1) * 0.3, 0, math.random(-1, 1) * 0.3)
+                    root.Velocity = Vector3.new(9999, 9999, 9999)
+                else
+                    task.wait(0.1)
+                end
+                task.wait()
+            end
+            UpdateFlingState(role, false)
+        end)
+    end
+end
 
 -- ========================================================
 -- [[ LOGIKA FITUR 6: SISTEM NAME ESP & HIGHLIGHT ESP ]]
@@ -691,17 +699,13 @@ local function ApplyNameESP(player)
         label.TextSize = 10
         label.TextStrokeTransparency = 0
         label.TextStrokeColor3 = Color3.new(0, 0, 0)
-        
         billboard.Parent = head
     end
     
     local role = GetMM2Role(player)
     local targetColor = Color3.fromRGB(0, 225, 0)
-    if role == "Murderer" then 
-        targetColor = Color3.fromRGB(255, 0, 0)
-    elseif role == "Sheriff" then 
-        targetColor = Color3.fromRGB(0, 0, 225) 
-    end
+    if role == "Murderer" then targetColor = Color3.fromRGB(255, 0, 0)
+    elseif role == "Sheriff" then targetColor = Color3.fromRGB(0, 0, 225) end
     
     local label = billboard:FindFirstChildOfClass("TextLabel")
     if label then
@@ -711,15 +715,10 @@ local function ApplyNameESP(player)
     
     local shouldShow = false
     if Settings.ESP and Settings.NameESP then
-        if role == "Murderer" and Settings.EspMurderer then
-            shouldShow = true
-        elseif role == "Sheriff" and Settings.EspSheriff then
-            shouldShow = true
-        elseif role == "Innocent" and Settings.EspInnocent then
-            shouldShow = true
-        end
+        if role == "Murderer" and Settings.EspMurderer then shouldShow = true
+        elseif role == "Sheriff" and Settings.EspSheriff then shouldShow = true
+        elseif role == "Innocent" and Settings.EspInnocent then shouldShow = true end
     end
-    
     billboard.Enabled = shouldShow
 end
 
@@ -735,7 +734,6 @@ end
 -- [[ LOOP UTAMA VISUALS (HITBOX EXPANDER, ESP & TRACERS) ]]
 -- ========================================================
 local ActiveTracers = {}
-
 local function ClearAllTracers()
     for _, tracer in pairs(ActiveTracers) do
         tracer.Visible = false
@@ -745,9 +743,7 @@ local function ClearAllTracers()
 end
 
 SafeConnect(RunService.RenderStepped, function()
-    if not Settings.TracersESP then
-        ClearAllTracers()
-    end
+    if not Settings.TracersESP then ClearAllTracers() end
 
     for _, Player in pairs(Players:GetPlayers()) do
         if Player ~= LocalPlayer and Player.Character then
@@ -756,15 +752,10 @@ SafeConnect(RunService.RenderStepped, function()
             
             if Root and Humanoid and Humanoid.Health > 0 then
                 local Role = GetMM2Role(Player)
-                
                 local passesFilter = false
-                if Role == "Murderer" and Settings.EspMurderer then
-                    passesFilter = true
-                elseif Role == "Sheriff" and Settings.EspSheriff then
-                    passesFilter = true
-                elseif Role == "Innocent" and Settings.EspInnocent then
-                    passesFilter = true
-                end
+                if Role == "Murderer" and Settings.EspMurderer then passesFilter = true
+                elseif Role == "Sheriff" and Settings.EspSheriff then passesFilter = true
+                elseif Role == "Innocent" and Settings.EspInnocent then passesFilter = true end
                 
                 -- Hitbox Expander
                 if Settings.HitboxExpander then
@@ -787,7 +778,7 @@ SafeConnect(RunService.RenderStepped, function()
                 if Role == "Murderer" then TargetColor = Color3.fromRGB(255, 0, 0)
                 elseif Role == "Sheriff" then TargetColor = Color3.fromRGB(0, 0, 225) end
 
-                -- Outline Highlight ESP
+                -- ESP Highlight
                 local Highlight = Player.Character:FindFirstChild("MM2_ESP")
                 if Settings.ESP and passesFilter then
                     if not Highlight then
@@ -803,14 +794,14 @@ SafeConnect(RunService.RenderStepped, function()
                     if Highlight then Highlight:Destroy() end
                 end
 
-                -- Name Billboard ESP
+                -- Billboard ESP
                 if Settings.ESP and Settings.NameESP and passesFilter then
                     ApplyNameESP(Player)
                 else
                     ClearNameESP(Player)
                 end
 
-                -- Line Tracers ESP
+                -- Tracers ESP
                 if Settings.TracersESP and passesFilter then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
@@ -838,9 +829,7 @@ SafeConnect(RunService.RenderStepped, function()
             end
         else
             if Player.Character then
-                if Player.Character:FindFirstChild("MM2_ESP") then
-                    Player.Character:FindFirstChild("MM2_ESP"):Destroy()
-                end
+                if Player.Character:FindFirstChild("MM2_ESP") then Player.Character:FindFirstChild("MM2_ESP"):Destroy() end
                 ClearNameESP(Player)
             end
             if ActiveTracers[Player.Name] then
@@ -877,6 +866,7 @@ end)
 
 local ExtSpinBtn = Library:CreateExternalButton("Spin", ExtButtonTexts.Spin, UDim2.new(0, 20, 0.5, 80), function()
     Settings.SpinEnabled = not Settings.SpinEnabled
+    UpdateSpinState(Settings.SpinEnabled)
     Library:Notify("Spin Bot", "Status: " .. (Settings.SpinEnabled and "ON" or "OFF"), 1.5)
 end)
 
@@ -892,19 +882,26 @@ end)
 
 local ExtFlingMurderBtn = Library:CreateExternalButton("FlingMurder", ExtButtonTexts.FlingMurder, UDim2.new(0, 70, 0.5, 35), function()
     Settings.AutoFlingMurder = not Settings.AutoFlingMurder
-    if Settings.AutoFlingMurder then Settings.AutoFlingSheriff = false end
+    if Settings.AutoFlingMurder then 
+        Settings.AutoFlingSheriff = false 
+        UpdateFlingState("Sheriff", false)
+    end
+    UpdateFlingState("Murderer", Settings.AutoFlingMurder)
     if _G.SyncFlingButtons then _G.SyncFlingButtons() end
     Library:Notify("Fling Hack", "Fling Murderer: " .. (Settings.AutoFlingMurder and "ON" or "OFF"), 1.5)
 end)
 
 local ExtFlingSheriffBtn = Library:CreateExternalButton("FlingSheriff", ExtButtonTexts.FlingSheriff, UDim2.new(0, 70, 0.5, 80), function()
     Settings.AutoFlingSheriff = not Settings.AutoFlingSheriff
-    if Settings.AutoFlingSheriff then Settings.AutoFlingMurder = false end
+    if Settings.AutoFlingSheriff then 
+        Settings.AutoFlingMurder = false 
+        UpdateFlingState("Murderer", false)
+    end
+    UpdateFlingState("Sheriff", Settings.AutoFlingSheriff)
     if _G.SyncFlingButtons then _G.SyncFlingButtons() end
     Library:Notify("Fling Hack", "Fling Sheriff: " .. (Settings.AutoFlingSheriff and "ON" or "OFF"), 1.5)
 end)
 
--- Sinkronisasi awal visibilitas tombol eksternal (disembunyikan)
 ExtAimbotBtn:SetVisible(false)
 ExtGrabBtn:SetVisible(false)
 ExtDoubleJumpBtn:SetVisible(false)
@@ -915,7 +912,7 @@ ExtFlingMurderBtn:SetVisible(false)
 ExtFlingSheriffBtn:SetVisible(false)
 
 -- ========================================================================
--- [[ STRUKTUR MENU UI (MENGGUNAKAN UI LIBRARY BARU) ]]
+-- [[ STRUKTUR MENU UI ]]
 -- ========================================================================
 local Window = Library:CreateWindow("LOUIS MM2 EDITION", "Modern generic hub")
 Window:BindToggleKey(Enum.KeyCode.RightControl)
@@ -1051,8 +1048,8 @@ TabMovement:CreateToggle("Show Double Jump Floating Button [DJ]", false, functio
 end)
 
 TabMovement:CreateParagraph("Flight & Noclip", "Movement through spaces.")
-TabMovement:CreateToggle("Constraint Fly Hack (Space/LShift)", false, function(state)
-    Settings.FlyEnabled = state
+TabMovement:CreateToggle("Velocity Fly Hack (Space/LShift)", false, function(state)
+    UpdateFlyState(state)
 end)
 
 TabMovement:CreateSlider("Flight Velocity Speed", 10, 150, Settings.FlySpeedValue, function(val)
@@ -1060,7 +1057,7 @@ TabMovement:CreateSlider("Flight Velocity Speed", 10, 150, Settings.FlySpeedValu
 end)
 
 TabMovement:CreateToggle("Noclip (Walk Through Walls)", false, function(state)
-    Settings.NoclipEnabled = state
+    ToggleNoclip(state)
 end)
 
 TabMovement:CreateToggle("Character Invisibility Hack", false, function(state)
@@ -1068,9 +1065,7 @@ TabMovement:CreateToggle("Character Invisibility Hack", false, function(state)
     if not state and LocalPlayer.Character then
         for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
             if child:IsA("BasePart") or child:IsA("Decal") then
-                if child.Name ~= "HumanoidRootPart" then
-                    child.Transparency = 0
-                end
+                if child.Name ~= "HumanoidRootPart" then child.Transparency = 0 end
             end
         end
     end
@@ -1078,7 +1073,7 @@ end)
 
 TabMovement:CreateParagraph("Spin Bot System", "Makes you spin.")
 TabMovement:CreateToggle("Activate Spin Bot", false, function(state)
-    Settings.SpinEnabled = state
+    UpdateSpinState(state)
 end)
 
 TabMovement:CreateToggle("Show Spin Bot Button [S]", false, function(state)
@@ -1088,15 +1083,20 @@ end)
 
 TabMovement:CreateSlider("Spin Speed Rotator", 1, 100, Settings.SpinPower, function(val)
     Settings.SpinPower = val
+    if Settings.SpinEnabled then UpdateSpinState(true) end
 end)
 
 -- --- TAB 5: MM2 SPECIAL UTILITIES ---
 local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 
-TabSpecial:CreateParagraph("Fling Glitches", "Teleports and spins violently to push target.")
+TabSpecial:CreateParagraph("Fling Glitches", "Violent rotation engine designed to push physical targets.")
 TabSpecial:CreateButton("Auto Fling Murderer Instance", function()
     Settings.AutoFlingMurder = not Settings.AutoFlingMurder
-    if Settings.AutoFlingMurder then Settings.AutoFlingSheriff = false end
+    if Settings.AutoFlingMurder then 
+        Settings.AutoFlingSheriff = false 
+        UpdateFlingState("Sheriff", false)
+    end
+    UpdateFlingState("Murderer", Settings.AutoFlingMurder)
     if _G.SyncFlingButtons then _G.SyncFlingButtons() end
 end)
 
@@ -1107,7 +1107,11 @@ end)
 
 TabSpecial:CreateButton("Auto Fling Sheriff Instance", function()
     Settings.AutoFlingSheriff = not Settings.AutoFlingSheriff
-    if Settings.AutoFlingSheriff then Settings.AutoFlingMurder = false end
+    if Settings.AutoFlingSheriff then 
+        Settings.AutoFlingMurder = false 
+        UpdateFlingState("Murderer", false)
+    end
+    UpdateFlingState("Sheriff", Settings.AutoFlingSheriff)
     if _G.SyncFlingButtons then _G.SyncFlingButtons() end
 end)
 
@@ -1154,33 +1158,28 @@ end)
 -- [[ SISTEM RESPONDERS & EVENT CONNECTIONS (PERSISTENCE) ]]
 -- ========================================================================
 
--- Global synchronization callback untuk meng-update teks / status fling di UI
 _G.SyncFlingButtons = function()
     Library:Notify("Fling Update", "States updated.", 1.2)
 end
 
--- Monitor karakter pertama kali dimuat
 if LocalPlayer.Character then
     pcall(SetupDoubleJump, LocalPlayer.Character)
 end
 
--- Hubungkan event ketika pemain hidup kembali (Respawn)
 SafeConnect(LocalPlayer.CharacterAdded, function(char)
     pcall(SetupDoubleJump, char)
     
     local humanoid = char:WaitForChild("Humanoid")
-    local root = char:WaitForChild("HumanoidRootPart")
-    
     task.wait(0.5)
     
     -- Memulihkan konfigurasi pergerakan fungsional yang aktif sebelum respawn
-    if Settings.SpeedWalkEnabled then
-        humanoid.WalkSpeed = Settings.SpeedWalkValue
-    end
+    if Settings.SpeedWalkEnabled then humanoid.WalkSpeed = Settings.SpeedWalkValue end
     if Settings.JumpPowerEnabled then
         humanoid.UseJumpPower = true
         humanoid.JumpPower = Settings.JumpPowerValue
     end
+    if Settings.FlyEnabled then UpdateFlyState(true) end
+    if Settings.SpinEnabled then UpdateSpinState(true) end
 end)
 
 -- Bind Tombol Keybind Cepat Keyboard
