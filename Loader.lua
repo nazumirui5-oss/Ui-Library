@@ -618,10 +618,11 @@ local function TeleportAllPlayersToMe()
 end
 
 -- ========================================================
--- [[ COIN ESP ENGINE ]]
+-- [[ COIN ESP ENGINE (DENGAN PENINGKATAN PEMINDAIAN MENDALAM) ]]
 -- ========================================================
 local function ApplyCoinESP()
-    if not Settings.ESP or not Settings.CoinESP then 
+    -- Cukup periksa Settings.CoinESP saja agar mandiri dari status ESP utama
+    if not Settings.CoinESP then 
         for _, v in ipairs(Workspace:GetDescendants()) do
             if v.Name == "LouisCoinESP" then v:Destroy() end
         end
@@ -629,12 +630,10 @@ local function ApplyCoinESP()
     end
     
     local coinContainers = {}
-    for _, v in ipairs(Workspace:GetChildren()) do
-        if v.Name == "CoinContainer" then
+    -- Melakukan pencarian mendalam terhadap folder 'CoinContainer' agar tidak terlewat pada map tertentu
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v.Name == "CoinContainer" and v:IsA("Folder") then
             table.insert(coinContainers, v)
-        else
-            local container = v:FindFirstChild("CoinContainer")
-            if container then table.insert(coinContainers, container) end
         end
     end
     
@@ -646,19 +645,24 @@ local function ApplyCoinESP()
             end
         end
     else
+        -- Fallback jika folder CoinContainer tidak ditemukan, cari koin langsung di Workspace
         for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "Coin_Server" then
+            if v.Name == "Coin_Server" or v.Name == "Coin" or v.Name == "MainCoin" then
                 table.insert(coinsToHighlight, v)
             end
         end
     end
 
     for _, coin in ipairs(coinsToHighlight) do
-        local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
+        local coinPart = coin:IsA("BasePart") and coin 
+            or coin:FindFirstChild("Coin") 
+            or coin:FindFirstChild("MainCoin") 
+            or coin:FindFirstChildOfClass("BasePart")
+            
         if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
             local highlight = Instance.new("Highlight")
             highlight.Name = "LouisCoinESP"
-            highlight.FillColor = Color3.fromRGB(255, 215, 0)
+            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Warna Emas
             highlight.FillTransparency = 0.4
             highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             highlight.OutlineTransparency = 0
@@ -670,7 +674,7 @@ end
 
 task.spawn(function()
     while true do
-        if Settings.ESP and Settings.CoinESP then
+        if Settings.CoinESP then
             pcall(ApplyCoinESP)
         else
             pcall(function()
@@ -679,7 +683,7 @@ task.spawn(function()
                 end
             end)
         end
-        task.wait(1)
+        task.wait(1.5)
     end
 end)
 
