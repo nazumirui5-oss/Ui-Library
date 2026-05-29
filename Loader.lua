@@ -1292,11 +1292,11 @@ TabMain:CreateParagraph("Welcome!", "Hello " .. LocalPlayer.Name .. "!\nThank yo
 TabMain:CreateParagraph("UI Instructions", "Keybind to open/hide menu: RightControl\nYou can toggle external buttons from the settings.")
 
 -- UPDATE: Menambahkan bagian Deskripsi Discord dan Tombol Copy Link otomatis
-TabMain:CreateParagraph("Official Community", "Bergabunglah dengan server Discord kami untuk mendapatkan informasi pembaruan terbaru, melaporkan kendala, dan berinteraksi langsung dengan pengembang serta komunitas lainnya!")
+TabMain:CreateParagraph("Official Community", "Join our Discord server to get the latest update information, report issues, and interact directly with the developers and the rest of the community!")
 TabMain:CreateButton("Copy Discord Server Link", function()
     if setclipboard then
         setclipboard("https://discord.gg/P2FEVBz2PG")
-        Library:Notify("Discord Link", "Link berhasil disalin ke clipboard Anda!", 2)
+        Library:Notify("Discord Link", "copy link succes to your clipboard!", 2)
     else
         Library:Notify("Error", "Exploit Anda tidak mendukung fitur penyalinan clipboard.", 2.5)
     end
