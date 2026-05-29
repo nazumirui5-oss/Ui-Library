@@ -73,13 +73,14 @@ local function EnableDrag(dragFrame, parentFrame)
     end)
 end
 
--- Mengambil atau menginisialisasi kontainer ScreenGui global
+-- Mengambil atau menginisialisasi kontainer ScreenGui global (Full Screen Mobile)
 local MainGui
 local function GetMainGui()
     if not MainGui then
         MainGui = Instance.new("ScreenGui")
         MainGui.Name = "LouisHub_ModernUI"
         MainGui.ResetOnSpawn = false
+        MainGui.IgnoreGuiInset = true -- Membuat UI benar-benar full screen di Mobile tanpa terpotong topbar
         MainGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
     end
     return MainGui
@@ -174,24 +175,25 @@ end
 local function StartLoading(titleText, subtitleText, onComplete)
     local ScreenGui = GetMainGui()
     
-    -- Membuat Loading Gui Container
+    -- Membuat Loading Gui Container (Opaque & Mobile Friendly)
     local LoadingGui = Instance.new("Frame", ScreenGui)
     LoadingGui.Name = "Louis_Loading_Screen"
     LoadingGui.Size = UDim2.new(1, 0, 1, 0)
-    LoadingGui.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-    LoadingGui.BackgroundTransparency = 0.3
+    LoadingGui.Position = UDim2.new(0, 0, 0, 0)
+    LoadingGui.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    LoadingGui.BackgroundTransparency = 0 -- Diubah agar tidak terlalu gelap/muddy
     LoadingGui.BorderSizePixel = 0
     LoadingGui.ZIndex = 9999
 
-    -- Profile Frame
+    -- Profile Frame (Disesuaikan untuk Mobile)
     local ProfileFrame = Instance.new("Frame", LoadingGui)
-    ProfileFrame.Size = UDim2.new(0, 250, 0, 70)
-    ProfileFrame.Position = UDim2.new(0, 20, 1, -90)
+    ProfileFrame.Size = UDim2.new(0, 220, 0, 60)
+    ProfileFrame.Position = UDim2.new(0, 20, 1, -80)
     ProfileFrame.BackgroundTransparency = 1
 
     local ProfileImage = Instance.new("ImageLabel", ProfileFrame)
-    ProfileImage.Size = UDim2.new(0, 55, 0, 55)
-    ProfileImage.Position = UDim2.new(0, 0, 0.5, -27)
+    ProfileImage.Size = UDim2.new(0, 48, 0, 48)
+    ProfileImage.Position = UDim2.new(0, 0, 0.5, -24)
     ProfileImage.BackgroundTransparency = 1
     ProfileImage.ImageTransparency = 1
     
@@ -207,44 +209,44 @@ local function StartLoading(titleText, subtitleText, onComplete)
     RegisterRGB(pStroke, "Color")
 
     local UserInfo = Instance.new("TextLabel", ProfileFrame)
-    UserInfo.Size = UDim2.new(1, -65, 1, 0)
-    UserInfo.Position = UDim2.new(0, 65, 0, 0)
+    UserInfo.Size = UDim2.new(1, -58, 1, 0)
+    UserInfo.Position = UDim2.new(0, 58, 0, 0)
     UserInfo.BackgroundTransparency = 1
     UserInfo.Font = Enum.Font.MontserratBold
     UserInfo.TextColor3 = Color3.new(1, 1, 1)
-    UserInfo.TextSize = 12
+    UserInfo.TextSize = 11
     UserInfo.TextXAlignment = Enum.TextXAlignment.Left
     UserInfo.RichText = true
     UserInfo.TextTransparency = 1
-    UserInfo.Text = '<font color="rgb(200, 200, 200)">MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="10" color="rgb(150, 150, 150)">ID: ' .. LocalPlayer.UserId .. '</font>'
+    UserInfo.Text = '<font color="rgb(200, 200, 200)">MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="9" color="rgb(150, 150, 150)">ID: ' .. LocalPlayer.UserId .. '</font>'
 
-    -- Title & Subtitle Labels (RGB Powered)
+    -- Title & Subtitle Labels (RGB Powered - Responsif Mobile)
     local Title = Instance.new("TextLabel", LoadingGui)
-    Title.Size = UDim2.new(1, 0, 0.2, 0)
-    Title.Position = UDim2.new(0, 0, 0.3, 0)
+    Title.Size = UDim2.new(1, 0, 0, 45)
+    Title.Position = UDim2.new(0, 0, 0.35, 0)
     Title.BackgroundTransparency = 1
     Title.Font = Enum.Font.MontserratBold
-    Title.TextSize = 52
+    Title.TextSize = 38 -- Disesuaikan agar muat di layar HP
     Title.RichText = true
     Title.Text = (titleText or "LOUIS HUB"):upper() .. ' <font color="rgb(255, 255, 255)">FREE</font>'
     Title.TextTransparency = 1
     RegisterRGB(Title, "TextColor3")
 
     local SubTitle = Instance.new("TextLabel", LoadingGui)
-    SubTitle.Size = UDim2.new(1, 0, 0.1, 0)
+    SubTitle.Size = UDim2.new(1, 0, 0, 20)
     SubTitle.Position = UDim2.new(0, 0, 0.45, 0)
     SubTitle.BackgroundTransparency = 1
     SubTitle.Text = (subtitleText or "MODERNIZED INTERFACE"):upper()
-    SubTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SubTitle.TextSize = 22
+    SubTitle.TextColor3 = Color3.fromRGB(200, 200, 210)
+    SubTitle.TextSize = 14
     SubTitle.Font = Enum.Font.MontserratBold
     SubTitle.TextTransparency = 1
 
-    -- Bar Loading
+    -- Bar Loading (Proporsional Mobile)
     local BarBg = Instance.new("Frame", LoadingGui)
-    BarBg.Size = UDim2.new(0.3, 0, 0.008, 0)
-    BarBg.Position = UDim2.new(0.35, 0, 0.62, 0)
-    BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    BarBg.Size = UDim2.new(0.5, 0, 0, 6) -- Lebar 50% layar
+    BarBg.Position = UDim2.new(0.25, 0, 0.65, 0)
+    BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
     Instance.new("UICorner", BarBg)
     
     local BarFill = Instance.new("Frame", BarBg)
@@ -254,15 +256,21 @@ local function StartLoading(titleText, subtitleText, onComplete)
 
     -- Tombol Skip
     local SkipBtn = Instance.new("TextButton", LoadingGui)
-    SkipBtn.Size = UDim2.new(0, 100, 0, 30)
-    SkipBtn.Position = UDim2.new(0.5, -50, 0.9, 0)
-    SkipBtn.BackgroundTransparency = 1
+    SkipBtn.Size = UDim2.new(0, 120, 0, 36)
+    SkipBtn.Position = UDim2.new(0.5, -60, 0.82, 0)
+    SkipBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     SkipBtn.Text = "SKIP"
     SkipBtn.TextColor3 = Color3.new(1, 1, 1)
     SkipBtn.Font = Enum.Font.MontserratBold
-    SkipBtn.TextSize = 16
+    SkipBtn.TextSize = 14
     SkipBtn.ZIndex = 1000
     SkipBtn.TextTransparency = 1
+    
+    local SkipCorner = Instance.new("UICorner", SkipBtn)
+    SkipCorner.CornerRadius = UDim.new(0, 8)
+    local SkipStroke = Instance.new("UIStroke", SkipBtn)
+    SkipStroke.Color = Color3.fromRGB(45, 45, 50)
+    SkipStroke.Thickness = 1
 
     local beepSound = Instance.new("Sound", LoadingGui)
     beepSound.SoundId = "rbxassetid://1567483853"
@@ -273,8 +281,8 @@ local function StartLoading(titleText, subtitleText, onComplete)
             local zap = Instance.new("Frame", LoadingGui)
             zap.BackgroundColor3 = Color3.new(1, 1, 1)
             zap.BorderSizePixel = 0
-            zap.Size = UDim2.new(0, math.random(50, 150), 0, 2)
-            zap.Position = UDim2.new(0.5, math.random(-150, 150), 0.35, math.random(-40, 40))
+            zap.Size = UDim2.new(0, math.random(50, 120), 0, 2)
+            zap.Position = UDim2.new(0.5, math.random(-100, 100), 0.38, math.random(-20, 20))
             zap.Rotation = math.random(0, 360)
             task.spawn(function() task.wait(0.12); zap:Destroy() end)
         end
@@ -295,7 +303,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
         for _, obj in ipairs(LoadingGui:GetDescendants()) do
             pcall(function()
                 if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-                    TweenService:Create(obj, fadeInfo, {TextTransparency = 1}):Play()
+                    TweenService:Create(obj, fadeInfo, {TextTransparency = 1, BackgroundTransparency = 1}):Play()
                 elseif obj:IsA("ImageLabel") then
                     TweenService:Create(obj, fadeInfo, {ImageTransparency = 1, BackgroundTransparency = 1}):Play()
                 elseif obj:IsA("Frame") then
@@ -321,7 +329,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     TweenService:Create(UserInfo, entryTween, {TextTransparency = 0}):Play()
     TweenService:Create(SkipBtn, entryTween, {TextTransparency = 0}):Play()
 
-    task.delay(1.5, function()
+    task.delay(1.2, function()
         if skipTriggered then return end
         TweenService:Create(SubTitle, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
         for i = 1, 6 do 
@@ -370,7 +378,7 @@ function Library:CreateWindow(titleText, subtitleText)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
-    MainFrame.Visible = false -- Disembunyikan terlebih dahulu selama loading screen berjalan
+    MainFrame.Visible = false -- Disembunyikan sampai loading selesai dan icon diklik
 
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 10)
@@ -479,10 +487,10 @@ function Library:CreateWindow(titleText, subtitleText)
         TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
     end)
 
-    -- Minimize Button dengan Efek Rotasi
+    -- Minimize Button dengan Efek Rotasi (Dipindah sedikit ke kiri untuk tombol Close)
     local ToggleIcon = Instance.new("ImageButton", Header)
     ToggleIcon.Size = UDim2.new(0, 20, 0, 20)
-    ToggleIcon.Position = UDim2.new(1, -32, 0, 15)
+    ToggleIcon.Position = UDim2.new(1, -60, 0, 15)
     ToggleIcon.BackgroundTransparency = 1
     ToggleIcon.Image = "rbxassetid://6031094670" -- V-arrow icon
     ToggleIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
@@ -518,62 +526,120 @@ function Library:CreateWindow(titleText, subtitleText)
         end
     end)
 
+    -- Close Button (X) di Kanan Atas GUI
+    local CloseBtn = Instance.new("ImageButton", Header)
+    CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+    CloseBtn.Position = UDim2.new(1, -32, 0, 15)
+    CloseBtn.BackgroundTransparency = 1
+    CloseBtn.Image = "rbxassetid://10734898355" -- Ikon Silang (Lucide Close)
+    CloseBtn.ImageColor3 = Color3.fromRGB(255, 255, 255)
+
+    CloseBtn.MouseEnter:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = Color3.fromRGB(255, 75, 75)}):Play()
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    end)
+
     -- [[ FLOATING ICON OPEN CLOSE ]]
-    -- Tombol mengambang berbentuk kotak tumpul (sudut membulat)
-    local FloatingToggle = Instance.new("ImageButton", ScreenGui)
+    local FloatingToggle = Instance.new("TextButton", ScreenGui)
     FloatingToggle.Name = "FloatingToggleIcon"
     FloatingToggle.Size = UDim2.new(0, 52, 0, 52)
-    FloatingToggle.Position = UDim2.new(0, 25, 0.5, -26)
+    FloatingToggle.Position = UDim2.new(0.5, -26, 0.5, -26) -- Posisi awal persis di TENGAH layar
     FloatingToggle.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
     FloatingToggle.BorderSizePixel = 0
-    FloatingToggle.Image = "rbxassetid://76009826277147"
-    FloatingToggle.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    FloatingToggle.Text = ""
     FloatingToggle.Visible = false -- Disembunyikan sampai loading selesai
 
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
-    ToggleCorner.CornerRadius = UDim.new(0, 10) -- Sudut melengkung tumpul
+    ToggleCorner.CornerRadius = UDim.new(0, 10)
 
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1.5
     RegisterRGB(ToggleStroke, "Color")
 
+    -- Ikon di dalam floating toggle (Dibuat sub-ImageLabel agar tidak terdistorsi)
+    local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
+    ToggleIconImage.Name = "Icon"
+    ToggleIconImage.Size = UDim2.new(0, 26, 0, 26)
+    ToggleIconImage.Position = UDim2.new(0.5, -13, 0.5, -13)
+    ToggleIconImage.BackgroundTransparency = 1
+    ToggleIconImage.Image = "rbxassetid://10734887784" -- Ikon Menu Modern (Lucide Menu)
+    ToggleIconImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleIconImage.ScaleType = Enum.ScaleType.Fit
+
     EnableDrag(FloatingToggle, FloatingToggle)
 
-    -- Mengontrol perilaku Buka/Tutup Main Window dari Floating Icon
-    local function ToggleWindowVisibility()
-        Window.Visible = not Window.Visible
-        
-        -- Animasi Click Feedback untuk Floating Button
-        TweenService:Create(FloatingToggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 46, 0, 46)}):Play()
-        task.delay(0.1, function()
-            TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 52, 0, 52)}):Play()
-        end)
+    -- Logika Alur Transisi Buka/Tutup GUI & Floating Icon
+    local firstTimeOpen = true
 
-        if Window.Visible then
+    local function OpenGui()
+        if not Window.Visible then
+            Window.Visible = true
             MainFrame.Visible = true
+            
+            -- Sembunyikan floating icon dengan efek mengecil
+            local shrinkTween = TweenService:Create(FloatingToggle, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+            shrinkTween:Play()
+            shrinkTween.Completed:Connect(function()
+                if Window.Visible then
+                    FloatingToggle.Visible = false
+                end
+            end)
+            
+            -- Membuka Main GUI dengan animasi Spring ekspansi
             MainFrame.Size = UDim2.new(0, 530, 0, 0)
-            local showTween = TweenService:Create(MainFrame, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 530, 0, Window.Minimized and 51 or 340)})
-            showTween:Play()
-        else
-            local hideTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 530, 0, 0)})
+            local targetHeight = Window.Minimized and 51 or 340
+            TweenService:Create(MainFrame, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 530, 0, targetHeight)}):Play()
+        end
+    end
+
+    local function CloseGui()
+        if Window.Visible then
+            Window.Visible = false
+            
+            -- Menutup Main GUI dengan animasi menyusut
+            local hideTween = TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 530, 0, 0)})
             hideTween:Play()
             hideTween.Completed:Connect(function()
                 if not Window.Visible then
                     MainFrame.Visible = false
                 end
             end)
+            
+            -- Jika penutupan pertama kali, pindahkan floating icon ke posisi dock samping
+            if firstTimeOpen then
+                firstTimeOpen = false
+                FloatingToggle.Position = UDim2.new(0, 25, 0.5, -26) -- Samping kiri layar (draggable)
+            end
+            
+            -- Memunculkan kembali floating icon dengan animasi pop-in
+            FloatingToggle.Visible = true
+            FloatingToggle.Size = UDim2.new(0, 0, 0, 0)
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 52, 0, 52)}):Play()
         end
     end
-    FloatingToggle.MouseButton1Click:Connect(ToggleWindowVisibility)
+
+    -- Menghubungkan fungsi klik tombol
+    FloatingToggle.MouseButton1Click:Connect(function()
+        -- Animasi feedback klik kecil
+        TweenService:Create(FloatingToggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 44, 0, 44)}):Play()
+        task.delay(0.1, function()
+            OpenGui()
+        end)
+    end)
+
+    CloseBtn.MouseButton1Click:Connect(CloseGui)
 
     -- Menjalankan Loading Screen
     StartLoading(titleText, subtitleText, function()
-        -- Munculkan Main Menu & Floating Button setelah Loading selesai
+        -- Munculkan Floating Button di TENGAH setelah Loading selesai
+        firstTimeOpen = true
+        FloatingToggle.Position = UDim2.new(0.5, -26, 0.5, -26)
+        FloatingToggle.Size = UDim2.new(0, 0, 0, 0)
         FloatingToggle.Visible = true
-        Window.Visible = true
-        MainFrame.Visible = true
-        MainFrame.Size = UDim2.new(0, 530, 0, 0)
-        TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 530, 0, 340)}):Play()
+        
+        TweenService:Create(FloatingToggle, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 52, 0, 52)}):Play()
     end)
 
     -- Mengunci pergerakan drag window
@@ -588,7 +654,11 @@ function Library:CreateWindow(titleText, subtitleText)
             if processed then return end
             if input.KeyCode == keyCode and not debounce then
                 debounce = true
-                ToggleWindowVisibility()
+                if Window.Visible then
+                    CloseGui()
+                else
+                    OpenGui()
+                end
                 task.wait(0.3)
                 debounce = false
             end
