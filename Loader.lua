@@ -127,7 +127,7 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
-    CoinFarmTweenSpeed = 120, -- Default kecepatan tween koin
+    CoinFarmTweenSpeed = 110, -- Default kecepatan tween koin dibatasi ke 110
 
     -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
@@ -639,7 +639,7 @@ local function CollectCoin(coinPart)
 
     -- Hitung jarak dan waktu tween berdasarkan kecepatan slider
     local distance = (root.Position - coinPart.Position).Magnitude
-    local speed = Settings.CoinFarmTweenSpeed or 120
+    local speed = Settings.CoinFarmTweenSpeed or 110
     local tweenTime = distance / speed
     
     -- AMANKAN FISIK & JALANKAN ANCHOR UNTUK MENANGKIS DETEKSI VELOCITY SPIKE
@@ -661,7 +661,7 @@ local function CollectCoin(coinPart)
     currentCoinTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
     currentCoinTween:Play()
     
-    -- Menunggu tween selesai secara fleksibel atau berhenti jika modul dimatikan
+    -- Menunggu tween selesai secara fleksibel atau berhenti jika modul dimatikan (Ditambahkan validasi CoinESP)
     local completed = false
     local conn
     conn = currentCoinTween.Completed:Connect(function()
@@ -669,7 +669,7 @@ local function CollectCoin(coinPart)
         if conn then conn:Disconnect() end
     end)
     
-    while not completed and Settings.CoinFarmEnabled and coinPart and coinPart.Parent do
+    while not completed and Settings.CoinFarmEnabled and Settings.CoinESP and coinPart and coinPart.Parent do
         pcall(function()
             root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -690,7 +690,8 @@ end
 
 task.spawn(function()
     while true do
-        if Settings.CoinFarmEnabled then
+        -- Coin Farm hanya akan bekerja jika Coin Farm ON dan Coin ESP (Visual Coin) juga ON
+        if Settings.CoinFarmEnabled and Settings.CoinESP then
             local nearest = GetNearestCoin()
             if nearest then
                 CollectCoin(nearest)
@@ -1725,8 +1726,8 @@ TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
 end)
 
--- SLIDER TWEEN SPEED KHUSUS COIN FARM
-TabSpecial:CreateSlider("Coin Farm Tween Speed", 20, 250, Settings.CoinFarmTweenSpeed, function(val)
+-- SLIDER TWEEN SPEED KHUSUS COIN FARM (Dibatasi maksimal 110)
+TabSpecial:CreateSlider("Coin Farm Tween Speed", 20, 110, Settings.CoinFarmTweenSpeed, function(val)
     Settings.CoinFarmTweenSpeed = val
 end)
 
