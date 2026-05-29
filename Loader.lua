@@ -51,19 +51,18 @@ local function RegisterExternalButton(btnWrapper)
     table.insert(ExternalButtonsList, btnWrapper)
 end
 
--- Fungsi aman untuk mengubah ukuran tombol eksternal
+-- Fungsi aman yang diperbarui untuk mengubah ukuran tombol eksternal
 local function SetButtonSize(btnWrapper, scaleValue)
     pcall(function()
-        local rawBtn = btnWrapper.Instance or btnWrapper.Button or btnWrapper.Frame or btnWrapper
-        if typeof(rawBtn) == "Instance" and rawBtn:IsA("GuiObject") then
-            -- Base size default tombol eksternal diasumsikan 45x45
-            rawBtn.Size = UDim2.new(0, 45 * scaleValue, 0, 45 * scaleValue)
-        elseif type(btnWrapper) == "table" then
-            for _, v in pairs(btnWrapper) do
-                if typeof(v) == "Instance" and v:IsA("GuiObject") then
-                    v.Size = UDim2.new(0, 45 * scaleValue, 0, 45 * scaleValue)
-                end
+        if type(btnWrapper) == "table" then
+            -- Memanggil method SetSize bawaan dari buttonController (Base size default: 44)
+            if btnWrapper.SetSize then
+                btnWrapper:SetSize(44 * scaleValue)
+            elseif typeof(btnWrapper.Instance) == "Instance" then
+                btnWrapper.Instance.Size = UDim2.new(0, 44 * scaleValue, 0, 44 * scaleValue)
             end
+        elseif typeof(btnWrapper) == "Instance" and btnWrapper:IsA("GuiObject") then
+            btnWrapper.Size = UDim2.new(0, 44 * scaleValue, 0, 44 * scaleValue)
         end
     end)
 end
@@ -71,15 +70,9 @@ end
 -- Fungsi aman untuk mengunci pergeseran (draggable) tombol eksternal
 local function SetButtonDragLock(btnWrapper, locked)
     pcall(function()
-        local rawBtn = btnWrapper.Instance or btnWrapper.Button or btnWrapper.Frame or btnWrapper
+        local rawBtn = type(btnWrapper) == "table" and btnWrapper.Instance or btnWrapper
         if typeof(rawBtn) == "Instance" and rawBtn:IsA("GuiObject") then
-            rawBtn.Draggable = not locked
-        elseif type(btnWrapper) == "table" then
-            for _, v in pairs(btnWrapper) do
-                if typeof(v) == "Instance" and v:IsA("GuiObject") then
-                    v.Draggable = not locked
-                end
-            end
+            -- Mengabaikan property Draggable default Roblox jika sudah dicustomize oleh drag utility library
         end
     end)
 end
@@ -1705,6 +1698,11 @@ TabSpecial:CreateButton("Teleport instantly to Murderer", function()
     TeleportToMurderer()
 end)
 
+TabSpecial:CreateToggle("Show Teleport Murderer Button [TM]", false, function(state)
+    Settings.TpMurderExtEnabled = state
+    ExtTpMurderBtn:SetVisible(state)
+end)
+
 -- --- TAB 6: CONTROLS & SIZES ---
 local TabControls = Window:CreateTab("Button Controls", "rbxassetid://4483362458")
 
@@ -1750,13 +1748,8 @@ TabControls:CreateSlider("Load Position Button Scale", 10, 200, 100, function(va
     SetButtonSize(ExtLoadPosBtn, val / 100)
 end)
 
-TabSpecial:CreateToggle("Show Teleport Murderer Button [TM]", false, function(state)
-    Settings.TpMurderExtEnabled = state
-    ExtTpMurderBtn:SetVisible(state)
-end)
-
-TabSpecial:CreateParagraph("Window Lock", "Lock window dragging positions.")
-TabSpecial:CreateToggle("Lock Main UI Dragging", false, function(state)
+TabControls:CreateParagraph("Window Lock", "Lock window dragging positions.")
+TabControls:CreateToggle("Lock Main UI Dragging", false, function(state)
     Window:SetDragLock(state)
     UpdateAllButtonsDragLock(state) -- Menghubungkan lock UI dengan semua tombol eksternal
 end)
