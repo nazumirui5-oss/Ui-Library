@@ -1,5 +1,5 @@
 -- ========================================================================
--- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (UPDATED EDITION) ]]
+-- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (OPTIMIZED EDITION) ]]
 -- ========================================================================
 
 -- 1. LOAD UI LIBRARY FROM YOUR SOURCE
@@ -29,6 +29,7 @@ local originalRotVelocity = Vector3.new(0, 0, 0)
 local FlingFailsafeActive = false
 local OriginalCFrameBeforeFling = nil
 local SafePlatform = nil
+local CoinCache = {}
 
 -- ========================================================================
 -- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
@@ -44,7 +45,8 @@ local ExtButtonTexts = {
     FlingSheriff = "FLING_S",
     SavePos = "SAVE_POS",
     LoadPos = "LOAD_POS",
-    KillAll = "KILL_ALL"
+    KillAll = "KILL_ALL",
+    Bhop = "BHOP"
 }
 
 -- ========================================================================
@@ -128,7 +130,7 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
-    CoinCollectDelay = 0.1, -- Default "Sat Set" Fast Teleport
+    CoinCollectDelay = 0.05, -- Fast Teleport Delay
     ServerHopOnFullBag = false,
     AntiAfkAndRejoin = false,
     SafeCoinFarm = false,
@@ -153,7 +155,8 @@ local Settings = {
     AntiStealGun = false,
     AutoKillAll = false,
     SafeZoneEnabled = false,
-    AutoBhopEnabled = false
+    AutoBhopEnabled = false,
+    BhopExtEnabled = false
 }
 
 local OriginalFOV = Camera.FieldOfView
@@ -197,66 +200,6 @@ for _, player in ipairs(Players:GetPlayers()) do
         end
     end)
 end
-
--- Ensure old local HUDs from previous executions are destroyed
-pcall(function()
-    local oldHud = LocalPlayer.PlayerGui:FindFirstChild("MM2_HUD_Status")
-    if oldHud then oldHud:Destroy() end
-end)
-
--- ========================================================
--- [[ ROUND STATE & TIME HUD ]]
--- ========================================================
-local HUD_Gui = Instance.new("ScreenGui")
-HUD_Gui.Name = "MM2_HUD_Status"
-HUD_Gui.ResetOnSpawn = false
-HUD_Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local HUD_Frame = Instance.new("Frame")
-HUD_Frame.Size = UDim2.new(0, 220, 0, 70)
-HUD_Frame.Position = UDim2.new(0.5, -110, 0, 10)
-HUD_Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-HUD_Frame.BorderSizePixel = 1
-HUD_Frame.BorderColor3 = Color3.fromRGB(255, 0, 255)
-HUD_Frame.Parent = HUD_Gui
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 8)
-Corner.Parent = HUD_Frame
-
-local StateLabel = Instance.new("TextLabel")
-StateLabel.Size = UDim2.new(1, 0, 0.5, 0)
-StateLabel.Position = UDim2.new(0, 0, 0, 5)
-StateLabel.BackgroundTransparency = 1
-StateLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StateLabel.Font = Enum.Font.GothamBold
-StateLabel.TextSize = 13
-StateLabel.Text = "Round State: Lobby"
-StateLabel.Parent = HUD_Frame
-
-local TimeLabel = Instance.new("TextLabel")
-TimeLabel.Size = UDim2.new(1, 0, 0.5, 0)
-TimeLabel.Position = UDim2.new(0, 0, 0.5, -5)
-TimeLabel.BackgroundTransparency = 1
-TimeLabel.TextColor3 = Color3.fromRGB(255, 0, 255)
-TimeLabel.Font = Enum.Font.GothamBold
-TimeLabel.TextSize = 14
-TimeLabel.Text = "Time Left: N/A"
-TimeLabel.Parent = HUD_Frame
-
-SafeConnect(RunService.Heartbeat, function()
-    pcall(function()
-        local mainGui = LocalPlayer.PlayerGui:FindFirstChild("MainGUI")
-        local timer = mainGui and mainGui:FindFirstChild("Game") and mainGui.Game:FindFirstChild("Timer")
-        if timer and timer.Visible and timer.Text ~= "" then
-            StateLabel.Text = "Round State: In Progress"
-            TimeLabel.Text = "Time Left: " .. timer.Text
-        else
-            StateLabel.Text = "Round State: Lobby"
-            TimeLabel.Text = "Time Left: N/A"
-        end
-    end)
-end)
 
 -- ========================================================
 -- [[ SERVER HOPS & ANTI AFK UTILITIES ]]
@@ -667,8 +610,44 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ COIN DETECTION AND FARM ENGINE ]]
+-- [[ OPTIMIZED COIN DETECTION AND FAST FARM ENGINE ]]
 -- ========================================================
+
+-- Highly efficient background thread scans coins periodically to completely eliminate thread stuttering/lag
+task.spawn(function()
+    while true do
+        if Settings.CoinFarmEnabled then
+            local temp = {}
+            local coinContainer = Workspace:FindFirstChild("CoinContainer")
+            if not coinContainer then
+                local normal = Workspace:FindFirstChild("Normal")
+                if normal then coinContainer = normal:FindFirstChild("CoinContainer") end
+            end
+            
+            if coinContainer then
+                for _, coin in ipairs(coinContainer:GetChildren()) do
+                    table.insert(temp, coin)
+                end
+            else
+                -- Fallback scan that avoids intensive GetDescendants operations by querying children hierarchy
+                for _, v in ipairs(Workspace:GetChildren()) do
+                    if v.Name == "Coin_Server" or (Settings.EventTokenFarm and (v.Name:find("Candy") or v.Name:find("Present") or v.Name:find("Snowflake") or v.Name:find("Token"))) then
+                        table.insert(temp, v)
+                    elseif v:IsA("Folder") or v:IsA("Model") then
+                        for _, sub in ipairs(v:GetChildren()) do
+                            if sub.Name == "Coin_Server" or (Settings.EventTokenFarm and (sub.Name:find("Candy") or sub.Name:find("Present") or sub.Name:find("Snowflake") or sub.Name:find("Token"))) then
+                                table.insert(temp, sub)
+                            end
+                        end
+                    end
+                end
+            end
+            CoinCache = temp
+        end
+        task.wait(0.5) -- Scan refresh every 0.5 seconds for peak performance
+    end
+end)
+
 local function GetNearestCoin()
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -680,44 +659,21 @@ local function GetNearestCoin()
     local murderer = GetTargetByRole("Murderer")
     local murdererPos = murderer and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") and murderer.Character.HumanoidRootPart.Position
 
-    local coinContainers = {}
-    for _, v in ipairs(Workspace:GetChildren()) do
-        if v.Name == "CoinContainer" then
-            table.insert(coinContainers, v)
-        else
-            local container = v:FindFirstChild("CoinContainer")
-            if container then table.insert(coinContainers, container) end
-        end
-    end
-    
-    local coinsList = {}
-    if #coinContainers > 0 then
-        for _, container in ipairs(coinContainers) do
-            for _, coin in ipairs(container:GetChildren()) do
-                table.insert(coinsList, coin)
-            end
-        end
-    else
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "Coin_Server" or (Settings.EventTokenFarm and (v.Name:find("Candy") or v.Name:find("Present") or v.Name:find("Snowflake") or v.Name:find("Token"))) then
-                table.insert(coinsList, v)
-            end
-        end
-    end
-
-    for _, coin in ipairs(coinsList) do
-        local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
-        if coinPart then
-            if Settings.SafeCoinFarm and murdererPos then
-                local distToMurderer = (coinPart.Position - murdererPos).Magnitude
-                if distToMurderer < 35 then
-                    continue -- Skip unsafe coins close to murderer
+    for _, coin in ipairs(CoinCache) do
+        if coin and coin.Parent then
+            local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
+            if coinPart then
+                if Settings.SafeCoinFarm and murdererPos then
+                    local distToMurderer = (coinPart.Position - murdererPos).Magnitude
+                    if distToMurderer < 35 then
+                        continue
+                    end
                 end
-            end
-            local distance = (root.Position - coinPart.Position).Magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestCoin = coinPart
+                local distance = (root.Position - coinPart.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestCoin = coinPart
+                end
             end
         end
     end
@@ -750,7 +706,7 @@ local function CollectCoin(coinPart)
     end
 end
 
--- Fast Autofarm Coin Thread
+-- Blazing Fast Autofarm Coin Thread ("Sat Set")
 task.spawn(function()
     while true do
         if Settings.CoinFarmEnabled then
@@ -763,7 +719,7 @@ task.spawn(function()
                 if nearest then
                     CollectCoin(nearest)
                 else
-                    task.wait(0.1)
+                    task.wait(0.05)
                 end
             end
         end
@@ -1601,6 +1557,13 @@ local ExtKillAllBtn = Library:CreateExternalButton("KillAll", ExtButtonTexts.Kil
 end)
 RegisterExternalButton(ExtKillAllBtn)
 
+-- External Button Auto Bunnyhop
+local ExtBhopBtn = Library:CreateExternalButton("Bhop", ExtButtonTexts.Bhop, UDim2.new(0, 120, 0.5, 80), function()
+    Settings.AutoBhopEnabled = not Settings.AutoBhopEnabled
+    Library:Notify("Auto Bhop", "Status: " .. (Settings.AutoBhopEnabled and "ON" or "OFF"), 1.5)
+end)
+RegisterExternalButton(ExtBhopBtn)
+
 ExtAimbotBtn:SetVisible(false)
 ExtGrabBtn:SetVisible(false)
 ExtDoubleJumpBtn:SetVisible(false)
@@ -1612,6 +1575,7 @@ ExtFlingSheriffBtn:SetVisible(false)
 ExtSavePosBtn:SetVisible(false)
 ExtLoadPosBtn:SetVisible(false)
 ExtKillAllBtn:SetVisible(false)
+ExtBhopBtn:SetVisible(false)
 
 -- ========================================================================
 -- [[ MAIN MENU STRUCTURE ]]
@@ -1806,6 +1770,20 @@ TabMovement:CreateToggle("Auto Bunnyhop (Bhop)", false, function(state)
     Settings.AutoBhopEnabled = state
 end)
 
+TabMovement:CreateToggle("Show Auto Bhop Button [BHOP]", false, function(state)
+    Settings.BhopExtEnabled = state
+    ExtBhopBtn:SetVisible(state)
+end)
+
+TabMovement:CreateToggle("Spin bot (Visual Physical Spin)", false, function(state)
+    UpdateSpinState(state)
+end)
+
+TabMovement:CreateToggle("Show Spin Bot Floating Button [SPIN]", false, function(state)
+    Settings.SpinExtEnabled = state
+    ExtSpinBtn:SetVisible(state)
+end)
+
 TabMovement:CreateParagraph("Flight, Noclip & Safe Teleport", "Movement through spaces.")
 TabMovement:CreateToggle("Velocity Fly Hack", false, function(state)
     UpdateFlyState(state)
@@ -1842,7 +1820,7 @@ TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
 end)
 
-TabSpecial:CreateSlider("Coin Teleport Delay (Sat Set)", 0.05, 3.0, Settings.CoinCollectDelay, function(val)
+TabSpecial:CreateSlider("Coin Teleport Delay (Sat Set)", 0.01, 3.0, Settings.CoinCollectDelay, function(val)
     Settings.CoinCollectDelay = val
 end)
 
@@ -1998,6 +1976,12 @@ TabSpecial:CreateToggle("Show Teleport Murderer Button [TM]", false, function(st
     ExtTpMurderBtn:SetVisible(state)
 end)
 
+TabSpecial:CreateToggle("Show Save/Load Position Buttons [POS]", false, function(state)
+    Settings.PosExtEnabled = state
+    ExtSavePosBtn:SetVisible(state)
+    ExtLoadPosBtn:SetVisible(state)
+end)
+
 -- --- TAB 6: CONTROLS & SIZES ---
 local TabControls = Window:CreateTab("Button Controls", "rbxassetid://4483362458")
 
@@ -2045,6 +2029,10 @@ end)
 
 TabControls:CreateSlider("Auto Kill All Button Scale", 10, 200, 100, function(val)
     SetButtonSize(ExtKillAllBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Bhop Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtBhopBtn, val / 100)
 end)
 
 TabControls:CreateParagraph("Window Lock", "Lock window dragging positions.")
