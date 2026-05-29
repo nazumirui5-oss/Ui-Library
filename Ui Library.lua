@@ -4,6 +4,38 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- ========================================================
+-- [[ 0. CONFIGURATION & SINKRONISASI ENGINE ]]
+-- ========================================================
+Library.Flags = {}
+Library.Elements = {}
+local ConfigFileName = "LouisHub_UI_Config.json"
+
+-- Fungsi untuk menyimpan konfigurasi ke file lokal secara internal
+function Library:SaveConfig()
+    if not writefile then return end
+    pcall(function()
+        writefile(ConfigFileName, HttpService:JSONEncode(Library.Flags))
+    end)
+end
+
+-- Fungsi untuk memuat konfigurasi dari file lokal secara internal
+function Library:LoadConfig()
+    if not isfile or not readfile then return end
+    if isfile(ConfigFileName) then
+        pcall(function()
+            local decoded = HttpService:JSONDecode(readfile(ConfigFileName))
+            for flag, val in pairs(decoded) do
+                if Library.Elements[flag] then
+                    -- Safely call Set with ignoreSave = true to avoid recursive savings
+                    Library.Elements[flag]:Set(val, true)
+                end
+            end
+        end)
+    end
+end
 
 -- ========================================================
 -- [[ 1. MAIN ENGINE SYSTEM (DYNAMIC RGB & DRAG) ]]
@@ -641,6 +673,12 @@ function Library:CreateWindow(titleText, subtitleText)
         FloatingToggle.Visible = true
         
         TweenService:Create(FloatingToggle, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 52, 0, 52)}):Play()
+
+        -- AUTO-LOAD CONFIG (Dipanggil otomatis secara deferred saat screen loading selesai)
+        task.spawn(function()
+            task.wait(1)
+            Library:LoadConfig()
+        end)
     end)
 
     function Window:SetDragLock(state)
@@ -813,10 +851,22 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE ]]
+        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE (SINKRONISASI CONFIG) ]]
         -- ========================================================
-        function Tab:CreateToggle(toggleText, defaultVal, callback)
+        function Tab:CreateToggle(toggleText, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            -- Menentukan parameter dinamis agar kompatibel dengan pemanggilan script sebelumnya
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = toggleText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = toggleText:gsub("%s+", "")
+            end
+
             local Toggle = {State = defaultVal or false}
+            Library.Flags[actualFlag] = Toggle.State
 
             local ToggleBtn = Instance.new("TextButton", TabContent)
             ToggleBtn.Size = UDim2.new(1, -6, 0, 38)
@@ -853,7 +903,7 @@ function Library:CreateWindow(titleText, subtitleText)
             SwitchBall.BorderSizePixel = 0
             Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
 
-            local function UpdateVisual(animate)
+            local function UpdateVisual(animate, ignoreSave)
                 local duration = animate and 0.25 or 0
                 local info = TweenInfo.new(duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
                 
@@ -867,30 +917,48 @@ function Library:CreateWindow(titleText, subtitleText)
                     TweenService:Create(SwitchBg, TweenInfo.new(duration, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(40, 40, 45)}):Play()
                     TweenService:Create(ToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
                 end
+
+                Library.Flags[actualFlag] = Toggle.State
+                if not ignoreSave then
+                    Library:SaveConfig() -- Auto-save pada perubahan nilai
+                end
             end
 
-            UpdateVisual(false)
+            UpdateVisual(false, true)
 
             ToggleBtn.MouseButton1Click:Connect(function()
                 Toggle.State = not Toggle.State
                 UpdateVisual(true)
-                if callback then task.spawn(function() callback(Toggle.State) end) end
+                if actualCallback then task.spawn(function() actualCallback(Toggle.State) end) end
             end)
 
             local toggleController = {}
-            function toggleController:Set(state)
+            function toggleController:Set(state, ignoreSave)
                 Toggle.State = state
-                UpdateVisual(true)
-                if callback then task.spawn(function() callback(Toggle.State) end) end
+                UpdateVisual(true, ignoreSave)
+                if actualCallback then task.spawn(function() actualCallback(Toggle.State) end) end
             end
+
+            Library.Elements[actualFlag] = toggleController
             return toggleController
         end
 
         -- ========================================================
-        -- [[ 5c. TAB ELEMENT: CREATE SLIDER ]]
+        -- [[ 5c. TAB ELEMENT: CREATE SLIDER (SINKRONISASI CONFIG) ]]
         -- ========================================================
-        function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, callback)
+        function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = sliderText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = sliderText:gsub("%s+", "")
+            end
+
             local Slider = {Value = defaultVal or minVal}
+            Library.Flags[actualFlag] = Slider.Value
             
             local SliderFrame = Instance.new("Frame", TabContent)
             SliderFrame.Size = UDim2.new(1, -6, 0, 52)
@@ -925,17 +993,29 @@ function Library:CreateWindow(titleText, subtitleText)
             Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
             RegisterRGB(SliderFill, "BackgroundColor3")
 
+            local function UpdateVisuals(val, ignoreSave)
+                Slider.Value = math.clamp(val, minVal, maxVal)
+                local percentage = (Slider.Value - minVal) / (maxVal - minVal)
+                
+                TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
+                TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+                
+                Library.Flags[actualFlag] = Slider.Value
+                if not ignoreSave then
+                    Library:SaveConfig() -- Auto-save pada perubahan nilai
+                end
+            end
+
+            UpdateVisuals(Slider.Value, true)
+
             local sliding = false
             local function Update(input)
                 local percentage = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
                 local rawVal = minVal + (percentage * (maxVal - minVal))
                 local finalVal = math.floor(rawVal + 0.5)
                 
-                Slider.Value = finalVal
-                TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
-                TitleLabel.Text = sliderText .. ": " .. tostring(finalVal)
-                
-                if callback then task.spawn(function() callback(finalVal) end) end
+                UpdateVisuals(finalVal)
+                if actualCallback then task.spawn(function() actualCallback(finalVal) end) end
             end
 
             SliderBg.InputBegan:Connect(function(input)
@@ -956,17 +1036,37 @@ function Library:CreateWindow(titleText, subtitleText)
                     sliding = false
                 end
             end)
+
+            local sliderController = {}
+            function sliderController:Set(val, ignoreSave)
+                UpdateVisuals(val, ignoreSave)
+                if actualCallback then task.spawn(function() actualCallback(Slider.Value) end) end
+            end
+
+            Library.Elements[actualFlag] = sliderController
+            return sliderController
         end
 
         -- ========================================================
-        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN ]]
+        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN (SINKRONISASI CONFIG) ]]
         -- ========================================================
-        function Tab:CreateDropdown(dropdownText, options, defaultVal, callback)
+        function Tab:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = dropdownText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = dropdownText:gsub("%s+", "")
+            end
+
             local Dropdown = {
                 Open = false,
                 CurrentValue = defaultVal or options[1],
                 OptionFrames = {}
             }
+            Library.Flags[actualFlag] = Dropdown.CurrentValue
             
             local DropdownFrame = Instance.new("Frame", TabContent)
             DropdownFrame.Size = UDim2.new(1, -6, 0, 38)
@@ -1060,7 +1160,11 @@ function Library:CreateWindow(titleText, subtitleText)
                         TweenService:Create(ArrowIcon, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
                         
                         Refresh()
-                        if callback then task.spawn(function() callback(opt) end) end
+                        
+                        Library.Flags[actualFlag] = opt
+                        Library:SaveConfig() -- Auto-save pada perubahan nilai
+                        
+                        if actualCallback then task.spawn(function() actualCallback(opt) end) end
                     end)
 
                     table.insert(Dropdown.OptionFrames, OptBtn)
@@ -1087,12 +1191,38 @@ function Library:CreateWindow(titleText, subtitleText)
                 TweenService:Create(DropdownFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
                 TweenService:Create(ArrowIcon, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
             end)
+
+            local dropdownController = {}
+            function dropdownController:Set(val, ignoreSave)
+                Dropdown.CurrentValue = val
+                TextLabel.Text = dropdownText .. " (" .. tostring(val) .. ")"
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave then
+                    Library:SaveConfig()
+                end
+                
+                if actualCallback then task.spawn(function() actualCallback(val) end) end
+            end
+
+            Library.Elements[actualFlag] = dropdownController
+            return dropdownController
         end
 
         -- ========================================================
-        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX ]]
+        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX (SINKRONISASI CONFIG) ]]
         -- ========================================================
-        function Tab:CreateTextBox(labelText, placeholderText, callback)
+        function Tab:CreateTextBox(labelText, placeholderText, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = labelText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = labelText:gsub("%s+", "")
+            end
+
             local TextBoxFrame = Instance.new("Frame", TabContent)
             TextBoxFrame.Size = UDim2.new(1, -6, 0, 38)
             TextBoxFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
@@ -1137,8 +1267,27 @@ function Library:CreateWindow(titleText, subtitleText)
             InputBox.FocusLost:Connect(function(enterPressed)
                 TweenService:Create(InputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(50, 50, 55)}):Play()
                 TweenService:Create(TextBoxFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
-                if callback then task.spawn(function() callback(InputBox.Text, enterPressed) end) end
+                
+                Library.Flags[actualFlag] = InputBox.Text
+                Library:SaveConfig() -- Auto-save pada perubahan nilai
+                
+                if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
             end)
+
+            local textboxController = {}
+            function textboxController:Set(val, ignoreSave)
+                InputBox.Text = tostring(val)
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave then
+                    Library:SaveConfig()
+                end
+                
+                if actualCallback then task.spawn(function() actualCallback(val, false) end) end
+            end
+
+            Library.Elements[actualFlag] = textboxController
+            return textboxController
         end
 
         -- ========================================================
