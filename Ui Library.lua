@@ -7,13 +7,13 @@ local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
 -- ========================================================
--- [[ 0. CONFIGURATION & SINKRONISASI ENGINE ]]
+-- [[ 0. CONFIGURATION & ENGINE SYNCHRONIZATION ]]
 -- ========================================================
 Library.Flags = {}
 Library.Elements = {}
 local ConfigFileName = "LouisHub_UI_Config.json"
 
--- Fungsi untuk menyimpan konfigurasi ke file lokal secara internal
+-- Function to save configuration to a local file internally
 function Library:SaveConfig()
     if not writefile then return end
     pcall(function()
@@ -21,7 +21,7 @@ function Library:SaveConfig()
     end)
 end
 
--- Fungsi untuk memuat konfigurasi dari file lokal secara internal
+-- Function to load configuration from a local file internally
 function Library:LoadConfig()
     if not isfile or not readfile then return end
     if isfile(ConfigFileName) then
@@ -42,12 +42,18 @@ end
 -- ========================================================
 local RGBElements = {}
 
--- Mendaftarkan properti instansi untuk siklus spektrum pelangi secara halus
+-- Register instance property for smooth rainbow spectrum cycles
 local function RegisterRGB(instance, property)
+    -- Prevent duplicate registrations to optimize performance
+    for _, item in ipairs(RGBElements) do
+        if item.Instance == instance and item.Property == property then
+            return
+        end
+    end
     table.insert(RGBElements, {Instance = instance, Property = property})
 end
 
--- Menghapus properti instansi dari siklus spektrum pelangi
+-- Remove instance property from rainbow spectrum cycles
 local function UnregisterRGB(instance, property)
     for i = #RGBElements, 1, -1 do
         if RGBElements[i].Instance == instance and RGBElements[i].Property == property then
@@ -56,10 +62,10 @@ local function UnregisterRGB(instance, property)
     end
 end
 
--- Loop RGB cepat dengan saturasi penuh menggunakan os.clock()
+-- Fast full-saturation RGB loop using os.clock()
 RunService.RenderStepped:Connect(function()
-    local hue = (os.clock() % 4) / 4 -- Kecepatan transisi siklus (4 detik)
-    local rainbowColor = Color3.fromHSV(hue, 1, 1) -- Saturasi & Kecerahan Maksimum
+    local hue = (os.clock() % 4) / 4 -- Cycle transition speed (4 seconds)
+    local rainbowColor = Color3.fromHSV(hue, 1, 1) -- Maximum Saturation & Brightness
     
     for i = #RGBElements, 1, -1 do
         local item = RGBElements[i]
@@ -73,11 +79,12 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Utilitas drag yang kompatibel untuk input PC (Mouse) dan Mobile (Touch)
+-- Drag utility compatible with PC (Mouse) and Mobile (Touch) input
 local function EnableDrag(dragFrame, parentFrame)
     local dragging, dragInput, dragStart, startPos
     
     dragFrame.InputBegan:Connect(function(input)
+        if parentFrame:GetAttribute("DragLocked") then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -92,6 +99,7 @@ local function EnableDrag(dragFrame, parentFrame)
     end)
 
     dragFrame.InputChanged:Connect(function(input)
+        if parentFrame:GetAttribute("DragLocked") then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
@@ -99,21 +107,25 @@ local function EnableDrag(dragFrame, parentFrame)
 
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
+            if parentFrame:GetAttribute("DragLocked") then 
+                dragging = false 
+                return 
+            end
             local delta = input.Position - dragStart
             parentFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
 
--- Mengambil atau menginisialisasi kontainer ScreenGui global (Full Screen Mobile)
+-- Retrieve or initialize global ScreenGui container (Full Screen Mobile)
 local MainGui
 local function GetMainGui()
     if not MainGui then
         MainGui = Instance.new("ScreenGui")
         MainGui.Name = "LouisHub_ModernUI"
         MainGui.ResetOnSpawn = false
-        MainGui.IgnoreGuiInset = true -- Membuat UI benar-benar full screen di Mobile tanpa terpotong topbar
-        MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Mengatasi bug tumpang tindih ZIndex di beberapa executor
+        MainGui.IgnoreGuiInset = true -- Make UI completely full screen on Mobile without cutting off topbar
+        MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Resolve ZIndex overlapping bugs on some executors
         MainGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
     end
     return MainGui
@@ -161,7 +173,7 @@ function Library:Notify(title, desc, duration)
     NotifStroke.Thickness = 1.2
     RegisterRGB(NotifStroke, "Color")
 
-    -- Strip aksen RGB di sisi kiri
+    -- RGB accent strip on the left side
     local NotifAccent = Instance.new("Frame", NotifFrame)
     NotifAccent.Size = UDim2.new(0, 4, 1, 0)
     NotifAccent.Position = UDim2.new(0, 0, 0, 0)
@@ -208,7 +220,7 @@ end
 local function StartLoading(titleText, subtitleText, onComplete)
     local ScreenGui = GetMainGui()
     
-    -- Membuat Loading Gui Container
+    -- Create Loading Gui Container
     local LoadingGui = Instance.new("Frame", ScreenGui)
     LoadingGui.Name = "Louis_Loading_Screen"
     LoadingGui.Size = UDim2.new(1, 0, 1, 0)
@@ -216,9 +228,9 @@ local function StartLoading(titleText, subtitleText, onComplete)
     LoadingGui.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
     LoadingGui.BackgroundTransparency = 0
     LoadingGui.BorderSizePixel = 0
-    LoadingGui.ZIndex = 9990 -- Diatur sedikit di bawah elemen teks agar tidak menghalangi
+    LoadingGui.ZIndex = 9990 -- Set slightly below text elements to prevent obstruction
 
-    -- Profile Frame (ZIndex dinaikkan agar tidak tertutup layar hitam)
+    -- Profile Frame (ZIndex raised so it is not covered by the black screen)
     local ProfileFrame = Instance.new("Frame", LoadingGui)
     ProfileFrame.Size = UDim2.new(0, 220, 0, 60)
     ProfileFrame.Position = UDim2.new(0, 20, 1, -80)
@@ -284,7 +296,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     SubTitle.TextTransparency = 1
     SubTitle.ZIndex = 9995
 
-    -- Bar Loading (ZIndex 9995)
+    -- Loading Bar (ZIndex 9995)
     local BarBg = Instance.new("Frame", LoadingGui)
     BarBg.Size = UDim2.new(0.5, 0, 0, 6)
     BarBg.Position = UDim2.new(0.25, 0, 0.65, 0)
@@ -298,7 +310,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     Instance.new("UICorner", BarFill)
     RegisterRGB(BarFill, "BackgroundColor3")
 
-    -- Tombol Skip
+    -- Skip Button
     local SkipBtn = Instance.new("TextButton", LoadingGui)
     SkipBtn.Size = UDim2.new(0, 120, 0, 36)
     SkipBtn.Position = UDim2.new(0.5, -60, 0.82, 0)
@@ -307,12 +319,13 @@ local function StartLoading(titleText, subtitleText, onComplete)
     SkipBtn.TextColor3 = Color3.new(1, 1, 1)
     SkipBtn.Font = Enum.Font.MontserratBold
     SkipBtn.TextSize = 14
-    SkipBtn.ZIndex = 10000 -- Di atas elemen loading lainnya
+    SkipBtn.ZIndex = 10000 -- Above other loading elements
     SkipBtn.TextTransparency = 1
     
     local SkipCorner = Instance.new("UICorner", SkipBtn)
     SkipCorner.CornerRadius = UDim.new(0, 8)
     local SkipStroke = Instance.new("UIStroke", SkipBtn)
+    SkipCorner.CornerRadius = UDim.new(0, 8)
     SkipStroke.Color = Color3.fromRGB(45, 45, 50)
     SkipStroke.Thickness = 1
 
@@ -366,7 +379,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
 
     SkipBtn.MouseButton1Click:Connect(ForceExit)
 
-    -- Animasi Elemen Masuk
+    -- Element Entry Animation
     local entryTween = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     TweenService:Create(Title, entryTween, {TextTransparency = 0}):Play()
     TweenService:Create(ProfileImage, entryTween, {ImageTransparency = 0}):Play()
@@ -440,7 +453,8 @@ function Library:CreateWindow(titleText, subtitleText)
     
     local dragging, dragInput, dragStart, startPos
     Header.InputBegan:Connect(function(input)
-        if not Window.DragLocked and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        if MainFrame:GetAttribute("DragLocked") or Window.DragLocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = MainFrame.Position
@@ -453,12 +467,17 @@ function Library:CreateWindow(titleText, subtitleText)
         end
     end)
     Header.InputChanged:Connect(function(input)
-        if not Window.DragLocked and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if MainFrame:GetAttribute("DragLocked") or Window.DragLocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging and not Window.DragLocked then
+        if input == dragInput and dragging then
+            if MainFrame:GetAttribute("DragLocked") or Window.DragLocked then
+                dragging = false
+                return
+            end
             local delta = input.Position - dragStart
             MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
@@ -595,12 +614,12 @@ function Library:CreateWindow(titleText, subtitleText)
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
     ToggleCorner.CornerRadius = UDim.new(0, 10)
 
-    -- Garis Luar Floating Toggle (RGB Glow)
+    -- Floating Toggle Border (RGB Glow)
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1.5
-    RegisterRGB(ToggleStroke, "Color") -- Mengaktifkan efek RGB untuk tepi tombol melayang
+    RegisterRGB(ToggleStroke, "Color") -- Enable RGB effect for floating button border
 
-    -- Ikon Menu (RGB Glow)
+    -- Menu Icon (RGB Glow)
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Name = "Icon"
     ToggleIconImage.Size = UDim2.new(0, 26, 0, 26)
@@ -608,7 +627,7 @@ function Library:CreateWindow(titleText, subtitleText)
     ToggleIconImage.BackgroundTransparency = 1
     ToggleIconImage.Image = "rbxassetid://10734887784"
     ToggleIconImage.ScaleType = Enum.ScaleType.Fit
-    RegisterRGB(ToggleIconImage, "ImageColor3") -- Mengaktifkan efek RGB untuk ikon gambar di dalamnya
+    RegisterRGB(ToggleIconImage, "ImageColor3") -- Enable RGB effect for internal image icon
 
     EnableDrag(FloatingToggle, FloatingToggle)
 
@@ -665,7 +684,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
     CloseBtn.MouseButton1Click:Connect(CloseGui)
 
-    -- Menjalankan Loading Screen
+    -- Run Loading Screen
     StartLoading(titleText, subtitleText, function()
         firstTimeOpen = true
         FloatingToggle.Position = UDim2.new(0.5, -26, 0.5, -26)
@@ -674,7 +693,7 @@ function Library:CreateWindow(titleText, subtitleText)
         
         TweenService:Create(FloatingToggle, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 52, 0, 52)}):Play()
 
-        -- AUTO-LOAD CONFIG (Dipanggil otomatis secara deferred saat screen loading selesai)
+        -- AUTO-LOAD CONFIG (Automatically called deferred when screen loading finishes)
         task.spawn(function()
             task.wait(1)
             Library:LoadConfig()
@@ -683,6 +702,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
     function Window:SetDragLock(state)
         Window.DragLocked = state
+        MainFrame:SetAttribute("DragLocked", state)
     end
 
     function Window:BindToggleKey(keyCode)
@@ -851,13 +871,13 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE (SINKRONISASI CONFIG) ]]
+        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE (CONFIG SYNCHRONIZATION) ]]
         -- ========================================================
         function Tab:CreateToggle(toggleText, defaultVal, flag, callback)
             local actualFlag = flag
             local actualCallback = callback
             
-            -- Menentukan parameter dinamis agar kompatibel dengan pemanggilan script sebelumnya
+            -- Determine dynamic parameters to maintain compatibility with legacy script calls
             if type(flag) == "function" then
                 actualCallback = flag
                 actualFlag = toggleText:gsub("%s+", "")
@@ -920,7 +940,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
                 Library.Flags[actualFlag] = Toggle.State
                 if not ignoreSave then
-                    Library:SaveConfig() -- Auto-save pada perubahan nilai
+                    Library:SaveConfig() -- Auto-save on value change
                 end
             end
 
@@ -944,7 +964,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 5c. TAB ELEMENT: CREATE SLIDER (SINKRONISASI CONFIG) ]]
+        -- [[ 5c. TAB ELEMENT: CREATE SLIDER (CONFIG SYNCHRONIZATION) ]]
         -- ========================================================
         function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
             local actualFlag = flag
@@ -1002,7 +1022,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 Library.Flags[actualFlag] = Slider.Value
                 if not ignoreSave then
-                    Library:SaveConfig() -- Auto-save pada perubahan nilai
+                    Library:SaveConfig() -- Auto-save on value change
                 end
             end
 
@@ -1048,7 +1068,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN (SINKRONISASI CONFIG) ]]
+        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN (CONFIG SYNCHRONIZATION) ]]
         -- ========================================================
         function Tab:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
             local actualFlag = flag
@@ -1162,7 +1182,7 @@ function Library:CreateWindow(titleText, subtitleText)
                         Refresh()
                         
                         Library.Flags[actualFlag] = opt
-                        Library:SaveConfig() -- Auto-save pada perubahan nilai
+                        Library:SaveConfig() -- Auto-save on value change
                         
                         if actualCallback then task.spawn(function() actualCallback(opt) end) end
                     end)
@@ -1205,12 +1225,24 @@ function Library:CreateWindow(titleText, subtitleText)
                 if actualCallback then task.spawn(function() actualCallback(val) end) end
             end
 
+            -- External refresh feature to dynamically update option list
+            function dropdownController:Refresh(newOptions)
+                options = newOptions
+                if Dropdown.Open then
+                    Refresh()
+                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
+                    local targetHeight = 38 + (OptionList.AbsoluteContentSize.Y + 10)
+                    TweenService:Create(DropdownFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                end
+            end
+            dropdownController.Update = dropdownController.Refresh
+
             Library.Elements[actualFlag] = dropdownController
             return dropdownController
         end
 
         -- ========================================================
-        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX (SINKRONISASI CONFIG) ]]
+        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX (CONFIG SYNCHRONIZATION) ]]
         -- ========================================================
         function Tab:CreateTextBox(labelText, placeholderText, flag, callback)
             local actualFlag = flag
@@ -1269,7 +1301,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 TweenService:Create(TextBoxFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
                 
                 Library.Flags[actualFlag] = InputBox.Text
-                Library:SaveConfig() -- Auto-save pada perubahan nilai
+                Library:SaveConfig() -- Auto-save on value change
                 
                 if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
             end)
@@ -1373,7 +1405,7 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     end)
 
     local buttonController = {}
-    buttonController.Instance = ExtBtn -- Referensi Instansi Utama agar bisa dibaca dari luar secara aman
+    buttonController.Instance = ExtBtn -- Main Instance reference so it can be safely read externally
 
     function buttonController:SetText(newText)
         ExtBtn.Text = tostring(newText)
@@ -1393,6 +1425,11 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         elseif type(size) == "number" then
             ExtBtn.Size = UDim2.new(0, size, 0, size)
         end
+    end
+
+    -- New drag lock method for external buttons
+    function buttonController:SetDragLock(state)
+        ExtBtn:SetAttribute("DragLocked", state)
     end
 
     return buttonController
