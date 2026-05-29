@@ -558,14 +558,9 @@ task.spawn(function()
     end
 end)
 
--- Fungsi mencari CoinContainer secara efisien tanpa scan seluruh Workspace yang berat
+-- Mencari container koin secara mendalam di seluruh Workspace
 local function GetCoinContainer()
-    local normal = Workspace:FindFirstChild("Normal")
-    if normal then
-        local container = normal:FindFirstChild("CoinContainer")
-        if container then return container end
-    end
-    return Workspace:FindFirstChild("CoinContainer")
+    return Workspace:FindFirstChild("CoinContainer", true)
 end
 
 local function GetNearestCoin()
@@ -576,17 +571,18 @@ local function GetNearestCoin()
     local closestCoin = nil
     local shortestDistance = math.huge
     
+    -- JALUR UTAMA: Deteksi koin dari CoinContainer secara mendalam
     local container = GetCoinContainer()
     if container then
         for _, coin in ipairs(container:GetChildren()) do
-            -- Abaikan koin yang sudah dimasukkan ke daftar CollectedCoins
             if not CollectedCoins[coin] then
-                local coinPart = coin:IsA("BasePart") and coin 
-                    or coin:FindFirstChild("Coin") 
-                    or coin:FindFirstChild("MainCoin") 
+                -- Menggunakan pencarian rekursif mendalam (true)
+                local coinPart = coin:FindFirstChild("MainCoin", true) 
+                    or coin:FindFirstChild("Coin", true) 
                     or coin:FindFirstChildOfClass("BasePart")
+                    or (coin:IsA("BasePart") and coin)
                 
-                if coinPart then
+                if coinPart and not CollectedCoins[coinPart] then
                     local distance = (root.Position - coinPart.Position).Magnitude
                     if distance < shortestDistance then
                         shortestDistance = distance
@@ -595,12 +591,34 @@ local function GetNearestCoin()
                 end
             end
         end
-    else
-        -- Metode cadangan jika container utama tidak ditemukan
-        for _, v in ipairs(Workspace:GetChildren()) do
-            if v.Name == "Coin_Server" and not CollectedCoins[v] then
-                local coinPart = v:IsA("BasePart") and v or v:FindFirstChild("Coin") or v:FindFirstChild("MainCoin") or v:FindFirstChildOfClass("BasePart")
-                if coinPart then
+    end
+    
+    -- JALUR CADANGAN 1: Deteksi koin berdasarkan Highlight ESP yang sedang aktif
+    if not closestCoin then
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v.Name == "LouisCoinESP" and v.Parent and not CollectedCoins[v.Parent] then
+                local coinPart = v.Parent
+                if coinPart:IsA("BasePart") then
+                    local distance = (root.Position - coinPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestCoin = coinPart
+                    end
+                end
+            end
+        end
+    end
+    
+    -- JALUR CADANGAN 2: Memindai koin manual dari seluruh Workspace (Pencarian Liar)
+    if not closestCoin then
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if (v.Name == "Coin_Server" or v.Name == "Coin" or v.Name == "MainCoin") and not CollectedCoins[v] then
+                local coinPart = v:FindFirstChild("MainCoin", true) 
+                    or v:FindFirstChild("Coin", true) 
+                    or v:FindFirstChildOfClass("BasePart")
+                    or (v:IsA("BasePart") and v)
+                    
+                if coinPart and not CollectedCoins[coinPart] then
                     local distance = (root.Position - coinPart.Position).Magnitude
                     if distance < shortestDistance then
                         shortestDistance = distance
@@ -619,7 +637,7 @@ local function CollectCoin(coinPart)
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root or not coinPart then return end
     
-    -- LANGSUNG tandai koin ini sebagai "Sudah Diambil" agar script segera mengabaikannya
+    -- Tandai koin dan parent-nya agar diabaikan pada pencarian berikutnya
     CollectedCoins[coinPart] = true
     if coinPart.Parent then
         CollectedCoins[coinPart.Parent] = true
@@ -630,7 +648,7 @@ local function CollectCoin(coinPart)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     root.CFrame = coinPart.CFrame
     
-    -- Jeda minimal 1 frame agar sistem physics mendeteksi sentuhan (touch interest)
+    -- Jeda minimal agar sistem physics game mendeteksi touch interest
     task.wait()
 end
 
@@ -641,7 +659,7 @@ task.spawn(function()
             if nearest then
                 CollectCoin(nearest)
             else
-                task.wait(0.02) -- Pemindaian ulang yang sangat cepat jika koin habis
+                task.wait(0.02)
             end
         else
             task.wait(0.5)
@@ -740,19 +758,12 @@ local function ApplyCoinESP()
         return 
     end
     
-    local coinContainers = {}
-    for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "CoinContainer" and v:IsA("Folder") then
-            table.insert(coinContainers, v)
-        end
-    end
-    
+    local container = GetCoinContainer()
     local coinsToHighlight = {}
-    if #coinContainers > 0 then
-        for _, container in ipairs(coinContainers) do
-            for _, coin in ipairs(container:GetChildren()) do
-                table.insert(coinsToHighlight, coin)
-            end
+    
+    if container then
+        for _, coin in ipairs(container:GetChildren()) do
+            table.insert(coinsToHighlight, coin)
         end
     else
         for _, v in ipairs(Workspace:GetDescendants()) do
@@ -763,10 +774,10 @@ local function ApplyCoinESP()
     end
 
     for _, coin in ipairs(coinsToHighlight) do
-        local coinPart = coin:IsA("BasePart") and coin 
-            or coin:FindFirstChild("Coin") 
-            or coin:FindFirstChild("MainCoin") 
+        local coinPart = coin:FindFirstChild("MainCoin", true) 
+            or coin:FindFirstChild("Coin", true) 
             or coin:FindFirstChildOfClass("BasePart")
+            or (coin:IsA("BasePart") and coin)
             
         if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
             local highlight = Instance.new("Highlight")
