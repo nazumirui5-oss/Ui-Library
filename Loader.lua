@@ -127,6 +127,7 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
+    CoinFarmDelay = 0.12, -- Default 0.12 detik (120ms)
 
     -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
@@ -619,6 +620,7 @@ local function CollectCoin(coinPart)
     
     local targetCFrame = coinPart.CFrame
     
+    -- Matikan kolisi agar tidak tersangkut objek map
     local originalCollides = {}
     for _, child in ipairs(character:GetDescendants()) do
         if child:IsA("BasePart") then
@@ -627,8 +629,15 @@ local function CollectCoin(coinPart)
         end
     end
     
+    -- Kunci posisi karakter (Anchor) agar tidak jatuh karena gravitasi saat jeda
+    root.Anchored = true
     root.CFrame = targetCFrame
-    task.wait(0.25 + GetPing())
+    
+    -- Jeda dinamis berdasarkan input slider (Settings.CoinFarmDelay) + network ping
+    task.wait(Settings.CoinFarmDelay + GetPing())
+    
+    -- Lepaskan anchor setelah jeda selesai
+    root.Anchored = false
     
     for _, info in ipairs(originalCollides) do
         if info.part and info.part.Parent then
@@ -831,6 +840,60 @@ local function TpToPlayer(targetPlayer)
 end
 
 -- ========================================================================
+-- [[ LOCAL COLLISION ENABLER BYPASS SYSTEM (Cara 2) ]]
+-- ========================================================================
+local function EnableFlingCollision(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return end
+    local targetChar = targetPlayer.Character
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then return end
+
+    -- Buat collider lokal di target (di layar kita saja) agar fisik mendeteksi tabrakan
+    if not targetRoot:FindFirstChild("LouisLocalCollider") then
+        pcall(function()
+            local collider = Instance.new("Part")
+            collider.Name = "LouisLocalCollider"
+            collider.Size = Vector3.new(3, 3, 3)
+            collider.CFrame = targetRoot.CFrame
+            collider.Transparency = 1
+            collider.CanCollide = true
+            collider.Massless = true
+            collider.Parent = targetRoot
+            
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = targetRoot
+            weld.Part1 = collider
+            weld.Parent = targetRoot
+            
+            game:GetService("Debris"):AddItem(collider, 5)
+        end)
+    end
+
+    -- Pastikan karakter kita sendiri punya bagian yang CanCollide = true lokal agar tabrakan terdaftar
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if myRoot and not myRoot:FindFirstChild("LouisMyCollider") then
+        pcall(function()
+            local collider = Instance.new("Part")
+            collider.Name = "LouisMyCollider"
+            collider.Size = Vector3.new(2, 2, 2)
+            collider.CFrame = myRoot.CFrame
+            collider.Transparency = 1
+            collider.CanCollide = true
+            collider.Massless = true
+            collider.Parent = myRoot
+            
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = myRoot
+            weld.Part1 = collider
+            weld.Parent = myRoot
+            
+            game:GetService("Debris"):AddItem(collider, 5)
+        end)
+    end
+end
+
+-- ========================================================================
 -- [[ OPTIMIZED TARGET FLING (LONGER DURATION & PRECISION) ]]
 -- ========================================================================
 local function FlingPlayer(targetPlayer)
@@ -841,6 +904,9 @@ local function FlingPlayer(targetPlayer)
         local targetRoot = targetPlayer.Character.HumanoidRootPart
         local targetHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
         
+        -- Pasang collider lokal sebelum meluncurkan fling
+        EnableFlingCollision(targetPlayer)
+        
         SavePosition()
         local originalFlingState = Settings.TouchFling
         Settings.TouchFling = true
@@ -850,6 +916,10 @@ local function FlingPlayer(targetPlayer)
                 if not targetRoot or not targetHum or targetHum.Health <= 0 or not root or not char:FindFirstChild("HumanoidRootPart") then
                     break
                 end
+                
+                -- Panggil berulang agar kolisi tetap terbuat jika target respawn
+                EnableFlingCollision(targetPlayer)
+                
                 root.CFrame = targetRoot.CFrame * CFrame.new(math.random(-1, 1) * 0.1, 0, math.random(-1, 1) * 0.1)
                 task.wait(0.02)
             end
@@ -932,7 +1002,7 @@ SafeConnect(RunService.Heartbeat, function()
             root.AssemblyAngularVelocity = Vector3.new(0, multiplier, 0)
             
             for _, child in ipairs(character:GetDescendants()) do
-                if child:IsA("BasePart") then
+                if child:IsA("BasePart") and child.Name ~= "LouisMyCollider" then
                     child.CanCollide = false
                 end
             end
@@ -1132,12 +1202,18 @@ task.spawn(function()
                         OriginalCFrameBeforeFling = root.CFrame
                     end
 
+                    -- Pasang bypass kolisi lokal untuk target
+                    EnableFlingCollision(targetPlayer)
+
                     local tRoot = targetPlayer.Character.HumanoidRootPart
                     root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
                     root.Velocity = Vector3.new(99999, 99999, 99999)
                     
                     for _, child in ipairs(character:GetDescendants()) do
-                        if child:IsA("BasePart") then child.CanCollide = false end
+                        -- Lindungi kolisi lokal kita agar tabrakan fisik bekerja
+                        if child:IsA("BasePart") and child.Name ~= "LouisMyCollider" then 
+                            child.CanCollide = false 
+                        end
                     end
                 else
                     if FlingFailsafeActive then
@@ -1565,6 +1641,7 @@ TabVisuals:CreateToggle("Coin Highlight ESP", false, function(state)
     end
 end)
 
+-- Filter ESP Targets
 TabVisuals:CreateParagraph("Filter ESP Targets", "Filter who glows in ESP.")
 TabVisuals:CreateToggle("Render Murderer Glow", true, function(state)
     Settings.EspMurderer = state
@@ -1678,6 +1755,11 @@ local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 TabSpecial:CreateParagraph("Coin Autofarm", "Automatically scan and collect coins on the map.")
 TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
+end)
+
+-- Slider Kecepatan Jeda Waktu Pengambilan Koin (1ms - 1000ms / 0.001s - 1.000s)
+TabSpecial:CreateSlider("Coin Farm Delay (ms)", 1, 1000, 120, function(val)
+    Settings.CoinFarmDelay = val / 1000
 end)
 
 -- ========================================================================
