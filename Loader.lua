@@ -1,5 +1,5 @@
 -- ========================================================================
--- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (FULL INTEGRATED EDITION) ]]
+-- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (FULLY INTEGRATED & OPTIMIZED) ]]
 -- ========================================================================
 
 -- 1. LOAD UI LIBRARY FROM YOUR SOURCE
@@ -130,7 +130,7 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
-    CoinCollectDelay = 0.05, -- Fast Teleport Delay
+    CoinCollectDelay = 0.05,
     ServerHopOnFullBag = false,
     AntiAfkAndRejoin = false,
     SafeCoinFarm = false,
@@ -204,6 +204,12 @@ end
 -- ========================================================
 -- [[ SERVER HOPS & ANTI AFK UTILITIES ]]
 -- ========================================================
+local function GetPing()
+    local ping = 0.05
+    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
+    return ping
+end
+
 local function ServerHop()
     local success, servers = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
@@ -420,9 +426,7 @@ local function GetPredictedPosition(targetPart)
     local BulletSpeed = 230
     local distance = (Camera.CFrame.Position - targetPart.Position).Magnitude
     local travelTime = distance / BulletSpeed
-    local ping = 0.05
-    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
-    local totalTime = travelTime + ping
+    local totalTime = travelTime + GetPing()
     
     local velocity = targetPart.AssemblyLinearVelocity or targetPart.Velocity or Vector3.new()
     local predictedPos = targetPart.Position + (velocity * totalTime)
@@ -613,10 +617,10 @@ end)
 -- [[ OPTIMIZED COIN DETECTION AND FAST FARM ENGINE ]]
 -- ========================================================
 
--- Periodic background scan to populates the Cache, eliminating FPS stutter
+-- Periodic background thread scans coins to minimize rendering and main thread latency
 task.spawn(function()
     while true do
-        if Settings.CoinFarmEnabled then
+        if Settings.CoinFarmEnabled or Settings.CoinESP then
             local temp = {}
             local coinContainer = Workspace:FindFirstChild("CoinContainer")
             if not coinContainer then
@@ -629,7 +633,7 @@ task.spawn(function()
                     table.insert(temp, coin)
                 end
             else
-                -- Fallback optimization scanning hierarchy without heavy GetDescendants operations
+                -- Fallback scan that avoids intensive GetDescendants operations by querying children hierarchy
                 for _, v in ipairs(Workspace:GetChildren()) do
                     if v.Name == "Coin_Server" or (Settings.EventTokenFarm and (v.Name:find("Candy") or v.Name:find("Present") or v.Name:find("Snowflake") or v.Name:find("Token"))) then
                         table.insert(temp, v)
@@ -643,8 +647,10 @@ task.spawn(function()
                 end
             end
             CoinCache = temp
+        else
+            CoinCache = {}
         end
-        task.wait(0.5)
+        task.wait(0.5) -- Scan refresh rate
     end
 end)
 
@@ -697,7 +703,7 @@ local function CollectCoin(coinPart)
     end
     
     root.CFrame = targetCFrame
-    task.wait(Settings.CoinCollectDelay)
+    task.wait(Settings.CoinCollectDelay + GetPing())
     
     for _, info in ipairs(originalCollides) do
         if info.part and info.part.Parent then
@@ -706,7 +712,7 @@ local function CollectCoin(coinPart)
     end
 end
 
--- Fast Autofarm Thread
+-- Fast Autofarm Coin Loop Thread
 task.spawn(function()
     while true do
         if Settings.CoinFarmEnabled then
@@ -848,43 +854,30 @@ local function ApplyCoinESP()
         return 
     end
     
-    local coinContainers = {}
+    -- Clear orphaned ESP models first
     for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "CoinContainer" and v:IsA("Folder") then
-            table.insert(coinContainers, v)
-        end
-    end
-    
-    local coinsToHighlight = {}
-    if #coinContainers > 0 then
-        for _, container in ipairs(coinContainers) do
-            for _, coin in ipairs(container:GetChildren()) do
-                table.insert(coinsToHighlight, coin)
-            end
-        end
-    else
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "Coin_Server" or v.Name == "Coin" or v.Name == "MainCoin" then
-                table.insert(coinsToHighlight, v)
-            end
+        if v.Name == "LouisCoinESP" and (not v.Parent or not v.Parent.Parent) then 
+            v:Destroy() 
         end
     end
 
-    for _, coin in ipairs(coinsToHighlight) do
-        local coinPart = coin:IsA("BasePart") and coin 
-            or coin:FindFirstChild("Coin") 
-            or coin:FindFirstChild("MainCoin") 
-            or coin:FindFirstChildOfClass("BasePart")
-            
-        if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "LouisCoinESP"
-            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
-            highlight.FillTransparency = 0.4
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.OutlineTransparency = 0
-            highlight.Adornee = coinPart
-            highlight.Parent = coinPart
+    for _, coin in ipairs(CoinCache) do
+        if coin and coin.Parent then
+            local coinPart = coin:IsA("BasePart") and coin 
+                or coin:FindFirstChild("Coin") 
+                or coin:FindFirstChild("MainCoin") 
+                or coin:FindFirstChildOfClass("BasePart")
+                
+            if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "LouisCoinESP"
+                highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
+                highlight.FillTransparency = 0.4
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.OutlineTransparency = 0
+                highlight.Adornee = coinPart
+                highlight.Parent = coinPart
+            end
         end
     end
 end
@@ -1550,12 +1543,14 @@ local ExtLoadPosBtn = Library:CreateExternalButton("LoadPos", ExtButtonTexts.Loa
 end)
 RegisterExternalButton(ExtLoadPosBtn)
 
+-- External Button Auto Kill All
 local ExtKillAllBtn = Library:CreateExternalButton("KillAll", ExtButtonTexts.KillAll, UDim2.new(0, 120, 0.5, 35), function()
     Settings.AutoKillAll = not Settings.AutoKillAll
     Library:Notify("Auto Kill All", "Status: " .. (Settings.AutoKillAll and "ON" or "OFF"), 1.5)
 end)
 RegisterExternalButton(ExtKillAllBtn)
 
+-- External Button Auto Bunnyhop
 local ExtBhopBtn = Library:CreateExternalButton("Bhop", ExtButtonTexts.Bhop, UDim2.new(0, 120, 0.5, 80), function()
     Settings.AutoBhopEnabled = not Settings.AutoBhopEnabled
     Library:Notify("Auto Bhop", "Status: " .. (Settings.AutoBhopEnabled and "ON" or "OFF"), 1.5)
@@ -1818,7 +1813,7 @@ TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
 end)
 
-TabSpecial:CreateSlider("Coin Teleport Delay (Sat Set)", 0.01, 3.0, Settings.CoinCollectDelay, function(val)
+TabSpecial:CreateSlider("Coin Teleport Delay", 0.01, 3.0, Settings.CoinCollectDelay, function(val)
     Settings.CoinCollectDelay = val
 end)
 
