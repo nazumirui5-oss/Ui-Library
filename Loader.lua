@@ -546,13 +546,13 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ COIN DETECTION AND FARM ENGINE (SMART TELEPORT) ]]
+-- [[ COIN DETECTION AND FARM ENGINE (SMART TWEEN) ]]
 -- ========================================================
 local CollectedCoins = {}
 
 -- Bersihkan daftar hitam koin secara berkala setiap 5 detik agar memori tetap bersih
 task.spawn(function()
-    while true do
+    while true; do
         task.wait(5)
         table.clear(CollectedCoins)
     end
@@ -632,33 +632,46 @@ local function GetNearestCoin()
     return closestCoin
 end
 
--- MODIFIKASI: Pilihan 2 - Jeda Pintar Dinamis Berdasarkan Jarak
+-- MODIFIKASI: Metode Tween Cepat & Aman Anti-Kick
 local function CollectCoin(coinPart)
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root or not coinPart then return end
     
-    -- Tandai koin agar tidak dideteksi ulang
+    -- Tandai koin agar tidak diambil ulang
     CollectedCoins[coinPart] = true
     if coinPart.Parent then
         CollectedCoins[coinPart.Parent] = true
     end
 
-    -- Reset kecepatan fisik agar karakter tidak terlempar
+    -- Hitung jarak ke koin
+    local distance = (root.Position - coinPart.Position).Magnitude
+    
+    -- Kecepatan tween yang aman (120 studs per detik)
+    local tweenSpeed = 120 
+    local tweenTime = distance / tweenSpeed
+    
+    -- Reset kecepatan fisik agar tidak jatuh bebas selama bergerak
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    
-    -- Ambil jarak koin sebelum teleportasi
-    local distance = (root.Position - coinPart.Position).Magnitude
 
-    -- Teleportasi instan (TP langsung cepat)
-    root.CFrame = coinPart.CFrame
+    -- Konfigurasi pergerakan meluncur lurus (Linear)
+    local tweenInfo = TweenInfo.new(
+        tweenTime, 
+        Enum.EasingStyle.Linear, 
+        Enum.EasingDirection.Out
+    )
     
-    -- Kalkulasi jeda dinamis secara otomatis (Makin jauh = jeda sedikit diperpanjang)
-    -- Batas bawah: 0.35 detik (sangat cepat), Batas atas: 1.15 detik (aman dari kick)
-    local dynamicDelay = math.clamp(distance * 0.0055, 0.35, 1.15)
+    -- Target posisi sedikit di atas koin agar terdaftar sempurna
+    local targetCFrame = coinPart.CFrame * CFrame.new(0, 0.5, 0)
     
-    task.wait(dynamicDelay)
+    -- Jalankan Tween
+    local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait() -- Menunggu karakter tiba
+    
+    -- Jeda singkat agar server sempat memproses koin masuk ke tas Anda sebelum beralih
+    task.wait(0.15)
 end
 
 task.spawn(function()
