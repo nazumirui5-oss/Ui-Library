@@ -1,5 +1,5 @@
 -- ========================================================================
--- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (FULLY INTEGRATED & OPTIMIZED) ]]
+-- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (INTEGRATED & OPTIMIZED) ]]
 -- ========================================================================
 
 -- 1. LOAD UI LIBRARY FROM YOUR SOURCE
@@ -15,9 +15,6 @@ local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
-local VirtualUser = game:GetService("VirtualUser")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 
 -- ========================================================
 -- [[ INTERNAL STATE & PHYSICS VARIABLES ]]
@@ -29,7 +26,6 @@ local originalRotVelocity = Vector3.new(0, 0, 0)
 local FlingFailsafeActive = false
 local OriginalCFrameBeforeFling = nil
 local SafePlatform = nil
-local CoinCache = {}
 
 -- ========================================================================
 -- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
@@ -46,7 +42,8 @@ local ExtButtonTexts = {
     SavePos = "SAVE_POS",
     LoadPos = "LOAD_POS",
     KillAll = "KILL_ALL",
-    Bhop = "BHOP"
+    Bhop = "BHOP",
+    SafeZone = "SAFE_ZONE"
 }
 
 -- ========================================================================
@@ -130,13 +127,8 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
-    CoinCollectDelay = 0.05,
-    ServerHopOnFullBag = false,
-    AntiAfkAndRejoin = false,
-    SafeCoinFarm = false,
-    EventTokenFarm = false,
 
-    -- Additional Integration Features
+    -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
     AntiVoid = false,
     AntiFling = false,
@@ -150,13 +142,10 @@ local Settings = {
     FlingSheriffExtEnabled = false,
     PosExtEnabled = false,
 
-    -- New Features Configurations
-    AntiDie = false,
-    AntiStealGun = false,
+    -- Imported Settings From New Script
     AutoKillAll = false,
     SafeZoneEnabled = false,
-    AutoBhopEnabled = false,
-    BhopExtEnabled = false
+    AutoBhopEnabled = false
 }
 
 local OriginalFOV = Camera.FieldOfView
@@ -202,76 +191,6 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 -- ========================================================
--- [[ SERVER HOPS & ANTI AFK UTILITIES ]]
--- ========================================================
-local function GetPing()
-    local ping = 0.05
-    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
-    return ping
-end
-
-local function ServerHop()
-    local success, servers = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
-    end)
-    if success and servers and servers.data then
-        for _, server in ipairs(servers.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
-                break
-            end
-        end
-    end
-end
-
-local function IsBagFull()
-    local isFull = false
-    pcall(function()
-        local gameGui = LocalPlayer.PlayerGui:FindFirstChild("MainGUI") and LocalPlayer.PlayerGui.MainGUI:FindFirstChild("Game")
-        local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
-        if cashBag and cashBag.Visible then
-            for _, v in ipairs(cashBag:GetDescendants()) do
-                if v:IsA("TextLabel") then
-                    local txt = v.Text
-                    if txt:find("40") or txt:find("50") then
-                        isFull = true
-                    end
-                end
-            end
-        end
-    end)
-    return isFull
-end
-
--- Anti AFK Implementation
-SafeConnect(LocalPlayer.Idled, function()
-    if Settings.AntiAfkAndRejoin then
-        pcall(function()
-            VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-            task.wait(1)
-            VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-        end)
-    end
-end)
-
--- Auto Rejoin On Disconnect Prompt Detection
-pcall(function()
-    local CoreGui = game:GetService("CoreGui")
-    local RobloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
-    if RobloxPromptGui then
-        local promptOverlay = RobloxPromptGui:FindFirstChild("promptOverlay")
-        if promptOverlay then
-            promptOverlay.ChildAdded:Connect(function(child)
-                if Settings.AntiAfkAndRejoin and child.Name == "ErrorPrompt" then
-                    task.wait(2)
-                    TeleportService:Teleport(game.PlaceId, LocalPlayer)
-                end
-            end)
-        end
-    end
-end)
-
--- ========================================================
 -- [[ GRAPHICS FEATURES: POTATO OPTIMIZATION ]]
 -- ========================================================
 local function ApplyPotato()
@@ -300,7 +219,7 @@ local function ApplyPotato()
 end
 
 -- ========================================================
--- [[ POSITION UTILITIES ]]
+-- [[ POSITION & SAFE ZONE UTILITIES ]]
 -- ========================================================
 local function SavePosition()
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -313,6 +232,34 @@ local function LoadSavedPosition()
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if root and SavedCFrame then
         root.CFrame = SavedCFrame
+    end
+end
+
+local function ToggleSafeZone(state)
+    Settings.SafeZoneEnabled = state
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if state then
+        if not SafePlatform then
+            SafePlatform = Instance.new("Part")
+            SafePlatform.Size = Vector3.new(20, 1, 20)
+            SafePlatform.Position = Vector3.new(0, 1000, 0)
+            SafePlatform.Anchored = true
+            SafePlatform.CanCollide = true
+            SafePlatform.Parent = workspace
+        end
+        if root then
+            SavePosition()
+            root.CFrame = SafePlatform.CFrame * CFrame.new(0, 3, 0)
+        end
+    else
+        if SafePlatform then
+            SafePlatform:Destroy()
+            SafePlatform = nil
+        end
+        if SavedCFrame and root then
+            root.CFrame = SavedCFrame
+        end
     end
 end
 
@@ -426,13 +373,16 @@ local function GetPredictedPosition(targetPart)
     local BulletSpeed = 230
     local distance = (Camera.CFrame.Position - targetPart.Position).Magnitude
     local travelTime = distance / BulletSpeed
-    local totalTime = travelTime + GetPing()
+    local ping = 0.05
+    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
+    local totalTime = travelTime + ping
     
     local velocity = targetPart.AssemblyLinearVelocity or targetPart.Velocity or Vector3.new()
     local predictedPos = targetPart.Position + (velocity * totalTime)
     return predictedPos
 end
 
+-- AIMBOT WORKS WHEN HOLDING KNIFE/GUN OR AS MURDERER
 SafeConnect(RunService.RenderStepped, function()
     if Settings.CameraAimbot and LocalPlayer.Character then
         local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun")
@@ -493,6 +443,19 @@ local DoubleJumpReq = UserInputService.JumpRequest:Connect(function()
     end
 end)
 table.insert(_G.LouisConnections, DoubleJumpReq)
+
+-- Bunnyhop Logic Loop
+SafeConnect(RunService.Heartbeat, function()
+    if Settings.AutoBhopEnabled and LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if humanoid and root and humanoid.MoveDirection.Magnitude > 0 then
+            if humanoid.FloorMaterial ~= Enum.Material.Air then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
 
 -- ========================================================
 -- [[ FEATURE 3 LOGIC: GUN GRABBER ENGINE ]]
@@ -591,68 +554,14 @@ task.spawn(function()
     end
 end)
 
--- Anti Steal Gun Loop
-task.spawn(function()
-    while true do
-        task.wait(0.05)
-        if Settings.AntiStealGun then
-            local activeGun = ScanForDroppedGun()
-            if activeGun then
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        local distance = (player.Character.HumanoidRootPart.Position - activeGun.Position).Magnitude
-                        if distance < 18 then
-                            pcall(function()
-                                player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 1000, 0)
-                            end)
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
 -- ========================================================
--- [[ OPTIMIZED COIN DETECTION AND FAST FARM ENGINE ]]
+-- [[ COIN DETECTION AND FARM ENGINE ]]
 -- ========================================================
-
--- Periodic background thread scans coins to minimize rendering and main thread latency
-task.spawn(function()
-    while true do
-        if Settings.CoinFarmEnabled or Settings.CoinESP then
-            local temp = {}
-            local coinContainer = Workspace:FindFirstChild("CoinContainer")
-            if not coinContainer then
-                local normal = Workspace:FindFirstChild("Normal")
-                if normal then coinContainer = normal:FindFirstChild("CoinContainer") end
-            end
-            
-            if coinContainer then
-                for _, coin in ipairs(coinContainer:GetChildren()) do
-                    table.insert(temp, coin)
-                end
-            else
-                -- Fallback scan that avoids intensive GetDescendants operations by querying children hierarchy
-                for _, v in ipairs(Workspace:GetChildren()) do
-                    if v.Name == "Coin_Server" or (Settings.EventTokenFarm and (v.Name:find("Candy") or v.Name:find("Present") or v.Name:find("Snowflake") or v.Name:find("Token"))) then
-                        table.insert(temp, v)
-                    elseif v:IsA("Folder") or v:IsA("Model") then
-                        for _, sub in ipairs(v:GetChildren()) do
-                            if sub.Name == "Coin_Server" or (Settings.EventTokenFarm and (sub.Name:find("Candy") or sub.Name:find("Present") or sub.Name:find("Snowflake") or sub.Name:find("Token"))) then
-                                table.insert(temp, sub)
-                            end
-                        end
-                    end
-                end
-            end
-            CoinCache = temp
-        else
-            CoinCache = {}
-        end
-        task.wait(0.5) -- Scan refresh rate
-    end
-end)
+local function GetPing()
+    local ping = 0.05
+    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
+    return ping
+end
 
 local function GetNearestCoin()
     local character = LocalPlayer.Character
@@ -662,23 +571,39 @@ local function GetNearestCoin()
     local closestCoin = nil
     local shortestDistance = math.huge
     
-    local murderer = GetTargetByRole("Murderer")
-    local murdererPos = murderer and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") and murderer.Character.HumanoidRootPart.Position
-
-    for _, coin in ipairs(CoinCache) do
-        if coin and coin.Parent then
-            local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
-            if coinPart then
-                if Settings.SafeCoinFarm and murdererPos then
-                    local distToMurderer = (coinPart.Position - murdererPos).Magnitude
-                    if distToMurderer < 35 then
-                        continue
+    local coinContainers = {}
+    for _, v in ipairs(Workspace:GetChildren()) do
+        if v.Name == "CoinContainer" then
+            table.insert(coinContainers, v)
+        else
+            local container = v:FindFirstChild("CoinContainer")
+            if container then table.insert(coinContainers, container) end
+        end
+    end
+    
+    if #coinContainers > 0 then
+        for _, container in ipairs(coinContainers) do
+            for _, coin in ipairs(container:GetChildren()) do
+                local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
+                if coinPart then
+                    local distance = (root.Position - coinPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestCoin = coinPart
                     end
                 end
-                local distance = (root.Position - coinPart.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    closestCoin = coinPart
+            end
+        end
+    else
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v.Name == "Coin_Server" then
+                local coinPart = v:IsA("BasePart") and v or v:FindFirstChild("Coin") or v:FindFirstChild("MainCoin") or v:FindFirstChildOfClass("BasePart")
+                if coinPart then
+                    local distance = (root.Position - coinPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestCoin = coinPart
+                    end
                 end
             end
         end
@@ -703,7 +628,7 @@ local function CollectCoin(coinPart)
     end
     
     root.CFrame = targetCFrame
-    task.wait(Settings.CoinCollectDelay + GetPing())
+    task.wait(0.25 + GetPing())
     
     for _, info in ipairs(originalCollides) do
         if info.part and info.part.Parent then
@@ -712,29 +637,22 @@ local function CollectCoin(coinPart)
     end
 end
 
--- Fast Autofarm Coin Loop Thread
 task.spawn(function()
     while true do
         if Settings.CoinFarmEnabled then
-            if Settings.ServerHopOnFullBag and IsBagFull() then
-                Library:Notify("Auto Farm", "Bag limit reached! Teleporting to next server...", 2.5)
-                ServerHop()
-                task.wait(5)
+            local nearest = GetNearestCoin()
+            if nearest then
+                CollectCoin(nearest)
             else
-                local nearest = GetNearestCoin()
-                if nearest then
-                    CollectCoin(nearest)
-                else
-                    task.wait(0.05)
-                end
+                task.wait(0.3)
             end
         end
-        task.wait(0.01)
+        task.wait(0.05)
     end
 end)
 
 -- ========================================================
--- [[ FEATURE 4 LOGIC: KILL AURA & TELEPORT ALL ]]
+-- [[ FEATURE 4 LOGIC: KILL AURA, AUTO KILL ALL, TELEPORT ]]
 -- ========================================================
 task.spawn(function()
     while true do
@@ -767,53 +685,7 @@ task.spawn(function()
     end
 end)
 
-local function TeleportAllPlayersToMe()
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not char or not root or GetMM2Role(LocalPlayer) ~= "Murderer" then return end
-    
-    for _, child in ipairs(char:GetDescendants()) do
-        if child:IsA("BasePart") then child.CanCollide = false end
-    end
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local tRoot = p.Character.HumanoidRootPart
-            local tHum = p.Character:FindFirstChildOfClass("Humanoid")
-            if tHum and tHum.Health > 0 then
-                pcall(function() tRoot.CFrame = root.CFrame * CFrame.new(0, 0, -2) end)
-            end
-        end
-    end
-end
-
--- ========================================================================
--- [[ ANTI-DIE DESYNC & SEMI-GODMODE ]]
--- ========================================================================
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if Settings.AntiDie and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local root = LocalPlayer.Character.HumanoidRootPart
-            local murderer = GetTargetByRole("Murderer")
-            if murderer and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
-                local mRoot = murderer.Character.HumanoidRootPart
-                local dist = (root.Position - mRoot.Position).Magnitude
-                local hasKnife = murderer.Character:FindFirstChild("Knife") or (murderer:FindFirstChild("Backpack") and murderer.Backpack:FindFirstChild("Knife"))
-                if dist < 12 and hasKnife then
-                    local originalCFrame = root.CFrame
-                    root.CFrame = originalCFrame * CFrame.new(0, 15, 0)
-                    task.wait(0.3)
-                    root.CFrame = originalCFrame
-                end
-            end
-        end
-    end
-end)
-
--- ========================================================================
--- [[ AUTO-KILL ALL LOGIC ]]
--- ========================================================================
+-- AUTO-KILL ALL LOGIC (Murderer Loop)
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -843,6 +715,26 @@ task.spawn(function()
     end
 end)
 
+local function TeleportAllPlayersToMe()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not char or not root or GetMM2Role(LocalPlayer) ~= "Murderer" then return end
+    
+    for _, child in ipairs(char:GetDescendants()) do
+        if child:IsA("BasePart") then child.CanCollide = false end
+    end
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local tRoot = p.Character.HumanoidRootPart
+            local tHum = p.Character:FindFirstChildOfClass("Humanoid")
+            if tHum and tHum.Health > 0 then
+                pcall(function() tRoot.CFrame = root.CFrame * CFrame.new(0, 0, -2) end)
+            end
+        end
+    end
+end
+
 -- ========================================================
 -- [[ COIN ESP ENGINE (WITH DEEP SCAN ENHANCEMENTS) ]]
 -- ========================================================
@@ -854,30 +746,43 @@ local function ApplyCoinESP()
         return 
     end
     
-    -- Clear orphaned ESP models first
+    local coinContainers = {}
     for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "LouisCoinESP" and (not v.Parent or not v.Parent.Parent) then 
-            v:Destroy() 
+        if v.Name == "CoinContainer" and v:IsA("Folder") then
+            table.insert(coinContainers, v)
+        end
+    end
+    
+    local coinsToHighlight = {}
+    if #coinContainers > 0 then
+        for _, container in ipairs(coinContainers) do
+            for _, coin in ipairs(container:GetChildren()) do
+                table.insert(coinsToHighlight, coin)
+            end
+        end
+    else
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v.Name == "Coin_Server" or v.Name == "Coin" or v.Name == "MainCoin" then
+                table.insert(coinsToHighlight, v)
+            end
         end
     end
 
-    for _, coin in ipairs(CoinCache) do
-        if coin and coin.Parent then
-            local coinPart = coin:IsA("BasePart") and coin 
-                or coin:FindFirstChild("Coin") 
-                or coin:FindFirstChild("MainCoin") 
-                or coin:FindFirstChildOfClass("BasePart")
-                
-            if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "LouisCoinESP"
-                highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
-                highlight.FillTransparency = 0.4
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                highlight.OutlineTransparency = 0
-                highlight.Adornee = coinPart
-                highlight.Parent = coinPart
-            end
+    for _, coin in ipairs(coinsToHighlight) do
+        local coinPart = coin:IsA("BasePart") and coin 
+            or coin:FindFirstChild("Coin") 
+            or coin:FindFirstChild("MainCoin") 
+            or coin:FindFirstChildOfClass("BasePart")
+            
+        if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "LouisCoinESP"
+            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
+            highlight.FillTransparency = 0.4
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.OutlineTransparency = 0
+            highlight.Adornee = coinPart
+            highlight.Parent = coinPart
         end
     end
 end
@@ -924,48 +829,6 @@ local function TpToPlayer(targetPlayer)
         root.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
     end
 end
-
--- Safe Zone Platform & Execution
-local function ToggleSafeZone(state)
-    Settings.SafeZoneEnabled = state
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if state then
-        if not SafePlatform then
-            SafePlatform = Instance.new("Part")
-            SafePlatform.Size = Vector3.new(20, 1, 20)
-            SafePlatform.Position = Vector3.new(0, 1000, 0)
-            SafePlatform.Anchored = true
-            SafePlatform.CanCollide = true
-            SafePlatform.Parent = workspace
-        end
-        if root then
-            SavePosition()
-            root.CFrame = SafePlatform.CFrame * CFrame.new(0, 3, 0)
-        end
-    else
-        if SafePlatform then
-            SafePlatform:Destroy()
-            SafePlatform = nil
-        end
-        if SavedCFrame and root then
-            root.CFrame = SavedCFrame
-        end
-    end
-end
-
--- Bunnyhop Logic Loop
-SafeConnect(RunService.Heartbeat, function()
-    if Settings.AutoBhopEnabled and LocalPlayer.Character then
-        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if humanoid and root and humanoid.MoveDirection.Magnitude > 0 then
-            if humanoid.FloorMaterial ~= Enum.Material.Air then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
 
 -- ========================================================================
 -- [[ OPTIMIZED TARGET FLING (LONGER DURATION & PRECISION) ]]
@@ -1075,6 +938,7 @@ SafeConnect(RunService.Heartbeat, function()
             end
         end
 
+        -- Logika Anti-Fling yang dioptimalkan agar tidak merusak pergerakan normal
         if Settings.AntiFling and not Settings.TouchFling then
             root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             if root.AssemblyLinearVelocity.Magnitude > 75 then
@@ -1116,6 +980,7 @@ task.spawn(function()
     end
 end)
 
+-- Mencegah tabrakan fisik secara lokal dengan karakter pemain lain saat Anti-Fling menyala
 task.spawn(function()
     while true do
         if Settings.AntiFling then
@@ -1141,6 +1006,7 @@ end)
 local function GetFlyDirection()
     local direction = Vector3.new(0, 0, 0)
     
+    -- PC Keyboard Input
     if not UserInputService:GetFocusedTextBox() then
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then
             direction = direction + Camera.CFrame.LookVector
@@ -1162,6 +1028,7 @@ local function GetFlyDirection()
         end
     end
     
+    -- Mobile Joystick / Dynamic Touch Integration
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if hum then
@@ -1169,6 +1036,7 @@ local function GetFlyDirection()
             local camLook = Camera.CFrame.LookVector
             direction = direction + (hum.MoveDirection + Vector3.new(0, camLook.Y * 1.2, 0))
         end
+        
         if hum.Jump then
             direction = direction + Vector3.new(0, 1, 0)
         end
@@ -1216,7 +1084,7 @@ local function UpdateFlyState(state)
     end
 end
 
--- SPIN SYSTEM
+-- SPIN SYSTEM (Physical Angular Velocity)
 local function UpdateSpinState(state)
     Settings.SpinEnabled = state
     local char = LocalPlayer.Character
@@ -1557,6 +1425,14 @@ local ExtBhopBtn = Library:CreateExternalButton("Bhop", ExtButtonTexts.Bhop, UDi
 end)
 RegisterExternalButton(ExtBhopBtn)
 
+-- External Button Safe Zone Platform
+local ExtSafeZoneBtn = Library:CreateExternalButton("SafeZone", ExtButtonTexts.SafeZone, UDim2.new(0, 170, 0.5, -55), function()
+    Settings.SafeZoneEnabled = not Settings.SafeZoneEnabled
+    ToggleSafeZone(Settings.SafeZoneEnabled)
+    Library:Notify("Safe Zone", "Status: " .. (Settings.SafeZoneEnabled and "ON" or "OFF"), 1.5)
+end)
+RegisterExternalButton(ExtSafeZoneBtn)
+
 ExtAimbotBtn:SetVisible(false)
 ExtGrabBtn:SetVisible(false)
 ExtDoubleJumpBtn:SetVisible(false)
@@ -1569,6 +1445,7 @@ ExtSavePosBtn:SetVisible(false)
 ExtLoadPosBtn:SetVisible(false)
 ExtKillAllBtn:SetVisible(false)
 ExtBhopBtn:SetVisible(false)
+ExtSafeZoneBtn:SetVisible(false)
 
 -- ========================================================================
 -- [[ MAIN MENU STRUCTURE ]]
@@ -1634,10 +1511,6 @@ end)
 
 TabCombat:CreateToggle("Anti Fling (Collision Resistance)", false, function(state)
     Settings.AntiFling = state
-end)
-
-TabCombat:CreateToggle("Anti-Die (Desync / Semi-Godmode)", false, function(state)
-    Settings.AntiDie = state
 end)
 
 TabCombat:CreateParagraph("Aimbot & Prediction", "Aimbot locks to murderer or targets based on role.")
@@ -1764,21 +1637,11 @@ TabMovement:CreateToggle("Auto Bunnyhop (Bhop)", false, function(state)
 end)
 
 TabMovement:CreateToggle("Show Auto Bhop Button [BHOP]", false, function(state)
-    Settings.BhopExtEnabled = state
     ExtBhopBtn:SetVisible(state)
 end)
 
-TabMovement:CreateToggle("Spin bot (Visual Physical Spin)", false, function(state)
-    UpdateSpinState(state)
-end)
-
-TabMovement:CreateToggle("Show Spin Bot Floating Button [SPIN]", false, function(state)
-    Settings.SpinExtEnabled = state
-    ExtSpinBtn:SetVisible(state)
-end)
-
 TabMovement:CreateParagraph("Flight, Noclip & Safe Teleport", "Movement through spaces.")
-TabMovement:CreateToggle("Velocity Fly Hack", false, function(state)
+TabMovement:CreateToggle("Velocity Fly Hack (Mobile & PC Joystick Integration)", false, function(state)
     UpdateFlyState(state)
 end)
 
@@ -1792,6 +1655,10 @@ end)
 
 TabMovement:CreateToggle("Safe Zone Teleport (Hide Out)", false, function(state)
     ToggleSafeZone(state)
+end)
+
+TabMovement:CreateToggle("Show Safe Zone Button [SZ]", false, function(state)
+    ExtSafeZoneBtn:SetVisible(state)
 end)
 
 TabMovement:CreateToggle("Character Invisibility Hack", false, function(state)
@@ -1808,29 +1675,9 @@ end)
 -- --- TAB 5: MM2 SPECIAL UTILITIES ---
 local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 
-TabSpecial:CreateParagraph("Coin Autofarm Settings", "Automatically scan and collect coins on the map.")
+TabSpecial:CreateParagraph("Coin Autofarm", "Automatically scan and collect coins on the map.")
 TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
-end)
-
-TabSpecial:CreateSlider("Coin Teleport Delay", 0.01, 3.0, Settings.CoinCollectDelay, function(val)
-    Settings.CoinCollectDelay = val
-end)
-
-TabSpecial:CreateToggle("Server Hop on Full Bag", false, function(state)
-    Settings.ServerHopOnFullBag = state
-end)
-
-TabSpecial:CreateToggle("Anti-AFK & Auto-Rejoin", false, function(state)
-    Settings.AntiAfkAndRejoin = state
-end)
-
-TabSpecial:CreateToggle("Safe Farm (Avoid Murderer)", false, function(state)
-    Settings.SafeCoinFarm = state
-end)
-
-TabSpecial:CreateToggle("Event Token Auto Farm", false, function(state)
-    Settings.EventTokenFarm = state
 end)
 
 -- ========================================================================
@@ -1946,10 +1793,6 @@ TabSpecial:CreateToggle("Show Manual Grab Gun Button [G]", false, function(state
     ExtGrabBtn:SetVisible(state)
 end)
 
-TabSpecial:CreateToggle("Anti-Steal Gun Drop", false, function(state)
-    Settings.AntiStealGun = state
-end)
-
 TabSpecial:CreateParagraph("Target Teleports", "Instant teleportation to key characters.")
 TabSpecial:CreateButton("Teleport instantly to Sheriff", function()
     TeleportToSheriff()
@@ -2028,10 +1871,14 @@ TabControls:CreateSlider("Bhop Button Scale", 10, 200, 100, function(val)
     SetButtonSize(ExtBhopBtn, val / 100)
 end)
 
+TabControls:CreateSlider("Safe Zone Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtSafeZoneBtn, val / 100)
+end)
+
 TabControls:CreateParagraph("Window Lock", "Lock window dragging positions.")
 TabControls:CreateToggle("Lock Main UI Dragging", false, function(state)
     Window:SetDragLock(state)
-    UpdateAllButtonsDragLock(state)
+    UpdateAllButtonsDragLock(state) -- Automatically sets drag-lock status across all external buttons
 end)
 
 -- --- TAB 7: CONFIGURATIONS ---
