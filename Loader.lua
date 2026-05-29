@@ -552,7 +552,7 @@ local CollectedCoins = {}
 
 -- Bersihkan daftar hitam koin secara berkala setiap 5 detik agar memori tetap bersih
 task.spawn(function()
-    while true; do
+    while true do  -- MEMPERBAIKI KESALAHAN SINTAKSIS (TITIK KOMA DIHAPUS)
         task.wait(5)
         table.clear(CollectedCoins)
     end
@@ -632,7 +632,7 @@ local function GetNearestCoin()
     return closestCoin
 end
 
--- MODIFIKASI: Metode Tween Cepat & Aman Anti-Kick
+-- Metode Tween Cepat & Aman Anti-Kick
 local function CollectCoin(coinPart)
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -1152,13 +1152,13 @@ task.spawn(function()
 
                     local tRoot = targetPlayer.Character.HumanoidRootPart
                     root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
-                    root.Velocity = Vector3.new(99999, 99999, 99999)
+                    root.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
                 else
                     if FlingFailsafeActive then
                         Settings.AutoFlingMurder = false
                         Settings.AutoFlingSheriff = false
-                        root.Velocity = Vector3.new(0, 0, 0)
-                        root.RotVelocity = Vector3.new(0, 0, 0)
+                        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                         task.wait(0.1)
                         if OriginalCFrameBeforeFling then
                             root.CFrame = OriginalCFrameBeforeFling
