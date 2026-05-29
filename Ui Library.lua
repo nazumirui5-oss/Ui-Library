@@ -2,18 +2,20 @@ local Library = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 -- ========================================================
 -- [[ 1. MAIN ENGINE SYSTEM (DYNAMIC RGB & DRAG) ]]
 -- ========================================================
 local RGBElements = {}
 
--- Register an instance property to cycle smoothly through the rainbow spectrum
+-- Mendaftarkan properti instansi untuk siklus spektrum pelangi secara halus
 local function RegisterRGB(instance, property)
     table.insert(RGBElements, {Instance = instance, Property = property})
 end
 
--- Unregister an instance property from the rainbow cycle
+-- Menghapus properti instansi dari siklus spektrum pelangi
 local function UnregisterRGB(instance, property)
     for i = #RGBElements, 1, -1 do
         if RGBElements[i].Instance == instance and RGBElements[i].Property == property then
@@ -22,10 +24,10 @@ local function UnregisterRGB(instance, property)
     end
 end
 
--- Fast and highly saturated RGB loop utilizing os.clock()
+-- Loop RGB cepat dengan saturasi penuh menggunakan os.clock()
 RunService.RenderStepped:Connect(function()
-    local hue = (os.clock() % 4) / 4 -- Transition cycle speed (4 seconds)
-    local rainbowColor = Color3.fromHSV(hue, 1, 1) -- Maximum saturation & brightness
+    local hue = (os.clock() % 4) / 4 -- Kecepatan transisi siklus (4 detik)
+    local rainbowColor = Color3.fromHSV(hue, 1, 1) -- Saturasi & Kecerahan Maksimum
     
     for i = #RGBElements, 1, -1 do
         local item = RGBElements[i]
@@ -39,7 +41,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Drag utility compatible with both PC mouse inputs and Mobile touch inputs
+-- Utilitas drag yang kompatibel untuk input PC (Mouse) dan Mobile (Touch)
 local function EnableDrag(dragFrame, parentFrame)
     local dragging, dragInput, dragStart, startPos
     
@@ -71,7 +73,7 @@ local function EnableDrag(dragFrame, parentFrame)
     end)
 end
 
--- Fetches or initializes the global ScreenGui container
+-- Mengambil atau menginisialisasi kontainer ScreenGui global
 local MainGui
 local function GetMainGui()
     if not MainGui then
@@ -125,7 +127,7 @@ function Library:Notify(title, desc, duration)
     NotifStroke.Thickness = 1.2
     RegisterRGB(NotifStroke, "Color")
 
-    -- Vibrant left-side RGB accent strip
+    -- Strip aksen RGB di sisi kiri
     local NotifAccent = Instance.new("Frame", NotifFrame)
     NotifAccent.Size = UDim2.new(0, 4, 1, 0)
     NotifAccent.Position = UDim2.new(0, 0, 0, 0)
@@ -167,14 +169,195 @@ function Library:Notify(title, desc, duration)
 end
 
 -- ========================================================
--- [[ 3. METHODS: CREATE MAIN WINDOW ]]
+-- [[ 3. REBUILT RGB LOADING SCREEN SYSTEM ]]
+-- ========================================================
+local function StartLoading(titleText, subtitleText, onComplete)
+    local ScreenGui = GetMainGui()
+    
+    -- Membuat Loading Gui Container
+    local LoadingGui = Instance.new("Frame", ScreenGui)
+    LoadingGui.Name = "Louis_Loading_Screen"
+    LoadingGui.Size = UDim2.new(1, 0, 1, 0)
+    LoadingGui.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+    LoadingGui.BackgroundTransparency = 0.3
+    LoadingGui.BorderSizePixel = 0
+    LoadingGui.ZIndex = 9999
+
+    -- Profile Frame
+    local ProfileFrame = Instance.new("Frame", LoadingGui)
+    ProfileFrame.Size = UDim2.new(0, 250, 0, 70)
+    ProfileFrame.Position = UDim2.new(0, 20, 1, -90)
+    ProfileFrame.BackgroundTransparency = 1
+
+    local ProfileImage = Instance.new("ImageLabel", ProfileFrame)
+    ProfileImage.Size = UDim2.new(0, 55, 0, 55)
+    ProfileImage.Position = UDim2.new(0, 0, 0.5, -27)
+    ProfileImage.BackgroundTransparency = 1
+    ProfileImage.ImageTransparency = 1
+    
+    task.spawn(function()
+        local content = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+        ProfileImage.Image = content
+    end)
+    
+    Instance.new("UICorner", ProfileImage).CornerRadius = UDim.new(1, 0)
+    local pStroke = Instance.new("UIStroke", ProfileImage)
+    pStroke.Thickness = 2
+    pStroke.Transparency = 1
+    RegisterRGB(pStroke, "Color")
+
+    local UserInfo = Instance.new("TextLabel", ProfileFrame)
+    UserInfo.Size = UDim2.new(1, -65, 1, 0)
+    UserInfo.Position = UDim2.new(0, 65, 0, 0)
+    UserInfo.BackgroundTransparency = 1
+    UserInfo.Font = Enum.Font.MontserratBold
+    UserInfo.TextColor3 = Color3.new(1, 1, 1)
+    UserInfo.TextSize = 12
+    UserInfo.TextXAlignment = Enum.TextXAlignment.Left
+    UserInfo.RichText = true
+    UserInfo.TextTransparency = 1
+    UserInfo.Text = '<font color="rgb(200, 200, 200)">MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="10" color="rgb(150, 150, 150)">ID: ' .. LocalPlayer.UserId .. '</font>'
+
+    -- Title & Subtitle Labels (RGB Powered)
+    local Title = Instance.new("TextLabel", LoadingGui)
+    Title.Size = UDim2.new(1, 0, 0.2, 0)
+    Title.Position = UDim2.new(0, 0, 0.3, 0)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.MontserratBold
+    Title.TextSize = 52
+    Title.RichText = true
+    Title.Text = (titleText or "LOUIS HUB"):upper() .. ' <font color="rgb(255, 255, 255)">FREE</font>'
+    Title.TextTransparency = 1
+    RegisterRGB(Title, "TextColor3")
+
+    local SubTitle = Instance.new("TextLabel", LoadingGui)
+    SubTitle.Size = UDim2.new(1, 0, 0.1, 0)
+    SubTitle.Position = UDim2.new(0, 0, 0.45, 0)
+    SubTitle.BackgroundTransparency = 1
+    SubTitle.Text = (subtitleText or "MODERNIZED INTERFACE"):upper()
+    SubTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SubTitle.TextSize = 22
+    SubTitle.Font = Enum.Font.MontserratBold
+    SubTitle.TextTransparency = 1
+
+    -- Bar Loading
+    local BarBg = Instance.new("Frame", LoadingGui)
+    BarBg.Size = UDim2.new(0.3, 0, 0.008, 0)
+    BarBg.Position = UDim2.new(0.35, 0, 0.62, 0)
+    BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Instance.new("UICorner", BarBg)
+    
+    local BarFill = Instance.new("Frame", BarBg)
+    BarFill.Size = UDim2.new(0, 0, 1, 0)
+    Instance.new("UICorner", BarFill)
+    RegisterRGB(BarFill, "BackgroundColor3")
+
+    -- Tombol Skip
+    local SkipBtn = Instance.new("TextButton", LoadingGui)
+    SkipBtn.Size = UDim2.new(0, 100, 0, 30)
+    SkipBtn.Position = UDim2.new(0.5, -50, 0.9, 0)
+    SkipBtn.BackgroundTransparency = 1
+    SkipBtn.Text = "SKIP"
+    SkipBtn.TextColor3 = Color3.new(1, 1, 1)
+    SkipBtn.Font = Enum.Font.MontserratBold
+    SkipBtn.TextSize = 16
+    SkipBtn.ZIndex = 1000
+    SkipBtn.TextTransparency = 1
+
+    local beepSound = Instance.new("Sound", LoadingGui)
+    beepSound.SoundId = "rbxassetid://1567483853"
+    beepSound.Volume = 0.6
+
+    local function ElectricZapEffect()
+        for i = 1, 3 do
+            local zap = Instance.new("Frame", LoadingGui)
+            zap.BackgroundColor3 = Color3.new(1, 1, 1)
+            zap.BorderSizePixel = 0
+            zap.Size = UDim2.new(0, math.random(50, 150), 0, 2)
+            zap.Position = UDim2.new(0.5, math.random(-150, 150), 0.35, math.random(-40, 40))
+            zap.Rotation = math.random(0, 360)
+            task.spawn(function() task.wait(0.12); zap:Destroy() end)
+        end
+    end
+
+    local skipTriggered = false
+    local function ForceExit()
+        if skipTriggered then return end
+        skipTriggered = true
+        beepSound:Stop()
+        
+        UnregisterRGB(Title, "TextColor3")
+        UnregisterRGB(BarFill, "BackgroundColor3")
+        UnregisterRGB(pStroke, "Color")
+
+        local fadeInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        TweenService:Create(LoadingGui, fadeInfo, {BackgroundTransparency = 1}):Play()
+        for _, obj in ipairs(LoadingGui:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                    TweenService:Create(obj, fadeInfo, {TextTransparency = 1}):Play()
+                elseif obj:IsA("ImageLabel") then
+                    TweenService:Create(obj, fadeInfo, {ImageTransparency = 1, BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("Frame") then
+                    TweenService:Create(obj, fadeInfo, {BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("UIStroke") then
+                    TweenService:Create(obj, fadeInfo, {Transparency = 1}):Play()
+                end
+            end)
+        end
+        task.delay(0.45, function() 
+            LoadingGui:Destroy() 
+            if onComplete then onComplete() end
+        end)
+    end
+
+    SkipBtn.MouseButton1Click:Connect(ForceExit)
+
+    -- Animasi Elemen Masuk
+    local entryTween = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(Title, entryTween, {TextTransparency = 0}):Play()
+    TweenService:Create(ProfileImage, entryTween, {ImageTransparency = 0}):Play()
+    TweenService:Create(pStroke, entryTween, {Transparency = 0}):Play()
+    TweenService:Create(UserInfo, entryTween, {TextTransparency = 0}):Play()
+    TweenService:Create(SkipBtn, entryTween, {TextTransparency = 0}):Play()
+
+    task.delay(1.5, function()
+        if skipTriggered then return end
+        TweenService:Create(SubTitle, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+        for i = 1, 6 do 
+            if skipTriggered then break end
+            local vis = not SubTitle.Visible
+            SubTitle.Visible = vis
+            Title.Visible = vis
+            if vis then 
+                ElectricZapEffect()
+                pcall(function() beepSound:Play() end) 
+            end
+            task.wait(0.25)
+        end
+        if not skipTriggered then SubTitle.Visible = true; Title.Visible = true end
+    end)
+
+    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Linear", 6)
+    
+    local waitTime = 0
+    while waitTime < 6.5 and not skipTriggered do
+        waitTime = waitTime + 0.1
+        task.wait(0.1)
+    end
+    if not skipTriggered then ForceExit() end
+end
+
+-- ========================================================
+-- [[ 4. METHODS: CREATE MAIN WINDOW ]]
 -- ========================================================
 function Library:CreateWindow(titleText, subtitleText)
     local Window = {
         Tabs = {},
         CurrentTab = nil,
         DragLocked = false,
-        Minimized = false
+        Minimized = false,
+        Visible = false
     }
 
     local ScreenGui = GetMainGui()
@@ -187,6 +370,7 @@ function Library:CreateWindow(titleText, subtitleText)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
+    MainFrame.Visible = false -- Disembunyikan terlebih dahulu selama loading screen berjalan
 
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 10)
@@ -201,7 +385,7 @@ function Library:CreateWindow(titleText, subtitleText)
     Header.Size = UDim2.new(1, 0, 0, 50)
     Header.BackgroundTransparency = 1
     
-    -- Drag handling on Header with DragLocked verification
+    -- Drag handling pada Header
     local dragging, dragInput, dragStart, startPos
     Header.InputBegan:Connect(function(input)
         if not Window.DragLocked and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
@@ -249,7 +433,7 @@ function Library:CreateWindow(titleText, subtitleText)
     SubtitleLabel.Font = Enum.Font.Montserrat
     SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Clean Horizontal RGB Separator Line (Replaced Overlapping Accent Panels)
+    -- Clean Horizontal RGB Separator Line
     local HeaderSeparator = Instance.new("Frame", MainFrame)
     HeaderSeparator.Size = UDim2.new(1, 0, 0, 1)
     HeaderSeparator.Position = UDim2.new(0, 0, 0, 50)
@@ -295,12 +479,12 @@ function Library:CreateWindow(titleText, subtitleText)
         TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
     end)
 
-    -- Interactive Open/Close (Minimize) Button with Rotation Effects
+    -- Minimize Button dengan Efek Rotasi
     local ToggleIcon = Instance.new("ImageButton", Header)
     ToggleIcon.Size = UDim2.new(0, 20, 0, 20)
     ToggleIcon.Position = UDim2.new(1, -32, 0, 15)
     ToggleIcon.BackgroundTransparency = 1
-    ToggleIcon.Image = "rbxassetid://6031094670" -- Modern V-arrow icon
+    ToggleIcon.Image = "rbxassetid://6031094670" -- V-arrow icon
     ToggleIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
 
     ToggleIcon.MouseButton1Click:Connect(function()
@@ -308,51 +492,103 @@ function Library:CreateWindow(titleText, subtitleText)
         local targetSize = Window.Minimized and UDim2.new(0, 530, 0, 51) or UDim2.new(0, 530, 0, 340)
         local targetRotation = Window.Minimized and 180 or 0
         
-        TweenService:Create(ToggleIcon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = targetRotation}):Play()
+        TweenService:Create(ToggleIcon, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Rotation = targetRotation}):Play()
         
         if Window.Minimized then
-            Sidebar.Visible = false
-            ContentArea.Visible = false
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
-        else
-            local expandTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize})
-            expandTween:Play()
-            expandTween.Completed:Connect(function()
-                if not Window.Minimized then
-                    Sidebar.Visible = true
-                    ContentArea.Visible = true
+            local sidebarFade = TweenService:Create(Sidebar, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+            local contentFade = TweenService:Create(ContentArea, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+            sidebarFade:Play()
+            contentFade:Play()
+            
+            sidebarFade.Completed:Connect(function()
+                if Window.Minimized then
+                    Sidebar.Visible = false
+                    ContentArea.Visible = false
                 end
             end)
+            TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+        else
+            Sidebar.Visible = true
+            ContentArea.Visible = true
+            TweenService:Create(Sidebar, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+            TweenService:Create(ContentArea, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+            
+            local expandTween = TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = targetSize})
+            expandTween:Play()
         end
     end)
 
-    -- Lock or unlock window dragging
+    -- [[ FLOATING ICON OPEN CLOSE ]]
+    -- Tombol mengambang berbentuk kotak tumpul (sudut membulat)
+    local FloatingToggle = Instance.new("ImageButton", ScreenGui)
+    FloatingToggle.Name = "FloatingToggleIcon"
+    FloatingToggle.Size = UDim2.new(0, 52, 0, 52)
+    FloatingToggle.Position = UDim2.new(0, 25, 0.5, -26)
+    FloatingToggle.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+    FloatingToggle.BorderSizePixel = 0
+    FloatingToggle.Image = "rbxassetid://76009826277147"
+    FloatingToggle.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    FloatingToggle.Visible = false -- Disembunyikan sampai loading selesai
+
+    local ToggleCorner = Instance.new("UICorner", FloatingToggle)
+    ToggleCorner.CornerRadius = UDim.new(0, 10) -- Sudut melengkung tumpul
+
+    local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
+    ToggleStroke.Thickness = 1.5
+    RegisterRGB(ToggleStroke, "Color")
+
+    EnableDrag(FloatingToggle, FloatingToggle)
+
+    -- Mengontrol perilaku Buka/Tutup Main Window dari Floating Icon
+    local function ToggleWindowVisibility()
+        Window.Visible = not Window.Visible
+        
+        -- Animasi Click Feedback untuk Floating Button
+        TweenService:Create(FloatingToggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 46, 0, 46)}):Play()
+        task.delay(0.1, function()
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 52, 0, 52)}):Play()
+        end)
+
+        if Window.Visible then
+            MainFrame.Visible = true
+            MainFrame.Size = UDim2.new(0, 530, 0, 0)
+            local showTween = TweenService:Create(MainFrame, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 530, 0, Window.Minimized and 51 or 340)})
+            showTween:Play()
+        else
+            local hideTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 530, 0, 0)})
+            hideTween:Play()
+            hideTween.Completed:Connect(function()
+                if not Window.Visible then
+                    MainFrame.Visible = false
+                end
+            end)
+        end
+    end
+    FloatingToggle.MouseButton1Click:Connect(ToggleWindowVisibility)
+
+    -- Menjalankan Loading Screen
+    StartLoading(titleText, subtitleText, function()
+        -- Munculkan Main Menu & Floating Button setelah Loading selesai
+        FloatingToggle.Visible = true
+        Window.Visible = true
+        MainFrame.Visible = true
+        MainFrame.Size = UDim2.new(0, 530, 0, 0)
+        TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 530, 0, 340)}):Play()
+    end)
+
+    -- Mengunci pergerakan drag window
     function Window:SetDragLock(state)
         Window.DragLocked = state
     end
 
-    -- External keybind registration to hide/reveal the UI
+    -- Registrasi tombol hotkey eksternal untuk Menyembunyikan/Menampilkan UI
     function Window:BindToggleKey(keyCode)
         local debounce = false
         UserInputService.InputBegan:Connect(function(input, processed)
             if processed then return end
             if input.KeyCode == keyCode and not debounce then
                 debounce = true
-                local targetVis = not MainFrame.Visible
-                if targetVis then
-                    MainFrame.Size = Window.Minimized and UDim2.new(0, 530, 0, 51) or UDim2.new(0, 530, 0, 0)
-                    MainFrame.Visible = true
-                    local sizeGoal = Window.Minimized and UDim2.new(0, 530, 0, 51) or UDim2.new(0, 530, 0, 340)
-                    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = sizeGoal}):Play()
-                else
-                    local t = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.In, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 530, 0, 0)})
-                    t:Play()
-                    t.Completed:Connect(function()
-                        if not MainFrame.Visible then
-                            MainFrame.Visible = false
-                        end
-                    end)
-                end
+                ToggleWindowVisibility()
                 task.wait(0.3)
                 debounce = false
             end
@@ -360,12 +596,12 @@ function Library:CreateWindow(titleText, subtitleText)
     end
 
     -- ========================================================
-    -- [[ 4. METHODS: CREATE NEW TAB ]]
+    -- [[ 5. METHODS: CREATE NEW TAB ]]
     -- ========================================================
     function Window:CreateTab(tabName, iconAssetId)
         local Tab = {}
         
-        -- Scrolling Container for Tab Items
+        -- Scrolling Container untuk Item Konten Tab
         local TabContent = Instance.new("ScrollingFrame", ContentArea)
         TabContent.Size = UDim2.new(1, -16, 1, -16)
         TabContent.Position = UDim2.new(0, 8, 0, 8)
@@ -394,7 +630,7 @@ function Library:CreateWindow(titleText, subtitleText)
         TabBtnStroke.Color = Color3.fromRGB(40, 40, 45)
         TabBtnStroke.Thickness = 1
 
-        -- Tiny vertical active RGB status indicator inside the tab selection button
+        -- Indikator vertikal RGB aktif kecil di dalam tombol seleksi tab
         local TabIndicator = Instance.new("Frame", TabButton)
         TabIndicator.Size = UDim2.new(0, 3, 1, -12)
         TabIndicator.Position = UDim2.new(0, 4, 0, 6)
@@ -424,22 +660,34 @@ function Library:CreateWindow(titleText, subtitleText)
 
         local function Select()
             if Window.CurrentTab then
-                Window.CurrentTab.Button.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
-                Window.CurrentTab.Text.TextColor3 = Color3.fromRGB(150, 150, 150)
-                Window.CurrentTab.Frame.Visible = false
-                Window.CurrentTab.Indicator.Visible = false
-                if Window.CurrentTab.Icon then
-                    Window.CurrentTab.Icon.ImageColor3 = Color3.fromRGB(150, 150, 150)
+                local oldTab = Window.CurrentTab
+                -- Animasi transisi tab keluar (smooth fading & sliding)
+                local fadeOut = TweenService:Create(oldTab.Frame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0.9, -16), Position = UDim2.new(0, 8, 0, 18)})
+                fadeOut:Play()
+                fadeOut.Completed:Connect(function()
+                    oldTab.Frame.Visible = false
+                end)
+
+                TweenService:Create(oldTab.Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 28, 33)}):Play()
+                TweenService:Create(oldTab.Text, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(150, 150, 150)}):Play()
+                oldTab.Indicator.Visible = false
+                if oldTab.Icon then
+                    TweenService:Create(oldTab.Icon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(150, 150, 150)}):Play()
                 end
             end
             
-            Window.CurrentTab = {Button = TabButton, Text = TabText, Frame = TabContent, Icon = IconLabel, Indicator = TabIndicator}
-            TabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-            TabText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            -- Animasi transisi tab masuk (smooth fade & sliding up)
+            TabContent.Size = UDim2.new(1, -16, 0.9, -16)
+            TabContent.Position = UDim2.new(0, 8, 0, 18)
             TabContent.Visible = true
+            TweenService:Create(TabContent, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 1, -16), Position = UDim2.new(0, 8, 0, 8)}):Play()
+
+            Window.CurrentTab = {Button = TabButton, Text = TabText, Frame = TabContent, Icon = IconLabel, Indicator = TabIndicator}
+            TweenService:Create(TabButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
             TabIndicator.Visible = true
             if IconLabel then
-                IconLabel.ImageColor3 = Color3.fromRGB(255, 255, 255)
+                TweenService:Create(IconLabel, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
             end
         end
 
@@ -450,7 +698,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4a. TAB ELEMENT: CREATE BUTTON ]]
+        -- [[ 5a. TAB ELEMENT: CREATE BUTTON ]]
         -- ========================================================
         function Tab:CreateButton(buttonText, callback)
             local Button = Instance.new("TextButton", TabContent)
@@ -481,27 +729,28 @@ function Library:CreateWindow(titleText, subtitleText)
             ArrowIcon.Image = "rbxassetid://6031094678"
             ArrowIcon.ImageColor3 = Color3.fromRGB(150, 150, 150)
 
+            -- Animasi Hover Tombol
             Button.MouseEnter:Connect(function()
-                TweenService:Create(Button, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(32, 32, 38)}):Play()
-                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(32, 32, 38)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -21, 0.5, -7)}):Play()
             end)
             Button.MouseLeave:Connect(function()
-                TweenService:Create(Button, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
-                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(150, 150, 150)}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageColor3 = Color3.fromRGB(150, 150, 150), Position = UDim2.new(1, -24, 0.5, -7)}):Play()
             end)
 
             Button.MouseButton1Click:Connect(function()
-                local press = TweenService:Create(Button, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(40, 40, 50)})
+                local press = TweenService:Create(Button, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(40, 40, 50)})
                 press:Play()
                 press.Completed:Connect(function()
-                    TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(32, 32, 38)}):Play()
+                    TweenService:Create(Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(32, 32, 38)}):Play()
                 end)
                 if callback then task.spawn(callback) end
             end)
         end
 
         -- ========================================================
-        -- [[ 4b. TAB ELEMENT: CREATE TOGGLE ]]
+        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE ]]
         -- ========================================================
         function Tab:CreateToggle(toggleText, defaultVal, callback)
             local Toggle = {State = defaultVal or false}
@@ -541,18 +790,20 @@ function Library:CreateWindow(titleText, subtitleText)
             SwitchBall.BorderSizePixel = 0
             Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
 
-            -- Dynamic visual updates incorporating a dynamic RGB background when turned ON
+            -- Animasi Pergeseran Toggle
             local function UpdateVisual(animate)
-                local duration = animate and 0.15 or 0
-                local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local duration = animate and 0.25 or 0
+                local info = TweenInfo.new(duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
                 
                 if Toggle.State then
                     TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -17, 0.5, -7), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-                    RegisterRGB(SwitchBg, "BackgroundColor3") -- Dynamic active background color
+                    RegisterRGB(SwitchBg, "BackgroundColor3")
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(28, 28, 35)}):Play()
                 else
                     UnregisterRGB(SwitchBg, "BackgroundColor3")
                     TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 3, 0.5, -7), BackgroundColor3 = Color3.fromRGB(150, 150, 150)}):Play()
-                    TweenService:Create(SwitchBg, info, {BackgroundColor3 = Color3.fromRGB(40, 40, 45)}):Play()
+                    TweenService:Create(SwitchBg, TweenInfo.new(duration, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(40, 40, 45)}):Play()
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
                 end
             end
 
@@ -564,7 +815,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 if callback then task.spawn(function() callback(Toggle.State) end) end
             end)
 
-            -- Controller interface to allow external state updates
             local toggleController = {}
             function toggleController:Set(state)
                 Toggle.State = state
@@ -575,7 +825,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4c. TAB ELEMENT: CREATE SLIDER ]]
+        -- [[ 5c. TAB ELEMENT: CREATE SLIDER ]]
         -- ========================================================
         function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, callback)
             local Slider = {Value = defaultVal or minVal}
@@ -620,7 +870,8 @@ function Library:CreateWindow(titleText, subtitleText)
                 local finalVal = math.floor(rawVal + 0.5)
                 
                 Slider.Value = finalVal
-                SliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+                -- Animasi halus transisi slider fill
+                TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
                 TitleLabel.Text = sliderText .. ": " .. tostring(finalVal)
                 
                 if callback then task.spawn(function() callback(finalVal) end) end
@@ -647,7 +898,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4d. TAB ELEMENT: CREATE DROPDOWN ]]
+        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN ]]
         -- ========================================================
         function Tab:CreateDropdown(dropdownText, options, defaultVal, callback)
             local Dropdown = {
@@ -731,10 +982,10 @@ function Library:CreateWindow(titleText, subtitleText)
                     end
 
                     OptBtn.MouseEnter:Connect(function()
-                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(38, 38, 43)}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(38, 38, 43)}):Play()
                     end)
                     OptBtn.MouseLeave:Connect(function()
-                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 35)}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(30, 30, 35)}):Play()
                     end)
 
                     OptBtn.MouseButton1Click:Connect(function()
@@ -744,8 +995,8 @@ function Library:CreateWindow(titleText, subtitleText)
                         
                         UnregisterRGB(FrameStroke, "Color")
                         FrameStroke.Color = Color3.fromRGB(45, 45, 50)
-                        TweenService:Create(DropdownFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, -6, 0, 38)}):Play()
-                        TweenService:Create(ArrowIcon, TweenInfo.new(0.2), {Rotation = 0}):Play()
+                        TweenService:Create(DropdownFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, 38)}):Play()
+                        TweenService:Create(ArrowIcon, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
                         
                         Refresh()
                         if callback then task.spawn(function() callback(opt) end) end
@@ -762,7 +1013,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 if Dropdown.Open then
                     Refresh()
-                    RegisterRGB(FrameStroke, "Color") -- Highlight frame dynamically during open state
+                    RegisterRGB(FrameStroke, "Color")
                     OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
                     targetHeight = 38 + (OptionList.AbsoluteContentSize.Y + 10)
                     rotation = 180
@@ -772,13 +1023,14 @@ function Library:CreateWindow(titleText, subtitleText)
                     OptionContainer.Size = UDim2.new(1, -24, 0, 0)
                 end
                 
-                TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
-                TweenService:Create(ArrowIcon, TweenInfo.new(0.2), {Rotation = rotation}):Play()
+                -- Animasi ekspansi dropdown yang mulus menggunakan Back easing
+                TweenService:Create(DropdownFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
             end)
         end
 
         -- ========================================================
-        -- [[ 4e. TAB ELEMENT: CREATE TEXTBOX ]]
+        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX ]]
         -- ========================================================
         function Tab:CreateTextBox(labelText, placeholderText, callback)
             local TextBoxFrame = Instance.new("Frame", TabContent)
@@ -817,13 +1069,21 @@ function Library:CreateWindow(titleText, subtitleText)
             InputStroke.Color = Color3.fromRGB(50, 50, 55)
             InputStroke.Thickness = 1
 
+            -- Animasi Fokus Input Textbox
+            InputBox.Focused:Connect(function()
+                TweenService:Create(InputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(120, 120, 130)}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 28, 35)}):Play()
+            end)
+
             InputBox.FocusLost:Connect(function(enterPressed)
+                TweenService:Create(InputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(50, 50, 55)}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
                 if callback then task.spawn(function() callback(InputBox.Text, enterPressed) end) end
             end)
         end
 
         -- ========================================================
-        -- [[ 4f. TAB ELEMENT: CREATE PARAGRAPH ]]
+        -- [[ 5f. TAB ELEMENT: CREATE PARAGRAPH ]]
         -- ========================================================
         function Tab:CreateParagraph(titleText, descText)
             local ParagraphFrame = Instance.new("Frame", TabContent)
@@ -865,7 +1125,7 @@ function Library:CreateWindow(titleText, subtitleText)
 end
 
 -- ========================================================
--- [[ 5. EXTERNAL UTILITY BUTTON SYSTEM ]]
+-- [[ 6. EXTERNAL UTILITY BUTTON SYSTEM ]]
 -- ========================================================
 function Library:CreateExternalButton(id, text, defaultPos, callback)
     local ScreenGui = GetMainGui()
@@ -894,9 +1154,9 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
 
     ExtBtn.MouseButton1Click:Connect(function()
         local origTrans = ExtBtn.BackgroundTransparency
-        TweenService:Create(ExtBtn, TweenInfo.new(0.05), {BackgroundTransparency = 0.4}):Play()
+        TweenService:Create(ExtBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.4}):Play()
         task.delay(0.08, function()
-            TweenService:Create(ExtBtn, TweenInfo.new(0.1), {BackgroundTransparency = origTrans}):Play()
+            TweenService:Create(ExtBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = origTrans}):Play()
         end)
         
         if callback then
@@ -904,7 +1164,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         end
     end)
 
-    -- Controller returns for external programmatic modifications
     local buttonController = {}
     
     function buttonController:SetText(newText)
