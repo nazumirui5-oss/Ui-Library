@@ -1,8 +1,8 @@
 -- ========================================================================
--- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (BUG FIXES VERSION) ]]
+-- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (CONFIG INTEGRATED) ]]
 -- ========================================================================
 
--- 1. LOAD UI LIBRARY FROM GITHUB
+-- 1. LOAD UI LIBRARY FROM YOUR SOURCE (Ganti link di bawah ini dengan link UI Library baru Anda!)
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/Ui%20Library.lua"))()
 
 -- 2. SETUP MAIN ROBLOX SERVICES
@@ -579,7 +579,6 @@ local function CollectCoin(coinPart)
         end
     end
     
-    -- Collection delay set to 0.25s + Ping for fast performance
     root.CFrame = targetCFrame
     task.wait(0.25 + GetPing())
     
@@ -1752,6 +1751,19 @@ TabControls:CreateParagraph("Window Lock", "Lock window dragging positions.")
 TabControls:CreateToggle("Lock Main UI Dragging", false, function(state)
     Window:SetDragLock(state)
     UpdateAllButtonsDragLock(state) -- Menghubungkan lock UI dengan semua tombol eksternal
+end)
+
+-- --- TAB 7: CONFIGURATIONS ---
+local TabConfig = Window:CreateTab("Configurations", "rbxassetid://6023426915")
+
+TabConfig:CreateParagraph("Configuration Manager", "Simpan atau muat konfigurasi pengaturan Anda secara manual kapan saja.")
+
+TabConfig:CreateButton("Save Config Now", function()
+    Library:SaveConfig()
+end)
+
+TabConfig:CreateButton("Load Config Now", function()
+    Library:LoadConfig()
 end)
 
 -- ========================================================================
