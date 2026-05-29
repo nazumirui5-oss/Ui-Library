@@ -642,9 +642,10 @@ local function CollectCoin(coinPart)
     local speed = Settings.CoinFarmTweenSpeed or 120
     local tweenTime = distance / speed
     
-    -- Amankan kecepatan fisik karakter agar gerakan tetap stabil
+    -- AMANKAN FISIK & JALANKAN ANCHOR UNTUK MENANGKIS DETEKSI VELOCITY SPIKE
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    root.Anchored = true
 
     local tweenInfo = TweenInfo.new(
         tweenTime, 
@@ -669,14 +670,22 @@ local function CollectCoin(coinPart)
     end)
     
     while not completed and Settings.CoinFarmEnabled and coinPart and coinPart.Parent do
+        pcall(function()
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end)
         task.wait()
     end
     
     if conn then conn:Disconnect() end
     if currentCoinTween then currentCoinTween:Cancel() end
     
-    -- Jeda jeda instan agar server dapat memproses poin koin masuk
-    task.wait(0.1)
+    -- Lepas kuncian anchor setelah proses selesai
+    root.Anchored = false
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    
+    -- Jeda untuk sinkronisasi posisi di server
+    task.wait(0.15)
 end
 
 task.spawn(function()
