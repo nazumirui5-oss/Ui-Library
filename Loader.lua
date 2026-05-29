@@ -127,6 +127,7 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
+    CoinFarmTweenSpeed = 120, -- Default kecepatan tween koin
 
     -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
@@ -546,21 +547,55 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ COIN DETECTION AND FARM ENGINE (SMART TWEEN) ]]
+-- [[ COIN DETECTION AND FARM ENGINE (RECURSIVE & TWEEN) ]]
 -- ========================================================
 local CollectedCoins = {}
+local ScannedCoins = {}
+local lastCoinScan = 0
 
--- Bersihkan daftar hitam koin secara berkala setiap 5 detik agar memori tetap bersih
+-- Bersihkan daftar koin yang sudah diambil secara berkala
 task.spawn(function()
-    while true do  -- MEMPERBAIKI KESALAHAN SINTAKSIS (TITIK KOMA DIHAPUS)
+    while true do
         task.wait(5)
         table.clear(CollectedCoins)
     end
 end)
 
--- Mencari container koin secara mendalam di seluruh Workspace
-local function GetCoinContainer()
-    return Workspace:FindFirstChild("CoinContainer", true)
+-- Melakukan pencarian koin secara mendalam (rekursif) di seluruh Workspace
+local function DeepScanWorkspaceCoins()
+    table.clear(ScannedCoins)
+    for _, object in ipairs(Workspace:GetDescendants()) do
+        local isCoin = false
+        local coinPart = nil
+        
+        -- Deteksi berdasarkan Nama Part
+        if object:IsA("BasePart") then
+            local nameLower = object.Name:lower()
+            if nameLower == "coin" or nameLower == "maincoin" or nameLower == "coin_server" or nameLower:find("coin") then
+                isCoin = true
+                coinPart = object
+            end
+        end
+        
+        -- Deteksi berdasarkan Highlight ESP Koin (Cadangan)
+        if not isCoin and object.Name == "LouisCoinESP" and object.Parent and object.Parent:IsA("BasePart") then
+            isCoin = true
+            coinPart = object.Parent
+        end
+        
+        -- Deteksi berdasarkan CoinContainer
+        if not isCoin and object.Name == "CoinContainer" then
+            for _, child in ipairs(object:GetDescendants()) do
+                if child:IsA("BasePart") then
+                    table.insert(ScannedCoins, child)
+                end
+            end
+        end
+        
+        if isCoin and coinPart then
+            table.insert(ScannedCoins, coinPart)
+        end
+    end
 end
 
 local function GetNearestCoin()
@@ -568,63 +603,21 @@ local function GetNearestCoin()
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
     
+    -- Lakukan pemindaian mendalam ke seluruh Workspace setiap 0.5 detik (mencegah lag FPS)
+    if os.clock() - lastCoinScan > 0.5 then
+        pcall(DeepScanWorkspaceCoins)
+        lastCoinScan = os.clock()
+    end
+    
     local closestCoin = nil
     local shortestDistance = math.huge
     
-    -- JALUR UTAMA: Deteksi koin dari CoinContainer secara mendalam
-    local container = GetCoinContainer()
-    if container then
-        for _, coin in ipairs(container:GetChildren()) do
-            if not CollectedCoins[coin] then
-                -- Menggunakan pencarian rekursif mendalam (true)
-                local coinPart = coin:FindFirstChild("MainCoin", true) 
-                    or coin:FindFirstChild("Coin", true) 
-                    or coin:FindFirstChildOfClass("BasePart")
-                    or (coin:IsA("BasePart") and coin)
-                
-                if coinPart and not CollectedCoins[coinPart] then
-                    local distance = (root.Position - coinPart.Position).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestCoin = coinPart
-                    end
-                end
-            end
-        end
-    end
-    
-    -- JALUR CADANGAN 1: Deteksi koin berdasarkan Highlight ESP yang sedang aktif
-    if not closestCoin then
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "LouisCoinESP" and v.Parent and not CollectedCoins[v.Parent] then
-                local coinPart = v.Parent
-                if coinPart:IsA("BasePart") then
-                    local distance = (root.Position - coinPart.Position).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestCoin = coinPart
-                    end
-                end
-            end
-        end
-    end
-    
-    -- JALUR CADANGAN 2: Memindai koin manual dari seluruh Workspace (Pencarian Liar)
-    if not closestCoin then
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if (v.Name == "Coin_Server" or v.Name == "Coin" or v.Name == "MainCoin") and not CollectedCoins[v] then
-                local coinPart = v:FindFirstChild("MainCoin", true) 
-                    or v:FindFirstChild("Coin", true) 
-                    or v:FindFirstChildOfClass("BasePart")
-                    or (v:IsA("BasePart") and v)
-                    
-                if coinPart and not CollectedCoins[coinPart] then
-                    local distance = (root.Position - coinPart.Position).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestCoin = coinPart
-                    end
-                end
+    for _, coinPart in ipairs(ScannedCoins) do
+        if coinPart and coinPart.Parent and not CollectedCoins[coinPart] then
+            local distance = (root.Position - coinPart.Position).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                closestCoin = coinPart
             end
         end
     end
@@ -632,46 +625,58 @@ local function GetNearestCoin()
     return closestCoin
 end
 
--- Metode Tween Cepat & Aman Anti-Kick
+local currentCoinTween = nil
 local function CollectCoin(coinPart)
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root or not coinPart then return end
     
-    -- Tandai koin agar tidak diambil ulang
+    -- Tandai koin agar tidak diambil berulang kali
     CollectedCoins[coinPart] = true
     if coinPart.Parent then
         CollectedCoins[coinPart.Parent] = true
     end
 
-    -- Hitung jarak ke koin
+    -- Hitung jarak dan waktu tween berdasarkan kecepatan slider
     local distance = (root.Position - coinPart.Position).Magnitude
+    local speed = Settings.CoinFarmTweenSpeed or 120
+    local tweenTime = distance / speed
     
-    -- Kecepatan tween yang aman (120 studs per detik)
-    local tweenSpeed = 120 
-    local tweenTime = distance / tweenSpeed
-    
-    -- Reset kecepatan fisik agar tidak jatuh bebas selama bergerak
+    -- Amankan kecepatan fisik karakter agar gerakan tetap stabil
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 
-    -- Konfigurasi pergerakan meluncur lurus (Linear)
     local tweenInfo = TweenInfo.new(
         tweenTime, 
         Enum.EasingStyle.Linear, 
         Enum.EasingDirection.Out
     )
     
-    -- Target posisi sedikit di atas koin agar terdaftar sempurna
     local targetCFrame = coinPart.CFrame * CFrame.new(0, 0.5, 0)
     
-    -- Jalankan Tween
-    local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
-    tween:Play()
-    tween.Completed:Wait() -- Menunggu karakter tiba
+    if currentCoinTween then pcall(function() currentCoinTween:Cancel() end) end
     
-    -- Jeda singkat agar server sempat memproses koin masuk ke tas Anda sebelum beralih
-    task.wait(0.15)
+    -- Eksekusi Tween Pergerakan Meluncur
+    currentCoinTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+    currentCoinTween:Play()
+    
+    -- Menunggu tween selesai secara fleksibel atau berhenti jika modul dimatikan
+    local completed = false
+    local conn
+    conn = currentCoinTween.Completed:Connect(function()
+        completed = true
+        if conn then conn:Disconnect() end
+    end)
+    
+    while not completed and Settings.CoinFarmEnabled and coinPart and coinPart.Parent do
+        task.wait()
+    end
+    
+    if conn then conn:Disconnect() end
+    if currentCoinTween then currentCoinTween:Cancel() end
+    
+    -- Jeda jeda instan agar server dapat memproses poin koin masuk
+    task.wait(0.1)
 end
 
 task.spawn(function()
@@ -681,7 +686,7 @@ task.spawn(function()
             if nearest then
                 CollectCoin(nearest)
             else
-                task.wait(0.2)
+                task.wait(0.1)
             end
         else
             task.wait(0.5)
@@ -780,7 +785,7 @@ local function ApplyCoinESP()
         return 
     end
     
-    local container = GetCoinContainer()
+    local container = Workspace:FindFirstChild("CoinContainer", true)
     local coinsToHighlight = {}
     
     if container then
@@ -894,7 +899,7 @@ end
 local SpinVelocity
 local FlingVelocity
 
--- Penanganan Noclip Terpusat (Bagus untuk Noclip biasa, Gun Grabber, dan Coin Farm)
+-- Penanganan Noclip Terpusat
 SafeConnect(RunService.Stepped, function()
     if (Settings.NoclipEnabled or Settings.CoinFarmEnabled or IsGrabbing) and LocalPlayer.Character then
         for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
@@ -956,7 +961,7 @@ SafeConnect(RunService.Heartbeat, function()
             root.AssemblyAngularVelocity = Vector3.new(0, multiplier, 0)
         end
 
-        -- Logika Anti-Fling yang dioptimalkan agar tidak merusak pergerakan normal
+        -- Logika Anti-Fling yang dioptimalkan
         if Settings.AntiFling and not Settings.TouchFling then
             root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             if root.AssemblyLinearVelocity.Magnitude > 75 then
@@ -998,7 +1003,7 @@ task.spawn(function()
     end
 end)
 
--- Mencegah tabrakan fisik secara lokal dengan karakter pemain lain saat Anti-Fling menyala
+-- Mencegah tabrakan fisik lokal saat Anti-Fling menyala
 task.spawn(function()
     while true do
         if Settings.AntiFling then
@@ -1152,13 +1157,13 @@ task.spawn(function()
 
                     local tRoot = targetPlayer.Character.HumanoidRootPart
                     root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
-                    root.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
+                    root.Velocity = Vector3.new(99999, 99999, 99999)
                 else
                     if FlingFailsafeActive then
                         Settings.AutoFlingMurder = false
                         Settings.AutoFlingSheriff = false
-                        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        root.Velocity = Vector3.new(0, 0, 0)
+                        root.RotVelocity = Vector3.new(0, 0, 0)
                         task.wait(0.1)
                         if OriginalCFrameBeforeFling then
                             root.CFrame = OriginalCFrameBeforeFling
@@ -1653,6 +1658,24 @@ TabMovement:CreateToggle("Show Auto Bhop Button [BHOP]", false, function(state)
     ExtBhopBtn:SetVisible(state)
 end)
 
+-- INTEGRASI SPIN BOT DI MENU UTAMA
+TabMovement:CreateParagraph("Spin Bot System", "Rotate your character physically.")
+TabMovement:CreateToggle("Enable Spin Bot", false, function(state)
+    UpdateSpinState(state)
+end)
+
+TabMovement:CreateSlider("Spin Force / Power", 10, 300, Settings.SpinPower, function(val)
+    Settings.SpinPower = val
+    if Settings.SpinEnabled and SpinVelocity then
+        SpinVelocity.AngularVelocity = Vector3.new(0, val, 0)
+    end
+end)
+
+TabMovement:CreateToggle("Show Spin External Button [S]", false, function(state)
+    Settings.SpinExtEnabled = state
+    ExtSpinBtn:SetVisible(state)
+end)
+
 TabMovement:CreateParagraph("Flight, Noclip & Safe Teleport", "Movement through spaces.")
 TabMovement:CreateToggle("Velocity Fly Hack (Mobile & PC Joystick Integration)", false, function(state)
     UpdateFlyState(state)
@@ -1667,7 +1690,7 @@ TabMovement:CreateToggle("Noclip (Walk Through Walls)", false, function(state)
 end)
 
 TabMovement:CreateToggle("Safe Zone Teleport (Hide Out)", false, function(state)
-    ToggleSafeZone(state)
+    ToggleSafeZone(Settings.SafeZoneEnabled)
 end)
 
 TabMovement:CreateToggle("Show Safe Zone Button [SZ]", false, function(state)
@@ -1691,6 +1714,11 @@ local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 TabSpecial:CreateParagraph("Coin Autofarm", "Automatically scan and collect coins on the map.")
 TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
+end)
+
+-- SLIDER TWEEN SPEED KHUSUS COIN FARM
+TabSpecial:CreateSlider("Coin Farm Tween Speed", 20, 250, Settings.CoinFarmTweenSpeed, function(val)
+    Settings.CoinFarmTweenSpeed = val
 end)
 
 -- ========================================================================
