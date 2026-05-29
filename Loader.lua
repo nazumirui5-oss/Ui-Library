@@ -1280,7 +1280,7 @@ ExtLoadPosBtn:SetVisible(false)
 -- ========================================================================
 -- [[ MAIN MENU STRUCTURE ]]
 -- ========================================================================
-local Window = Library:CreateWindow("LOUIS MM2 EDITION", "Modern generic hub")
+local Window = Library:CreateWindow("LOUIS HUB MM2 EDITION", "Join My Discord")
 Window:BindToggleKey(Enum.KeyCode.RightControl)
 
 Library:Notify("LOUIS HUB INSTANTIATED", "Press RightControl to hide/show Main UI.", 4)
