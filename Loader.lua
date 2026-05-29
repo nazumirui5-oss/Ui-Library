@@ -860,9 +860,12 @@ SafeConnect(RunService.Heartbeat, function()
             end
         end
 
+        -- SOLUSI 1: Logika Anti-Fling yang dioptimalkan agar tidak merusak pergerakan normal
         if Settings.AntiFling and not Settings.TouchFling then
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            if root.AssemblyLinearVelocity.Magnitude > 75 then
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            end
         end
     end
 end)
@@ -896,6 +899,26 @@ task.spawn(function()
             end
         end
         task.wait(0.5)
+    end
+end)
+
+-- SOLUSI 2: Mencegah tabrakan fisik secara lokal dengan karakter pemain lain saat Anti-Fling menyala
+task.spawn(function()
+    while true do
+        if Settings.AntiFling then
+            pcall(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        for _, part in ipairs(player.Character:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.3)
     end
 end)
 
