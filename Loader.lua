@@ -1072,6 +1072,9 @@ local function ApplyNameESP(player)
     billboard.Enabled = shouldShow
 end
 
+-- ========================================================
+-- [[ MAIN VISUALS LOOP (HITBOX EXPANDER, ESP & TRACERS) ]]
+-- ========================================================
 local function ClearNameESP(player)
     if player.Character then
         local head = player.Character:FindFirstChild("Head")
@@ -1080,9 +1083,6 @@ local function ClearNameESP(player)
     end
 end
 
--- ========================================================
--- [[ MAIN VISUALS LOOP (HITBOX EXPANDER, ESP & TRACERS) ]]
--- ========================================================
 local ActiveTracers = {}
 local function ClearAllTracers()
     for _, tracer in pairs(ActiveTracers) do
@@ -1280,7 +1280,8 @@ ExtLoadPosBtn:SetVisible(false)
 -- ========================================================================
 -- [[ MAIN MENU STRUCTURE ]]
 -- ========================================================================
-local Window = Library:CreateWindow("LOUIS HUB MM2 EDITION", "Join My Discord")
+-- UPDATE: Mengubah sub-title UI utama menjadi tautan Discord Anda
+local Window = Library:CreateWindow("LOUIS MM2 EDITION", "discord.gg/P2FEVBz2PG")
 Window:BindToggleKey(Enum.KeyCode.RightControl)
 
 Library:Notify("LOUIS HUB INSTANTIATED", "Press RightControl to hide/show Main UI.", 4)
@@ -1289,6 +1290,18 @@ Library:Notify("LOUIS HUB INSTANTIATED", "Press RightControl to hide/show Main U
 local TabMain = Window:CreateTab("Welcome", "rbxassetid://6023426915")
 TabMain:CreateParagraph("Welcome!", "Hello " .. LocalPlayer.Name .. "!\nThank you for executing Louis Premium Edition.")
 TabMain:CreateParagraph("UI Instructions", "Keybind to open/hide menu: RightControl\nYou can toggle external buttons from the settings.")
+
+-- UPDATE: Menambahkan bagian Deskripsi Discord dan Tombol Copy Link otomatis
+TabMain:CreateParagraph("Official Community", "Bergabunglah dengan server Discord kami untuk mendapatkan informasi pembaruan terbaru, melaporkan kendala, dan berinteraksi langsung dengan pengembang serta komunitas lainnya!")
+TabMain:CreateButton("Copy Discord Server Link", function()
+    if setclipboard then
+        setclipboard("https://discord.gg/P2FEVBz2PG")
+        Library:Notify("Discord Link", "Link berhasil disalin ke clipboard Anda!", 2)
+    else
+        Library:Notify("Error", "Exploit Anda tidak mendukung fitur penyalinan clipboard.", 2.5)
+    end
+end)
+
 TabMain:CreateButton("Activate Potato Graphics Optimization", function()
     ApplyPotato()
     Library:Notify("Potato Mode", "Graphics optimized successfully!", 3)
