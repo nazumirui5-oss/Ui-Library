@@ -2,7 +2,7 @@
 -- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (CONFIG INTEGRATED) ]]
 -- ========================================================================
 
--- 1. LOAD UI LIBRARY FROM YOUR SOURCE (Ganti link di bawah ini dengan link UI Library baru Anda!)
+-- 1. LOAD UI LIBRARY FROM YOUR SOURCE (Replace the link below with your updated UI Library link!)
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/Ui%20Library.lua"))()
 
 -- 2. SETUP MAIN ROBLOX SERVICES
@@ -43,7 +43,7 @@ local ExtButtonTexts = {
 }
 
 -- ========================================================================
--- [[ TOMBOL EKSTERNAL UTILITY & SCALE ENGINE ]]
+-- [[ EXTERNAL UTILITY BUTTONS & SCALE ENGINE ]]
 -- ========================================================================
 local ExternalButtonsList = {}
 
@@ -51,11 +51,11 @@ local function RegisterExternalButton(btnWrapper)
     table.insert(ExternalButtonsList, btnWrapper)
 end
 
--- Fungsi aman yang diperbarui untuk mengubah ukuran tombol eksternal
+-- Updated safe function to dynamically change external button sizes
 local function SetButtonSize(btnWrapper, scaleValue)
     pcall(function()
         if type(btnWrapper) == "table" then
-            -- Memanggil method SetSize bawaan dari buttonController (Base size default: 44)
+            -- Call the built-in SetSize method from the button controller (Base default size: 44)
             if btnWrapper.SetSize then
                 btnWrapper:SetSize(44 * scaleValue)
             elseif typeof(btnWrapper.Instance) == "Instance" then
@@ -67,12 +67,12 @@ local function SetButtonSize(btnWrapper, scaleValue)
     end)
 end
 
--- Fungsi aman untuk mengunci pergeseran (draggable) tombol eksternal
+-- Safe function to lock/unlock dragging of external buttons
 local function SetButtonDragLock(btnWrapper, locked)
     pcall(function()
-        local rawBtn = type(btnWrapper) == "table" and btnWrapper.Instance or btnWrapper
-        if typeof(rawBtn) == "Instance" and rawBtn:IsA("GuiObject") then
-            -- Mengabaikan property Draggable default Roblox jika sudah dicustomize oleh drag utility library
+        if type(btnWrapper) == "table" and btnWrapper.SetDragLock then
+            -- Call the built-in SetDragLock method on the button controller
+            btnWrapper:SetDragLock(locked)
         end
     end)
 end
@@ -212,7 +212,7 @@ local function ApplyPotato()
 end
 
 -- ========================================================
--- [[ POSITIONS UTILITIES ]]
+-- [[ POSITION UTILITIES ]]
 -- ========================================================
 local function SavePosition()
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -229,7 +229,7 @@ local function LoadSavedPosition()
 end
 
 -- ========================================================
--- [[ ROLE DETECTION LOGICAL EMULATION (MM2) ]]
+-- [[ MM2 ROLE DETECTION LOGIC ]]
 -- ========================================================
 local function GetMM2Role(Player)
     if not Player or not Player.Character then return "Innocent" end
@@ -658,7 +658,7 @@ local function TeleportAllPlayersToMe()
 end
 
 -- ========================================================
--- [[ COIN ESP ENGINE (DENGAN PENINGKATAN PEMINDAIAN MENDALAM) ]]
+-- [[ COIN ESP ENGINE (WITH DEEP SCAN ENHANCEMENTS) ]]
 -- ========================================================
 local function ApplyCoinESP()
     if not Settings.CoinESP then 
@@ -699,7 +699,7 @@ local function ApplyCoinESP()
         if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
             local highlight = Instance.new("Highlight")
             highlight.Name = "LouisCoinESP"
-            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Warna Emas
+            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
             highlight.FillTransparency = 0.4
             highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             highlight.OutlineTransparency = 0
@@ -753,7 +753,7 @@ local function TpToPlayer(targetPlayer)
 end
 
 -- ========================================================================
--- [[ TARGET FLING DIOPTIMALKAN (DURASI LEBIH LAMA & PRESISI) ]]
+-- [[ OPTIMIZED TARGET FLING (LONGER DURATION & PRECISION) ]]
 -- ========================================================================
 local function FlingPlayer(targetPlayer)
     local char = LocalPlayer.Character
@@ -905,7 +905,7 @@ end)
 local function GetFlyDirection()
     local direction = Vector3.new(0, 0, 0)
     
-    -- Keyboard PC Input
+    -- PC Keyboard Input
     if not UserInputService:GetFocusedTextBox() then
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then
             direction = direction + Camera.CFrame.LookVector
@@ -1004,7 +1004,7 @@ local function UpdateSpinState(state)
 end
 
 -- ========================================================================
--- [[ FLING INSTANT ]]
+-- [[ INSTANT FLING ]]
 -- ========================================================================
 local function UpdateFlingState(role, state)
     if role == "Murderer" then
@@ -1338,9 +1338,9 @@ TabMain:CreateParagraph("Official Community", "Join our Discord server to get th
 TabMain:CreateButton("Copy Discord Server Link", function()
     if setclipboard then
         setclipboard("https://discord.gg/P2FEVBz2PG")
-        Library:Notify("Discord Link", "copy link succes to your clipboard!", 2)
+        Library:Notify("Discord Link", "Discord link copied successfully to your clipboard!", 2)
     else
-        Library:Notify("Error", "Exploit Anda tidak mendukung fitur penyalinan clipboard.", 2.5)
+        Library:Notify("Error", "Your exploit does not support clipboard copying.", 2.5)
     end
 end)
 
@@ -1522,46 +1522,6 @@ TabMovement:CreateToggle("Character Invisibility Hack", false, function(state)
     end
 end)
 
-TabMovement:CreateParagraph("Spin Bot System", "Makes you spin.")
-TabMovement:CreateToggle("Activate Spin Bot", false, function(state)
-    UpdateSpinState(state)
-end)
-
-TabMovement:CreateToggle("Show Spin Bot Button [S]", false, function(state)
-    Settings.SpinExtEnabled = state
-    ExtSpinBtn:SetVisible(state)
-end)
-
-TabMovement:CreateSlider("Spin Speed Rotator", 1, 100, Settings.SpinPower, function(val)
-    Settings.SpinPower = val
-    if Settings.SpinEnabled then UpdateSpinState(true) end
-end)
-
-TabMovement:CreateParagraph("Positions & Anti-Void", "Save coordinate position or secure the character from the Void.")
-TabMovement:CreateToggle("Activate Anti Void Mode", false, function(state)
-    Settings.AntiVoid = state
-end)
-
-TabMovement:CreateButton("Save Character Coordinates (POS)", function()
-    SavePosition()
-    Library:Notify("Position Saved", "CFrame coordinates successfully saved locally.", 2)
-end)
-
-TabMovement:CreateButton("Teleport to Saved Coordinates", function()
-    if SavedCFrame then
-        LoadSavedPosition()
-        Library:Notify("Position Loaded", "Character successfully teleported to saved coordinates.", 2)
-    else
-        Library:Notify("Error", "No saved coordinates yet! Press the save button first.", 2.5)
-    end
-end)
-
-TabMovement:CreateToggle("Show Save/Load POS Buttons [SP/LP]", false, function(state)
-    Settings.PosExtEnabled = state
-    ExtSavePosBtn:SetVisible(state)
-    ExtLoadPosBtn:SetVisible(state)
-end)
-
 -- --- TAB 5: MM2 SPECIAL UTILITIES ---
 local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 
@@ -1705,7 +1665,7 @@ end)
 -- --- TAB 6: CONTROLS & SIZES ---
 local TabControls = Window:CreateTab("Button Controls", "rbxassetid://4483362458")
 
-TabControls:CreateParagraph("External Button Scales (%)", "Sesuaikan ukuran masing-masing tombol melayang secara dinamis.")
+TabControls:CreateParagraph("External Button Scales (%)", "Adjust the scale of each floating button dynamically.")
 
 TabControls:CreateSlider("Aimbot Button Scale", 10, 200, 100, function(val)
     SetButtonSize(ExtAimbotBtn, val / 100)
@@ -1750,13 +1710,13 @@ end)
 TabControls:CreateParagraph("Window Lock", "Lock window dragging positions.")
 TabControls:CreateToggle("Lock Main UI Dragging", false, function(state)
     Window:SetDragLock(state)
-    UpdateAllButtonsDragLock(state) -- Menghubungkan lock UI dengan semua tombol eksternal
+    UpdateAllButtonsDragLock(state) -- Automatically sets drag-lock status across all external buttons
 end)
 
 -- --- TAB 7: CONFIGURATIONS ---
 local TabConfig = Window:CreateTab("Configurations", "rbxassetid://6023426915")
 
-TabConfig:CreateParagraph("Configuration Manager", "Simpan atau muat konfigurasi pengaturan Anda secara manual kapan saja.")
+TabConfig:CreateParagraph("Configuration Manager", "Manually save or load your configuration settings at any time.")
 
 TabConfig:CreateButton("Save Config Now", function()
     Library:SaveConfig()
