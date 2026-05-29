@@ -127,7 +127,6 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
-    CoinFarmDelay = 0.12, -- Default 0.12 detik (120ms)
 
     -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
@@ -473,14 +472,6 @@ local function SafeInstantTween(targetPart)
         local originalCFrame = root.CFrame
         local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.5, 0)
         
-        local noclipConnection = SafeConnect(RunService.Stepped, function()
-            if character then
-                for _, child in ipairs(character:GetDescendants()) do
-                    if child:IsA("BasePart") then child.CanCollide = false end
-                end
-            end
-        end)
-        
         root.CFrame = targetCFrame
         
         local timeout = 0
@@ -498,7 +489,6 @@ local function SafeInstantTween(targetPart)
             root.CFrame = originalCFrame
         end
         
-        if noclipConnection then noclipConnection:Disconnect() end
         task.wait(0.3)
         IsGrabbing = false
     end
@@ -556,14 +546,8 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ COIN DETECTION AND FARM ENGINE ]]
+-- [[ COIN DETECTION AND FARM ENGINE (OPTIMIZED MILLISECOND) ]]
 -- ========================================================
-local function GetPing()
-    local ping = 0.05
-    pcall(function() ping = LocalPlayer:GetNetworkPing() end)
-    return ping
-end
-
 local function GetNearestCoin()
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -613,36 +597,21 @@ local function GetNearestCoin()
     return closestCoin
 end
 
+-- Teleport Lock Engine (Sangat Cepat & Mencegah Gravitasi Menarik Karakter ke Bawah)
 local function CollectCoin(coinPart)
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root or not coinPart or not coinPart.Parent then return end
     
-    local targetCFrame = coinPart.CFrame
-    
-    -- Matikan kolisi agar tidak tersangkut objek map
-    local originalCollides = {}
-    for _, child in ipairs(character:GetDescendants()) do
-        if child:IsA("BasePart") then
-            table.insert(originalCollides, {part = child, oldState = child.CanCollide})
-            child.CanCollide = false
-        end
-    end
-    
-    -- Kunci posisi karakter (Anchor) agar tidak jatuh karena gravitasi saat jeda
-    root.Anchored = true
-    root.CFrame = targetCFrame
-    
-    -- Jeda dinamis berdasarkan input slider (Settings.CoinFarmDelay) + network ping
-    task.wait(Settings.CoinFarmDelay + GetPing())
-    
-    -- Lepaskan anchor setelah jeda selesai
-    root.Anchored = false
-    
-    for _, info in ipairs(originalCollides) do
-        if info.part and info.part.Parent then
-            info.part.CanCollide = info.oldState
-        end
+    local startTime = os.clock()
+    -- Mengunci CFrame karakter langsung di koin selama ~30 milidetik (0.03 detik)
+    -- Ini bypass physics engine agar registrasi koin instan tanpa membuat tubuh terjatuh ke bawah
+    while os.clock() - startTime < 0.03 do
+        if not root or not coinPart or not coinPart.Parent or not Settings.CoinFarmEnabled then break end
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        root.CFrame = coinPart.CFrame
+        task.wait()
     end
 end
 
@@ -653,10 +622,11 @@ task.spawn(function()
             if nearest then
                 CollectCoin(nearest)
             else
-                task.wait(0.3)
+                task.wait(0.1) -- Jeda cepat untuk pemindaian ulang jika koin habis
             end
+        else
+            task.wait(0.5) -- Jeda hemat kinerja saat farm dinonaktifkan
         end
-        task.wait(0.05)
     end
 end)
 
@@ -728,10 +698,6 @@ local function TeleportAllPlayersToMe()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not char or not root or GetMM2Role(LocalPlayer) ~= "Murderer" then return end
-    
-    for _, child in ipairs(char:GetDescendants()) do
-        if child:IsA("BasePart") then child.CanCollide = false end
-    end
     
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -840,60 +806,6 @@ local function TpToPlayer(targetPlayer)
 end
 
 -- ========================================================================
--- [[ LOCAL COLLISION ENABLER BYPASS SYSTEM (Cara 2) ]]
--- ========================================================================
-local function EnableFlingCollision(targetPlayer)
-    if not targetPlayer or not targetPlayer.Character then return end
-    local targetChar = targetPlayer.Character
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return end
-
-    -- Buat collider lokal di target (di layar kita saja) agar fisik mendeteksi tabrakan
-    if not targetRoot:FindFirstChild("LouisLocalCollider") then
-        pcall(function()
-            local collider = Instance.new("Part")
-            collider.Name = "LouisLocalCollider"
-            collider.Size = Vector3.new(3, 3, 3)
-            collider.CFrame = targetRoot.CFrame
-            collider.Transparency = 1
-            collider.CanCollide = true
-            collider.Massless = true
-            collider.Parent = targetRoot
-            
-            local weld = Instance.new("WeldConstraint")
-            weld.Part0 = targetRoot
-            weld.Part1 = collider
-            weld.Parent = targetRoot
-            
-            game:GetService("Debris"):AddItem(collider, 5)
-        end)
-    end
-
-    -- Pastikan karakter kita sendiri punya bagian yang CanCollide = true lokal agar tabrakan terdaftar
-    local myChar = LocalPlayer.Character
-    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if myRoot and not myRoot:FindFirstChild("LouisMyCollider") then
-        pcall(function()
-            local collider = Instance.new("Part")
-            collider.Name = "LouisMyCollider"
-            collider.Size = Vector3.new(2, 2, 2)
-            collider.CFrame = myRoot.CFrame
-            collider.Transparency = 1
-            collider.CanCollide = true
-            collider.Massless = true
-            collider.Parent = myRoot
-            
-            local weld = Instance.new("WeldConstraint")
-            weld.Part0 = myRoot
-            weld.Part1 = collider
-            weld.Parent = myRoot
-            
-            game:GetService("Debris"):AddItem(collider, 5)
-        end)
-    end
-end
-
--- ========================================================================
 -- [[ OPTIMIZED TARGET FLING (LONGER DURATION & PRECISION) ]]
 -- ========================================================================
 local function FlingPlayer(targetPlayer)
@@ -904,9 +816,6 @@ local function FlingPlayer(targetPlayer)
         local targetRoot = targetPlayer.Character.HumanoidRootPart
         local targetHum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
         
-        -- Pasang collider lokal sebelum meluncurkan fling
-        EnableFlingCollision(targetPlayer)
-        
         SavePosition()
         local originalFlingState = Settings.TouchFling
         Settings.TouchFling = true
@@ -916,10 +825,6 @@ local function FlingPlayer(targetPlayer)
                 if not targetRoot or not targetHum or targetHum.Health <= 0 or not root or not char:FindFirstChild("HumanoidRootPart") then
                     break
                 end
-                
-                -- Panggil berulang agar kolisi tetap terbuat jika target respawn
-                EnableFlingCollision(targetPlayer)
-                
                 root.CFrame = targetRoot.CFrame * CFrame.new(math.random(-1, 1) * 0.1, 0, math.random(-1, 1) * 0.1)
                 task.wait(0.02)
             end
@@ -937,23 +842,20 @@ end
 local SpinVelocity
 local FlingVelocity
 
-local NoclipConnection
+-- Penanganan Noclip Terpusat (Bagus untuk Noclip biasa, Gun Grabber, dan Coin Farm)
+SafeConnect(RunService.Stepped, function()
+    if (Settings.NoclipEnabled or Settings.CoinFarmEnabled or IsGrabbing) and LocalPlayer.Character then
+        for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if child:IsA("BasePart") then child.CanCollide = false end
+        end
+    end
+end)
+
 local function ToggleNoclip(state)
     Settings.NoclipEnabled = state
-    if NoclipConnection then NoclipConnection:Disconnect() end
-    if state then
-        NoclipConnection = SafeConnect(RunService.Stepped, function()
-            if LocalPlayer.Character then
-                for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
-                    if child:IsA("BasePart") then child.CanCollide = false end
-                end
-            end
-        end)
-    else
-        if LocalPlayer.Character then
-            for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if child:IsA("BasePart") then child.CanCollide = true end
-            end
+    if not state and LocalPlayer.Character and not Settings.CoinFarmEnabled then
+        for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if child:IsA("BasePart") then child.CanCollide = true end
         end
     end
 end
@@ -1000,12 +902,6 @@ SafeConnect(RunService.Heartbeat, function()
             
             root.AssemblyLinearVelocity = Vector3.new(multiplier, multiplier, multiplier)
             root.AssemblyAngularVelocity = Vector3.new(0, multiplier, 0)
-            
-            for _, child in ipairs(character:GetDescendants()) do
-                if child:IsA("BasePart") and child.Name ~= "LouisMyCollider" then
-                    child.CanCollide = false
-                end
-            end
         end
 
         -- Logika Anti-Fling yang dioptimalkan agar tidak merusak pergerakan normal
@@ -1202,19 +1098,9 @@ task.spawn(function()
                         OriginalCFrameBeforeFling = root.CFrame
                     end
 
-                    -- Pasang bypass kolisi lokal untuk target
-                    EnableFlingCollision(targetPlayer)
-
                     local tRoot = targetPlayer.Character.HumanoidRootPart
                     root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
                     root.Velocity = Vector3.new(99999, 99999, 99999)
-                    
-                    for _, child in ipairs(character:GetDescendants()) do
-                        -- Lindungi kolisi lokal kita agar tabrakan fisik bekerja
-                        if child:IsA("BasePart") and child.Name ~= "LouisMyCollider" then 
-                            child.CanCollide = false 
-                        end
-                    end
                 else
                     if FlingFailsafeActive then
                         Settings.AutoFlingMurder = false
@@ -1332,7 +1218,6 @@ SafeConnect(RunService.RenderStepped, function()
                 else
                     Root.Size = Vector3.new(2, 2, 1)
                     Root.Transparency = 1
-                    if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = true end
                 end
 
                 local TargetColor = Color3.fromRGB(0, 225, 0)
@@ -1641,7 +1526,6 @@ TabVisuals:CreateToggle("Coin Highlight ESP", false, function(state)
     end
 end)
 
--- Filter ESP Targets
 TabVisuals:CreateParagraph("Filter ESP Targets", "Filter who glows in ESP.")
 TabVisuals:CreateToggle("Render Murderer Glow", true, function(state)
     Settings.EspMurderer = state
@@ -1755,11 +1639,6 @@ local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 TabSpecial:CreateParagraph("Coin Autofarm", "Automatically scan and collect coins on the map.")
 TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
-end)
-
--- Slider Kecepatan Jeda Waktu Pengambilan Koin (1ms - 1000ms / 0.001s - 1.000s)
-TabSpecial:CreateSlider("Coin Farm Delay (ms)", 1, 1000, 120, function(val)
-    Settings.CoinFarmDelay = val / 1000
 end)
 
 -- ========================================================================
