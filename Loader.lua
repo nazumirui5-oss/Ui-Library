@@ -127,7 +127,7 @@ local Settings = {
     
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
-    CoinFarmTweenSpeed = 110, -- Default kecepatan tween koin dibatasi ke 110
+    CoinFarmTweenSpeed = 90, -- Default kecepatan tween koin dibatasi ke maksimal 90
 
     -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
@@ -546,6 +546,35 @@ task.spawn(function()
     end
 end)
 
+-- ========================================================================
+-- [[ DETEKSI JUMLAH KOIN / BACKPACK FULL DETECTION ]]
+-- ========================================================================
+local function IsBagFull()
+    local isFull = false
+    pcall(function()
+        local mainGui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("MainGUI")
+        local cashBag = mainGui and mainGui:FindFirstChild("Game") and mainGui.Game:FindFirstChild("CashBag")
+        if cashBag then
+            -- Deteksi visual label "Full" dari UI game asli
+            local fullLabel = cashBag:FindFirstChild("Full")
+            if fullLabel and fullLabel.Visible then
+                isFull = true
+            else
+                -- Cadangan: Deteksi format angka teks (misal 40/40 atau 50/50)
+                local coinsLabel = cashBag:FindFirstChild("Coins") or cashBag:FindFirstChild("Amount") or cashBag:FindFirstChildOfClass("TextLabel")
+                if coinsLabel and coinsLabel:IsA("TextLabel") then
+                    local text = coinsLabel.Text
+                    local cur, max = text:match("(%d+)/(%d+)")
+                    if cur and max and tonumber(cur) >= tonumber(max) then
+                        isFull = true
+                    end
+                end
+            end
+        end
+    end)
+    return isFull
+end
+
 -- ========================================================
 -- [[ COIN DETECTION AND FARM ENGINE (RECURSIVE & TWEEN) ]]
 -- ========================================================
@@ -561,17 +590,17 @@ task.spawn(function()
     end
 end)
 
--- Melakukan pencarian koin secara mendalam (rekursif) di seluruh Workspace
+-- Melakukan pencarian koin secara mendalam (hanya mendeteksi koin yang ber-visual asli / ber-ESP)
 local function DeepScanWorkspaceCoins()
     table.clear(ScannedCoins)
     for _, object in ipairs(Workspace:GetDescendants()) do
         local isCoin = false
         local coinPart = nil
         
-        -- Deteksi berdasarkan Nama Part
+        -- Deteksi berdasarkan Nama Part & Memiliki Visual (Transparency < 0.9)
         if object:IsA("BasePart") then
             local nameLower = object.Name:lower()
-            if nameLower == "coin" or nameLower == "maincoin" or nameLower == "coin_server" or nameLower:find("coin") then
+            if (nameLower == "coin" or nameLower == "maincoin" or nameLower == "coin_server" or nameLower:find("coin")) and object.Transparency < 0.9 then
                 isCoin = true
                 coinPart = object
             end
@@ -579,14 +608,16 @@ local function DeepScanWorkspaceCoins()
         
         -- Deteksi berdasarkan Highlight ESP Koin (Cadangan)
         if not isCoin and object.Name == "LouisCoinESP" and object.Parent and object.Parent:IsA("BasePart") then
-            isCoin = true
-            coinPart = object.Parent
+            if object.Parent.Transparency < 0.9 then
+                isCoin = true
+                coinPart = object.Parent
+            end
         end
         
         -- Deteksi berdasarkan CoinContainer
         if not isCoin and object.Name == "CoinContainer" then
             for _, child in ipairs(object:GetDescendants()) do
-                if child:IsA("BasePart") then
+                if child:IsA("BasePart") and child.Transparency < 0.9 then
                     table.insert(ScannedCoins, child)
                 end
             end
@@ -639,7 +670,7 @@ local function CollectCoin(coinPart)
 
     -- Hitung jarak dan waktu tween berdasarkan kecepatan slider
     local distance = (root.Position - coinPart.Position).Magnitude
-    local speed = Settings.CoinFarmTweenSpeed or 110
+    local speed = Settings.CoinFarmTweenSpeed or 90
     local tweenTime = distance / speed
     
     -- AMANKAN FISIK & JALANKAN ANCHOR UNTUK MENANGKIS DETEKSI VELOCITY SPIKE
@@ -653,7 +684,8 @@ local function CollectCoin(coinPart)
         Enum.EasingDirection.Out
     )
     
-    local targetCFrame = coinPart.CFrame * CFrame.new(0, 0.5, 0)
+    -- KARAKTER TIDURAN DI BAWAH LANTAI (Offset -2.5 dan rotasi -90 derajat pada sumbu X)
+    local targetCFrame = coinPart.CFrame * CFrame.new(0, -2.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
     
     if currentCoinTween then pcall(function() currentCoinTween:Cancel() end) end
     
@@ -680,7 +712,7 @@ local function CollectCoin(coinPart)
     if conn then conn:Disconnect() end
     if currentCoinTween then currentCoinTween:Cancel() end
     
-    -- Lepas kuncian anchor setelah proses selesai
+    -- Lepas kuncian anchor setelah proses selesai (karakter akan berdiri kembali secara otomatis)
     root.Anchored = false
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     
@@ -692,11 +724,24 @@ task.spawn(function()
     while true do
         -- Coin Farm hanya akan bekerja jika Coin Farm ON dan Coin ESP (Visual Coin) juga ON
         if Settings.CoinFarmEnabled and Settings.CoinESP then
-            local nearest = GetNearestCoin()
-            if nearest then
-                CollectCoin(nearest)
+            -- Deteksi jika tas/backpack koin sudah penuh (40 koin), langsung aktifkan fling murderer otomatis
+            if IsBagFull() then
+                if not Settings.AutoFlingMurder then
+                    Settings.AutoFlingMurder = true
+                    Settings.AutoFlingSheriff = false
+                    UpdateFlingState("Murderer", true)
+                    UpdateFlingState("Sheriff", false)
+                    if _G.SyncFlingButtons then _G.SyncFlingButtons() end
+                    Library:Notify("Coin Farm", "Backpack full (40 coins)! Flinging Murderer...", 3)
+                end
+                task.wait(1.5)
             else
-                task.wait(0.1)
+                local nearest = GetNearestCoin()
+                if nearest then
+                    CollectCoin(nearest)
+                else
+                    task.wait(0.1)
+                end
             end
         else
             task.wait(0.5)
@@ -816,7 +861,8 @@ local function ApplyCoinESP()
             or coin:FindFirstChildOfClass("BasePart")
             or (coin:IsA("BasePart") and coin)
             
-        if coinPart and not coinPart:FindFirstChild("LouisCoinESP") then
+        -- Hanya beri Highlight pada koin yang memiliki visual aktif
+        if coinPart and coinPart.Transparency < 0.9 and not coinPart:FindFirstChild("LouisCoinESP") then
             local highlight = Instance.new("Highlight")
             highlight.Name = "LouisCoinESP"
             highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
@@ -1726,8 +1772,8 @@ TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
 end)
 
--- SLIDER TWEEN SPEED KHUSUS COIN FARM (Dibatasi maksimal 110)
-TabSpecial:CreateSlider("Coin Farm Tween Speed", 20, 110, Settings.CoinFarmTweenSpeed, function(val)
+-- SLIDER TWEEN SPEED KHUSUS COIN FARM (Dibatasi maksimal 90)
+TabSpecial:CreateSlider("Coin Farm Tween Speed", 20, 90, Settings.CoinFarmTweenSpeed, function(val)
     Settings.CoinFarmTweenSpeed = val
 end)
 
