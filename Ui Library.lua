@@ -4,19 +4,28 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 -- ========================================================
--- [[ 1. SISTEM ENGINE UTAMA (RGB & DRAG) ]]
+-- [[ 1. MAIN ENGINE SYSTEM (DYNAMIC RGB & DRAG) ]]
 -- ========================================================
 local RGBElements = {}
 
--- Registrasi objek untuk warna pelangi (RGB) yang halus
+-- Register an instance property to cycle smoothly through the rainbow spectrum
 local function RegisterRGB(instance, property)
     table.insert(RGBElements, {Instance = instance, Property = property})
 end
 
--- Loop RGB menggunakan os.clock() demi akurasi dan transisi yang mulus
+-- Unregister an instance property from the rainbow cycle
+local function UnregisterRGB(instance, property)
+    for i = #RGBElements, 1, -1 do
+        if RGBElements[i].Instance == instance and RGBElements[i].Property == property then
+            table.remove(RGBElements, i)
+        end
+    end
+end
+
+-- Fast and highly saturated RGB loop utilizing os.clock()
 RunService.RenderStepped:Connect(function()
-    local hue = (os.clock() % 5) / 5 -- Kecepatan transisi (5 detik)
-    local rainbowColor = Color3.fromHSV(hue, 0.75, 1)
+    local hue = (os.clock() % 4) / 4 -- Transition cycle speed (4 seconds)
+    local rainbowColor = Color3.fromHSV(hue, 1, 1) -- Maximum saturation & brightness
     
     for i = #RGBElements, 1, -1 do
         local item = RGBElements[i]
@@ -30,7 +39,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Utilitas drag frame (Kompatibel PC & Mobile)
+-- Drag utility compatible with both PC mouse inputs and Mobile touch inputs
 local function EnableDrag(dragFrame, parentFrame)
     local dragging, dragInput, dragStart, startPos
     
@@ -62,7 +71,7 @@ local function EnableDrag(dragFrame, parentFrame)
     end)
 end
 
--- Mendapatkan ScreenGui global untuk menampung Window & Tombol Eksternal
+-- Fetches or initializes the global ScreenGui container
 local MainGui
 local function GetMainGui()
     if not MainGui then
@@ -75,7 +84,7 @@ local function GetMainGui()
 end
 
 -- ========================================================
--- [[ 2. SISTEM NOTIFIKASI MODERN ]]
+-- [[ 2. MODERN NOTIFICATION SYSTEM ]]
 -- ========================================================
 local NotificationGui
 local function GetNotificationHolder()
@@ -115,10 +124,17 @@ function Library:Notify(title, desc, duration)
     local NotifStroke = Instance.new("UIStroke", NotifFrame)
     NotifStroke.Thickness = 1.2
     RegisterRGB(NotifStroke, "Color")
+
+    -- Vibrant left-side RGB accent strip
+    local NotifAccent = Instance.new("Frame", NotifFrame)
+    NotifAccent.Size = UDim2.new(0, 4, 1, 0)
+    NotifAccent.Position = UDim2.new(0, 0, 0, 0)
+    NotifAccent.BorderSizePixel = 0
+    RegisterRGB(NotifAccent, "BackgroundColor3")
     
     local TitleLabel = Instance.new("TextLabel", NotifFrame)
-    TitleLabel.Size = UDim2.new(1, -20, 0, 20)
-    TitleLabel.Position = UDim2.new(0, 12, 0, 8)
+    TitleLabel.Size = UDim2.new(1, -30, 0, 20)
+    TitleLabel.Position = UDim2.new(0, 16, 0, 8)
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = title or "Notification"
     TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -127,11 +143,11 @@ function Library:Notify(title, desc, duration)
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     
     local DescLabel = Instance.new("TextLabel", NotifFrame)
-    DescLabel.Size = UDim2.new(1, -20, 0, 32)
-    DescLabel.Position = UDim2.new(0, 12, 0, 26)
+    DescLabel.Size = UDim2.new(1, -30, 0, 32)
+    DescLabel.Position = UDim2.new(0, 16, 0, 26)
     DescLabel.BackgroundTransparency = 1
     DescLabel.Text = desc or "Description"
-    DescLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
+    DescLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
     DescLabel.Font = Enum.Font.Montserrat
     DescLabel.TextSize = 10
     DescLabel.TextWrapped = true
@@ -151,52 +167,41 @@ function Library:Notify(title, desc, duration)
 end
 
 -- ========================================================
--- [[ 3. METODE: MEMBUAT WINDOW UTAMA ]]
+-- [[ 3. METHODS: CREATE MAIN WINDOW ]]
 -- ========================================================
 function Library:CreateWindow(titleText, subtitleText)
     local Window = {
         Tabs = {},
         CurrentTab = nil,
-        DragLocked = false
+        DragLocked = false,
+        Minimized = false
     }
 
     local ScreenGui = GetMainGui()
 
-    -- Jendela Utama UI
+    -- Main UI Container Frame
     local MainFrame = Instance.new("Frame")
     MainFrame.Size = UDim2.new(0, 530, 0, 340)
     MainFrame.Position = UDim2.new(0.5, -265, 0.5, -170)
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
     MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
 
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 10)
 
+    -- Full Outer RGB Stroke
     local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Thickness = 1.5
     RegisterRGB(MainStroke, "Color")
 
-    -- Garis Dekorasi RGB di bagian atas
-    local TopAccent = Instance.new("Frame", MainFrame)
-    TopAccent.Size = UDim2.new(1, 0, 0, 3)
-    TopAccent.BorderSizePixel = 0
-    RegisterRGB(TopAccent, "BackgroundColor3")
-    Instance.new("UICorner", TopAccent).CornerRadius = UDim.new(0, 10)
-
-    -- Patch penutup sudut bagian bawah garis aksen
-    local AccentPatch = Instance.new("Frame", MainFrame)
-    AccentPatch.Size = UDim2.new(1, 0, 0, 2)
-    AccentPatch.Position = UDim2.new(0, 0, 0, 2)
-    AccentPatch.BorderSizePixel = 0
-    RegisterRGB(AccentPatch, "BackgroundColor3")
-
-    -- Header (Area Drag)
+    -- Header Panel (Drag & Collapse Area)
     local Header = Instance.new("Frame", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 50)
     Header.BackgroundTransparency = 1
     
-    -- Mengaktifkan drag pada Header dengan pengecekan DragLocked
+    -- Drag handling on Header with DragLocked verification
     local dragging, dragInput, dragStart, startPos
     Header.InputBegan:Connect(function(input)
         if not Window.DragLocked and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
@@ -223,7 +228,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
     end)
 
-    -- Label Judul & Subtitle
+    -- Header Title & Subtitle Labels
     local TitleLabel = Instance.new("TextLabel", Header)
     TitleLabel.Size = UDim2.new(0, 300, 0, 22)
     TitleLabel.Position = UDim2.new(0, 18, 0, 12)
@@ -244,10 +249,17 @@ function Library:CreateWindow(titleText, subtitleText)
     SubtitleLabel.Font = Enum.Font.Montserrat
     SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Sidebar (Bagian Kiri)
+    -- Clean Horizontal RGB Separator Line (Replaced Overlapping Accent Panels)
+    local HeaderSeparator = Instance.new("Frame", MainFrame)
+    HeaderSeparator.Size = UDim2.new(1, 0, 0, 1)
+    HeaderSeparator.Position = UDim2.new(0, 0, 0, 50)
+    HeaderSeparator.BorderSizePixel = 0
+    RegisterRGB(HeaderSeparator, "BackgroundColor3")
+
+    -- Sidebar Container (Left Panel)
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 145, 1, -65)
-    Sidebar.Position = UDim2.new(0, 12, 0, 53)
+    Sidebar.Position = UDim2.new(0, 12, 0, 57)
     Sidebar.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
     Sidebar.BorderSizePixel = 0
     Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 8)
@@ -256,7 +268,7 @@ function Library:CreateWindow(titleText, subtitleText)
     SidebarStroke.Color = Color3.fromRGB(35, 35, 40)
     SidebarStroke.Thickness = 1
 
-    -- Container Tombol Tab
+    -- Tab Selection Scroll Area
     local TabContainer = Instance.new("ScrollingFrame", Sidebar)
     TabContainer.Size = UDim2.new(1, -12, 1, -12)
     TabContainer.Position = UDim2.new(0, 6, 0, 6)
@@ -267,10 +279,10 @@ function Library:CreateWindow(titleText, subtitleText)
     local TabLayout = Instance.new("UIListLayout", TabContainer)
     TabLayout.Padding = UDim.new(0, 5)
 
-    -- Area Konten Utama (Sisi Kanan)
+    -- Primary Content Workspace (Right Panel)
     local ContentArea = Instance.new("Frame", MainFrame)
     ContentArea.Size = UDim2.new(1, -180, 1, -65)
-    ContentArea.Position = UDim2.new(0, 168, 0, 53)
+    ContentArea.Position = UDim2.new(0, 168, 0, 57)
     ContentArea.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
     ContentArea.BorderSizePixel = 0
     Instance.new("UICorner", ContentArea).CornerRadius = UDim.new(0, 8)
@@ -283,12 +295,43 @@ function Library:CreateWindow(titleText, subtitleText)
         TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
     end)
 
-    -- Fungsi Mengunci/Membuka Kunci Drag Window Utama
+    -- Interactive Open/Close (Minimize) Button with Rotation Effects
+    local ToggleIcon = Instance.new("ImageButton", Header)
+    ToggleIcon.Size = UDim2.new(0, 20, 0, 20)
+    ToggleIcon.Position = UDim2.new(1, -32, 0, 15)
+    ToggleIcon.BackgroundTransparency = 1
+    ToggleIcon.Image = "rbxassetid://6031094670" -- Modern V-arrow icon
+    ToggleIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+
+    ToggleIcon.MouseButton1Click:Connect(function()
+        Window.Minimized = not Window.Minimized
+        local targetSize = Window.Minimized and UDim2.new(0, 530, 0, 51) or UDim2.new(0, 530, 0, 340)
+        local targetRotation = Window.Minimized and 180 or 0
+        
+        TweenService:Create(ToggleIcon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = targetRotation}):Play()
+        
+        if Window.Minimized then
+            Sidebar.Visible = false
+            ContentArea.Visible = false
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+        else
+            local expandTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize})
+            expandTween:Play()
+            expandTween.Completed:Connect(function()
+                if not Window.Minimized then
+                    Sidebar.Visible = true
+                    ContentArea.Visible = true
+                end
+            end)
+        end
+    end)
+
+    -- Lock or unlock window dragging
     function Window:SetDragLock(state)
         Window.DragLocked = state
     end
 
-    -- Sistem Toggle Keybind untuk Menyembunyikan Window Utama
+    -- External keybind registration to hide/reveal the UI
     function Window:BindToggleKey(keyCode)
         local debounce = false
         UserInputService.InputBegan:Connect(function(input, processed)
@@ -297,9 +340,10 @@ function Library:CreateWindow(titleText, subtitleText)
                 debounce = true
                 local targetVis = not MainFrame.Visible
                 if targetVis then
-                    MainFrame.Size = UDim2.new(0, 530, 0, 0)
+                    MainFrame.Size = Window.Minimized and UDim2.new(0, 530, 0, 51) or UDim2.new(0, 530, 0, 0)
                     MainFrame.Visible = true
-                    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 530, 0, 340)}):Play()
+                    local sizeGoal = Window.Minimized and UDim2.new(0, 530, 0, 51) or UDim2.new(0, 530, 0, 340)
+                    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = sizeGoal}):Play()
                 else
                     local t = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.In, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 530, 0, 0)})
                     t:Play()
@@ -316,12 +360,12 @@ function Library:CreateWindow(titleText, subtitleText)
     end
 
     -- ========================================================
-    -- [[ 4. METODE: MEMBUAT TAB BARU ]]
+    -- [[ 4. METHODS: CREATE NEW TAB ]]
     -- ========================================================
     function Window:CreateTab(tabName, iconAssetId)
         local Tab = {}
         
-        -- Frame Scrolling Konten Tab
+        -- Scrolling Container for Tab Items
         local TabContent = Instance.new("ScrollingFrame", ContentArea)
         TabContent.Size = UDim2.new(1, -16, 1, -16)
         TabContent.Position = UDim2.new(0, 8, 0, 8)
@@ -338,7 +382,7 @@ function Library:CreateWindow(titleText, subtitleText)
             TabContent.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y)
         end)
 
-        -- Tombol Tab di Sidebar
+        -- Sidebar Tab Selection Button
         local TabButton = Instance.new("TextButton", TabContainer)
         TabButton.Size = UDim2.new(1, 0, 0, 34)
         TabButton.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
@@ -350,19 +394,27 @@ function Library:CreateWindow(titleText, subtitleText)
         TabBtnStroke.Color = Color3.fromRGB(40, 40, 45)
         TabBtnStroke.Thickness = 1
 
+        -- Tiny vertical active RGB status indicator inside the tab selection button
+        local TabIndicator = Instance.new("Frame", TabButton)
+        TabIndicator.Size = UDim2.new(0, 3, 1, -12)
+        TabIndicator.Position = UDim2.new(0, 4, 0, 6)
+        TabIndicator.BorderSizePixel = 0
+        TabIndicator.Visible = false
+        RegisterRGB(TabIndicator, "BackgroundColor3")
+
         local IconLabel
         if iconAssetId then
             IconLabel = Instance.new("ImageLabel", TabButton)
             IconLabel.Size = UDim2.new(0, 16, 0, 16)
-            IconLabel.Position = UDim2.new(0, 10, 0.5, -8)
+            IconLabel.Position = UDim2.new(0, 12, 0.5, -8)
             IconLabel.BackgroundTransparency = 1
             IconLabel.Image = iconAssetId
             IconLabel.ImageColor3 = Color3.fromRGB(150, 150, 150)
         end
 
         local TabText = Instance.new("TextLabel", TabButton)
-        TabText.Size = UDim2.new(1, iconAssetId and -36 or -16, 1, 0)
-        TabText.Position = UDim2.new(0, iconAssetId and 30 or 10, 0, 0)
+        TabText.Size = UDim2.new(1, iconAssetId and -38 or -18, 1, 0)
+        TabText.Position = UDim2.new(0, iconAssetId and 32 or 12)
         TabText.BackgroundTransparency = 1
         TabText.Text = tabName
         TabText.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -375,15 +427,17 @@ function Library:CreateWindow(titleText, subtitleText)
                 Window.CurrentTab.Button.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
                 Window.CurrentTab.Text.TextColor3 = Color3.fromRGB(150, 150, 150)
                 Window.CurrentTab.Frame.Visible = false
+                Window.CurrentTab.Indicator.Visible = false
                 if Window.CurrentTab.Icon then
                     Window.CurrentTab.Icon.ImageColor3 = Color3.fromRGB(150, 150, 150)
                 end
             end
             
-            Window.CurrentTab = {Button = TabButton, Text = TabText, Frame = TabContent, Icon = IconLabel}
+            Window.CurrentTab = {Button = TabButton, Text = TabText, Frame = TabContent, Icon = IconLabel, Indicator = TabIndicator}
             TabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
             TabText.TextColor3 = Color3.fromRGB(255, 255, 255)
             TabContent.Visible = true
+            TabIndicator.Visible = true
             if IconLabel then
                 IconLabel.ImageColor3 = Color3.fromRGB(255, 255, 255)
             end
@@ -396,7 +450,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4a. ELEMEN TAB: CREATE BUTTON ]]
+        -- [[ 4a. TAB ELEMENT: CREATE BUTTON ]]
         -- ========================================================
         function Tab:CreateButton(buttonText, callback)
             local Button = Instance.new("TextButton", TabContent)
@@ -447,7 +501,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4b. ELEMEN TAB: CREATE TOGGLE ]]
+        -- [[ 4b. TAB ELEMENT: CREATE TOGGLE ]]
         -- ========================================================
         function Tab:CreateToggle(toggleText, defaultVal, callback)
             local Toggle = {State = defaultVal or false}
@@ -487,14 +541,16 @@ function Library:CreateWindow(titleText, subtitleText)
             SwitchBall.BorderSizePixel = 0
             Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
 
+            -- Dynamic visual updates incorporating a dynamic RGB background when turned ON
             local function UpdateVisual(animate)
                 local duration = animate and 0.15 or 0
                 local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 
                 if Toggle.State then
                     TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -17, 0.5, -7), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-                    TweenService:Create(SwitchBg, info, {BackgroundColor3 = Color3.fromRGB(50, 180, 80)}):Play()
+                    RegisterRGB(SwitchBg, "BackgroundColor3") -- Dynamic active background color
                 else
+                    UnregisterRGB(SwitchBg, "BackgroundColor3")
                     TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 3, 0.5, -7), BackgroundColor3 = Color3.fromRGB(150, 150, 150)}):Play()
                     TweenService:Create(SwitchBg, info, {BackgroundColor3 = Color3.fromRGB(40, 40, 45)}):Play()
                 end
@@ -508,7 +564,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 if callback then task.spawn(function() callback(Toggle.State) end) end
             end)
 
-            -- Controller eksternal untuk mengubah state toggle dari luar skrip UI
+            -- Controller interface to allow external state updates
             local toggleController = {}
             function toggleController:Set(state)
                 Toggle.State = state
@@ -519,7 +575,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4c. ELEMEN TAB: CREATE SLIDER ]]
+        -- [[ 4c. TAB ELEMENT: CREATE SLIDER ]]
         -- ========================================================
         function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, callback)
             local Slider = {Value = defaultVal or minVal}
@@ -591,7 +647,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4d. ELEMEN TAB: CREATE DROPDOWN ]]
+        -- [[ 4d. TAB ELEMENT: CREATE DROPDOWN ]]
         -- ========================================================
         function Tab:CreateDropdown(dropdownText, options, defaultVal, callback)
             local Dropdown = {
@@ -686,6 +742,8 @@ function Library:CreateWindow(titleText, subtitleText)
                         TextLabel.Text = dropdownText .. " (" .. tostring(opt) .. ")"
                         Dropdown.Open = false
                         
+                        UnregisterRGB(FrameStroke, "Color")
+                        FrameStroke.Color = Color3.fromRGB(45, 45, 50)
                         TweenService:Create(DropdownFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, -6, 0, 38)}):Play()
                         TweenService:Create(ArrowIcon, TweenInfo.new(0.2), {Rotation = 0}):Play()
                         
@@ -704,10 +762,13 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 if Dropdown.Open then
                     Refresh()
+                    RegisterRGB(FrameStroke, "Color") -- Highlight frame dynamically during open state
                     OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
                     targetHeight = 38 + (OptionList.AbsoluteContentSize.Y + 10)
                     rotation = 180
                 else
+                    UnregisterRGB(FrameStroke, "Color")
+                    FrameStroke.Color = Color3.fromRGB(45, 45, 50)
                     OptionContainer.Size = UDim2.new(1, -24, 0, 0)
                 end
                 
@@ -717,7 +778,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4e. ELEMEN TAB: CREATE TEXTBOX ]]
+        -- [[ 4e. TAB ELEMENT: CREATE TEXTBOX ]]
         -- ========================================================
         function Tab:CreateTextBox(labelText, placeholderText, callback)
             local TextBoxFrame = Instance.new("Frame", TabContent)
@@ -762,7 +823,7 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         -- ========================================================
-        -- [[ 4f. ELEMEN TAB: CREATE PARAGRAPH ]]
+        -- [[ 4f. TAB ELEMENT: CREATE PARAGRAPH ]]
         -- ========================================================
         function Tab:CreateParagraph(titleText, descText)
             local ParagraphFrame = Instance.new("Frame", TabContent)
@@ -804,39 +865,33 @@ function Library:CreateWindow(titleText, subtitleText)
 end
 
 -- ========================================================
--- [[ 5. SISTEM TOMBOL EKSTERNAL DENGAN TAMPILAN MODERN ]]
+-- [[ 5. EXTERNAL UTILITY BUTTON SYSTEM ]]
 -- ========================================================
--- Mendesain tombol berbentuk kotak dengan ujung tumpul, transparansi 60% (0.6),
--- serta mendukung pemutakhiran teks dinamis dan dragging.
 function Library:CreateExternalButton(id, text, defaultPos, callback)
     local ScreenGui = GetMainGui()
 
     local ExtBtn = Instance.new("TextButton")
     ExtBtn.Name = "ExternalButton_" .. tostring(id)
-    ExtBtn.Size = UDim2.new(0, 44, 0, 44) -- Ukuran kotak proporsional
+    ExtBtn.Size = UDim2.new(0, 44, 0, 44)
     ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
     ExtBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    ExtBtn.BackgroundTransparency = 0.6 -- Transparansi 60% sesuai keinginan Anda
+    ExtBtn.BackgroundTransparency = 0.6
     ExtBtn.Text = text or "A"
     ExtBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ExtBtn.Font = Enum.Font.MontserratBold -- Font modern bersih
+    ExtBtn.Font = Enum.Font.MontserratBold
     ExtBtn.TextSize = 14
     ExtBtn.AutoButtonColor = false
     ExtBtn.Parent = ScreenGui
 
-    -- Sudut tumpul (tidak tajam)
     local Corner = Instance.new("UICorner", ExtBtn)
     Corner.CornerRadius = UDim.new(0, 8)
 
-    -- Stroke luar pelangi (RGB) modern
     local Stroke = Instance.new("UIStroke", ExtBtn)
     Stroke.Thickness = 1.5
     RegisterRGB(Stroke, "Color")
 
-    -- Aktifkan sistem dragging
     EnableDrag(ExtBtn, ExtBtn)
 
-    -- Event Trigger Klik
     ExtBtn.MouseButton1Click:Connect(function()
         local origTrans = ExtBtn.BackgroundTransparency
         TweenService:Create(ExtBtn, TweenInfo.new(0.05), {BackgroundTransparency = 0.4}):Play()
@@ -849,25 +904,21 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         end
     end)
 
-    -- Controller khusus yang dikembalikan ke loader untuk memanipulasi tombol secara instan
+    -- Controller returns for external programmatic modifications
     local buttonController = {}
     
-    -- Kustomisasi Teks (dari loader)
     function buttonController:SetText(newText)
         ExtBtn.Text = tostring(newText)
     end
     
-    -- Kustomisasi Visibilitas
     function buttonController:SetVisible(visible)
         ExtBtn.Visible = visible
     end
     
-    -- Kustomisasi Transparansi
     function buttonController:SetTransparency(transparency)
         ExtBtn.BackgroundTransparency = transparency
     end
 
-    -- Kustomisasi Ukuran
     function buttonController:SetSize(size)
         if typeof(size) == "UDim2" then
             ExtBtn.Size = size
