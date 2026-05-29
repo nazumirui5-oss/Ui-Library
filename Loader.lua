@@ -546,8 +546,28 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ COIN DETECTION AND FARM ENGINE (OPTIMIZED MILLISECOND) ]]
+-- [[ COIN DETECTION AND FARM ENGINE (INSTANT & SMOOTH) ]]
 -- ========================================================
+local CollectedCoins = {}
+
+-- Bersihkan daftar hitam koin secara berkala setiap 5 detik agar memori tetap bersih
+task.spawn(function()
+    while true do
+        task.wait(5)
+        table.clear(CollectedCoins)
+    end
+end)
+
+-- Fungsi mencari CoinContainer secara efisien tanpa scan seluruh Workspace yang berat
+local function GetCoinContainer()
+    local normal = Workspace:FindFirstChild("Normal")
+    if normal then
+        local container = normal:FindFirstChild("CoinContainer")
+        if container then return container end
+    end
+    return Workspace:FindFirstChild("CoinContainer")
+end
+
 local function GetNearestCoin()
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -556,20 +576,16 @@ local function GetNearestCoin()
     local closestCoin = nil
     local shortestDistance = math.huge
     
-    local coinContainers = {}
-    for _, v in ipairs(Workspace:GetChildren()) do
-        if v.Name == "CoinContainer" then
-            table.insert(coinContainers, v)
-        else
-            local container = v:FindFirstChild("CoinContainer")
-            if container then table.insert(coinContainers, container) end
-        end
-    end
-    
-    if #coinContainers > 0 then
-        for _, container in ipairs(coinContainers) do
-            for _, coin in ipairs(container:GetChildren()) do
-                local coinPart = coin:IsA("BasePart") and coin or coin:FindFirstChild("Coin") or coin:FindFirstChild("MainCoin") or coin:FindFirstChildOfClass("BasePart")
+    local container = GetCoinContainer()
+    if container then
+        for _, coin in ipairs(container:GetChildren()) do
+            -- Abaikan koin yang sudah dimasukkan ke daftar CollectedCoins
+            if not CollectedCoins[coin] then
+                local coinPart = coin:IsA("BasePart") and coin 
+                    or coin:FindFirstChild("Coin") 
+                    or coin:FindFirstChild("MainCoin") 
+                    or coin:FindFirstChildOfClass("BasePart")
+                
                 if coinPart then
                     local distance = (root.Position - coinPart.Position).Magnitude
                     if distance < shortestDistance then
@@ -580,8 +596,9 @@ local function GetNearestCoin()
             end
         end
     else
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "Coin_Server" then
+        -- Metode cadangan jika container utama tidak ditemukan
+        for _, v in ipairs(Workspace:GetChildren()) do
+            if v.Name == "Coin_Server" and not CollectedCoins[v] then
                 local coinPart = v:IsA("BasePart") and v or v:FindFirstChild("Coin") or v:FindFirstChild("MainCoin") or v:FindFirstChildOfClass("BasePart")
                 if coinPart then
                     local distance = (root.Position - coinPart.Position).Magnitude
@@ -597,22 +614,24 @@ local function GetNearestCoin()
     return closestCoin
 end
 
--- Teleport Lock Engine (Sangat Cepat & Mencegah Gravitasi Menarik Karakter ke Bawah)
 local function CollectCoin(coinPart)
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
-    if not root or not coinPart or not coinPart.Parent then return end
+    if not root or not coinPart then return end
     
-    local startTime = os.clock()
-    -- Mengunci CFrame karakter langsung di koin selama ~30 milidetik (0.03 detik)
-    -- Ini bypass physics engine agar registrasi koin instan tanpa membuat tubuh terjatuh ke bawah
-    while os.clock() - startTime < 0.03 do
-        if not root or not coinPart or not coinPart.Parent or not Settings.CoinFarmEnabled then break end
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        root.CFrame = coinPart.CFrame
-        task.wait()
+    -- LANGSUNG tandai koin ini sebagai "Sudah Diambil" agar script segera mengabaikannya
+    CollectedCoins[coinPart] = true
+    if coinPart.Parent then
+        CollectedCoins[coinPart.Parent] = true
     end
+
+    -- Pindahkan karakter ke koin
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    root.CFrame = coinPart.CFrame
+    
+    -- Jeda minimal 1 frame agar sistem physics mendeteksi sentuhan (touch interest)
+    task.wait()
 end
 
 task.spawn(function()
@@ -622,10 +641,10 @@ task.spawn(function()
             if nearest then
                 CollectCoin(nearest)
             else
-                task.wait(0.1) -- Jeda cepat untuk pemindaian ulang jika koin habis
+                task.wait(0.02) -- Pemindaian ulang yang sangat cepat jika koin habis
             end
         else
-            task.wait(0.5) -- Jeda hemat kinerja saat farm dinonaktifkan
+            task.wait(0.5)
         end
     end
 end)
