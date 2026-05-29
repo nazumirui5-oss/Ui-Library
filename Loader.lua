@@ -42,6 +42,54 @@ local ExtButtonTexts = {
     LoadPos = "LOAD_POS"
 }
 
+-- ========================================================================
+-- [[ TOMBOL EKSTERNAL UTILITY & SCALE ENGINE ]]
+-- ========================================================================
+local ExternalButtonsList = {}
+
+local function RegisterExternalButton(btnWrapper)
+    table.insert(ExternalButtonsList, btnWrapper)
+end
+
+-- Fungsi aman untuk mengubah ukuran tombol eksternal
+local function SetButtonSize(btnWrapper, scaleValue)
+    pcall(function()
+        local rawBtn = btnWrapper.Instance or btnWrapper.Button or btnWrapper.Frame or btnWrapper
+        if typeof(rawBtn) == "Instance" and rawBtn:IsA("GuiObject") then
+            -- Base size default tombol eksternal diasumsikan 45x45
+            rawBtn.Size = UDim2.new(0, 45 * scaleValue, 0, 45 * scaleValue)
+        elseif type(btnWrapper) == "table" then
+            for _, v in pairs(btnWrapper) do
+                if typeof(v) == "Instance" and v:IsA("GuiObject") then
+                    v.Size = UDim2.new(0, 45 * scaleValue, 0, 45 * scaleValue)
+                end
+            end
+        end
+    end)
+end
+
+-- Fungsi aman untuk mengunci pergeseran (draggable) tombol eksternal
+local function SetButtonDragLock(btnWrapper, locked)
+    pcall(function()
+        local rawBtn = btnWrapper.Instance or btnWrapper.Button or btnWrapper.Frame or btnWrapper
+        if typeof(rawBtn) == "Instance" and rawBtn:IsA("GuiObject") then
+            rawBtn.Draggable = not locked
+        elseif type(btnWrapper) == "table" then
+            for _, v in pairs(btnWrapper) do
+                if typeof(v) == "Instance" and v:IsA("GuiObject") then
+                    v.Draggable = not locked
+                end
+            end
+        end
+    end)
+end
+
+local function UpdateAllButtonsDragLock(locked)
+    for _, btn in ipairs(ExternalButtonsList) do
+        SetButtonDragLock(btn, locked)
+    end
+end
+
 -- 3. INTERNAL FEATURE CONFIGURATION (MM2 & MOVEMENT)
 local Settings = {
     CameraAimbot = false,
@@ -621,7 +669,6 @@ end
 -- [[ COIN ESP ENGINE (DENGAN PENINGKATAN PEMINDAIAN MENDALAM) ]]
 -- ========================================================
 local function ApplyCoinESP()
-    -- Cukup periksa Settings.CoinESP saja agar mandiri dari status ESP utama
     if not Settings.CoinESP then 
         for _, v in ipairs(Workspace:GetDescendants()) do
             if v.Name == "LouisCoinESP" then v:Destroy() end
@@ -630,7 +677,6 @@ local function ApplyCoinESP()
     end
     
     local coinContainers = {}
-    -- Melakukan pencarian mendalam terhadap folder 'CoinContainer' agar tidak terlewat pada map tertentu
     for _, v in ipairs(Workspace:GetDescendants()) do
         if v.Name == "CoinContainer" and v:IsA("Folder") then
             table.insert(coinContainers, v)
@@ -645,7 +691,6 @@ local function ApplyCoinESP()
             end
         end
     else
-        -- Fallback jika folder CoinContainer tidak ditemukan, cari koin langsung di Workspace
         for _, v in ipairs(Workspace:GetDescendants()) do
             if v.Name == "Coin_Server" or v.Name == "Coin" or v.Name == "MainCoin" then
                 table.insert(coinsToHighlight, v)
@@ -731,7 +776,6 @@ local function FlingPlayer(targetPlayer)
         Settings.TouchFling = true
         
         task.spawn(function()
-            -- Duration extended to 150 iterations (~3 seconds) to guarantee fling momentum transfer
             for i = 1, 150 do
                 if not targetRoot or not targetHum or targetHum.Health <= 0 or not root or not char:FindFirstChild("HumanoidRootPart") then
                     break
@@ -896,12 +940,10 @@ local function GetFlyDirection()
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if hum then
         if hum.MoveDirection.Magnitude > 0 then
-            -- Mixing virtual joystick direction with camera look direction (for mobile vertical flight)
             local camLook = Camera.CFrame.LookVector
             direction = direction + (hum.MoveDirection + Vector3.new(0, camLook.Y * 1.2, 0))
         end
         
-        -- Mobile Jump Button (Virtual Jump)
         if hum.Jump then
             direction = direction + Vector3.new(0, 1, 0)
         end
@@ -970,7 +1012,7 @@ local function UpdateSpinState(state)
 end
 
 -- ========================================================================
--- [[ FLING INSTANT (INTEGRATED FROM PROTECTED CODES - FILE 2) ]]
+-- [[ FLING INSTANT ]]
 -- ========================================================================
 local function UpdateFlingState(role, state)
     if role == "Murderer" then
@@ -1198,6 +1240,7 @@ local ExtAimbotBtn = Library:CreateExternalButton("Aimbot", ExtButtonTexts.Aimbo
     Settings.CameraAimbot = not Settings.CameraAimbot
     Library:Notify("Aimbot Toggle", "Status: " .. (Settings.CameraAimbot and "ON" or "OFF"), 1.5)
 end)
+RegisterExternalButton(ExtAimbotBtn)
 
 local ExtGrabBtn = Library:CreateExternalButton("GrabGun", ExtButtonTexts.GrabGun, UDim2.new(0, 20, 0.5, -10), function()
     local activeGun = ScanForDroppedGun()
@@ -1208,27 +1251,32 @@ local ExtGrabBtn = Library:CreateExternalButton("GrabGun", ExtButtonTexts.GrabGu
         Library:Notify("Gun Grabber", "No dropped gun found on map.", 2)
     end
 end)
+RegisterExternalButton(ExtGrabBtn)
 
 local ExtDoubleJumpBtn = Library:CreateExternalButton("DoubleJump", ExtButtonTexts.DoubleJump, UDim2.new(0, 20, 0.5, 35), function()
     Settings.DoubleJumpEnabled = not Settings.DoubleJumpEnabled
     Library:Notify("Double Jump", "Status: " .. (Settings.DoubleJumpEnabled and "ON" or "OFF"), 1.5)
 end)
+RegisterExternalButton(ExtDoubleJumpBtn)
 
 local ExtSpinBtn = Library:CreateExternalButton("Spin", ExtButtonTexts.Spin, UDim2.new(0, 20, 0.5, 80), function()
     Settings.SpinEnabled = not Settings.SpinEnabled
     UpdateSpinState(Settings.SpinEnabled)
     Library:Notify("Spin Bot", "Status: " .. (Settings.SpinEnabled and "ON" or "OFF"), 1.5)
 end)
+RegisterExternalButton(ExtSpinBtn)
 
 local ExtTpSheriffBtn = Library:CreateExternalButton("TpSheriff", ExtButtonTexts.TpSheriff, UDim2.new(0, 70, 0.5, -55), function()
     TeleportToSheriff()
     Library:Notify("Teleport", "Teleporting to Sheriff...", 1.5)
 end)
+RegisterExternalButton(ExtTpSheriffBtn)
 
 local ExtTpMurderBtn = Library:CreateExternalButton("TpMurderer", ExtButtonTexts.TpMurder, UDim2.new(0, 70, 0.5, -10), function()
     TeleportToMurderer()
     Library:Notify("Teleport", "Teleporting to Murderer...", 1.5)
 end)
+RegisterExternalButton(ExtTpMurderBtn)
 
 local ExtFlingMurderBtn = Library:CreateExternalButton("FlingMurder", ExtButtonTexts.FlingMurder, UDim2.new(0, 70, 0.5, 35), function()
     Settings.AutoFlingMurder = not Settings.AutoFlingMurder
@@ -1240,6 +1288,7 @@ local ExtFlingMurderBtn = Library:CreateExternalButton("FlingMurder", ExtButtonT
     if _G.SyncFlingButtons then _G.SyncFlingButtons() end
     Library:Notify("Fling Hack", "Fling Murderer: " .. (Settings.AutoFlingMurder and "ON" or "OFF"), 1.5)
 end)
+RegisterExternalButton(ExtFlingMurderBtn)
 
 local ExtFlingSheriffBtn = Library:CreateExternalButton("FlingSheriff", ExtButtonTexts.FlingSheriff, UDim2.new(0, 70, 0.5, 80), function()
     Settings.AutoFlingSheriff = not Settings.AutoFlingSheriff
@@ -1251,11 +1300,13 @@ local ExtFlingSheriffBtn = Library:CreateExternalButton("FlingSheriff", ExtButto
     if _G.SyncFlingButtons then _G.SyncFlingButtons() end
     Library:Notify("Fling Hack", "Fling Sheriff: " .. (Settings.AutoFlingSheriff and "ON" or "OFF"), 1.5)
 end)
+RegisterExternalButton(ExtFlingSheriffBtn)
 
 local ExtSavePosBtn = Library:CreateExternalButton("SavePos", ExtButtonTexts.SavePos, UDim2.new(0, 120, 0.5, -55), function()
     SavePosition()
     Library:Notify("POS Saved", "Saved local coordinates successfully!", 1.5)
 end)
+RegisterExternalButton(ExtSavePosBtn)
 
 local ExtLoadPosBtn = Library:CreateExternalButton("LoadPos", ExtButtonTexts.LoadPos, UDim2.new(0, 120, 0.5, -10), function()
     if SavedCFrame then
@@ -1265,6 +1316,7 @@ local ExtLoadPosBtn = Library:CreateExternalButton("LoadPos", ExtButtonTexts.Loa
         Library:Notify("POS Error", "No saved coordinate. Save position first!", 2)
     end
 end)
+RegisterExternalButton(ExtLoadPosBtn)
 
 ExtAimbotBtn:SetVisible(false)
 ExtGrabBtn:SetVisible(false)
@@ -1280,7 +1332,6 @@ ExtLoadPosBtn:SetVisible(false)
 -- ========================================================================
 -- [[ MAIN MENU STRUCTURE ]]
 -- ========================================================================
--- UPDATE: Mengubah sub-title UI utama menjadi tautan Discord Anda
 local Window = Library:CreateWindow("LOUIS MM2 EDITION", "discord.gg/P2FEVBz2PG")
 Window:BindToggleKey(Enum.KeyCode.RightControl)
 
@@ -1291,7 +1342,6 @@ local TabMain = Window:CreateTab("Welcome", "rbxassetid://6023426915")
 TabMain:CreateParagraph("Welcome!", "Hello " .. LocalPlayer.Name .. "!\nThank you for executing Louis Premium Edition.")
 TabMain:CreateParagraph("UI Instructions", "Keybind to open/hide menu: RightControl\nYou can toggle external buttons from the settings.")
 
--- UPDATE: Menambahkan bagian Deskripsi Discord dan Tombol Copy Link otomatis
 TabMain:CreateParagraph("Official Community", "Join our Discord server to get the latest update information, report issues, and interact directly with the developers and the rest of the community!")
 TabMain:CreateButton("Copy Discord Server Link", function()
     if setclipboard then
@@ -1655,6 +1705,51 @@ TabSpecial:CreateButton("Teleport instantly to Murderer", function()
     TeleportToMurderer()
 end)
 
+-- --- TAB 6: CONTROLS & SIZES ---
+local TabControls = Window:CreateTab("Button Controls", "rbxassetid://4483362458")
+
+TabControls:CreateParagraph("External Button Scales (%)", "Sesuaikan ukuran masing-masing tombol melayang secara dinamis.")
+
+TabControls:CreateSlider("Aimbot Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtAimbotBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Grab Gun Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtGrabBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Double Jump Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtDoubleJumpBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Spin Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtSpinBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Tp Sheriff Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtTpSheriffBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Tp Murderer Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtTpMurderBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Fling Murderer Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtFlingMurderBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Fling Sheriff Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtFlingSheriffBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Save Position Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtSavePosBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Load Position Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtLoadPosBtn, val / 100)
+end)
+
 TabSpecial:CreateToggle("Show Teleport Murderer Button [TM]", false, function(state)
     Settings.TpMurderExtEnabled = state
     ExtTpMurderBtn:SetVisible(state)
@@ -1663,6 +1758,7 @@ end)
 TabSpecial:CreateParagraph("Window Lock", "Lock window dragging positions.")
 TabSpecial:CreateToggle("Lock Main UI Dragging", false, function(state)
     Window:SetDragLock(state)
+    UpdateAllButtonsDragLock(state) -- Menghubungkan lock UI dengan semua tombol eksternal
 end)
 
 -- ========================================================================
