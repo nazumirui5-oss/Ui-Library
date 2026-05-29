@@ -1224,7 +1224,8 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     end)
 
     local buttonController = {}
-    
+    buttonController.Instance = ExtBtn -- Referensi Instansi Utama agar bisa dibaca dari luar secara aman
+
     function buttonController:SetText(newText)
         ExtBtn.Text = tostring(newText)
     end
