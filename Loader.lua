@@ -1,5 +1,5 @@
 -- ========================================================================
--- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (OPTIMIZED EDITION) ]]
+-- [[ LOUIS HUB - MM2 FUNCTIONAL EDITION (FULL INTEGRATED EDITION) ]]
 -- ========================================================================
 
 -- 1. LOAD UI LIBRARY FROM YOUR SOURCE
@@ -613,7 +613,7 @@ end)
 -- [[ OPTIMIZED COIN DETECTION AND FAST FARM ENGINE ]]
 -- ========================================================
 
--- Highly efficient background thread scans coins periodically to completely eliminate thread stuttering/lag
+-- Periodic background scan to populates the Cache, eliminating FPS stutter
 task.spawn(function()
     while true do
         if Settings.CoinFarmEnabled then
@@ -629,7 +629,7 @@ task.spawn(function()
                     table.insert(temp, coin)
                 end
             else
-                -- Fallback scan that avoids intensive GetDescendants operations by querying children hierarchy
+                -- Fallback optimization scanning hierarchy without heavy GetDescendants operations
                 for _, v in ipairs(Workspace:GetChildren()) do
                     if v.Name == "Coin_Server" or (Settings.EventTokenFarm and (v.Name:find("Candy") or v.Name:find("Present") or v.Name:find("Snowflake") or v.Name:find("Token"))) then
                         table.insert(temp, v)
@@ -644,7 +644,7 @@ task.spawn(function()
             end
             CoinCache = temp
         end
-        task.wait(0.5) -- Scan refresh every 0.5 seconds for peak performance
+        task.wait(0.5)
     end
 end)
 
@@ -706,7 +706,7 @@ local function CollectCoin(coinPart)
     end
 end
 
--- Blazing Fast Autofarm Coin Thread ("Sat Set")
+-- Fast Autofarm Thread
 task.spawn(function()
     while true do
         if Settings.CoinFarmEnabled then
@@ -1550,14 +1550,12 @@ local ExtLoadPosBtn = Library:CreateExternalButton("LoadPos", ExtButtonTexts.Loa
 end)
 RegisterExternalButton(ExtLoadPosBtn)
 
--- External Button Auto Kill All
 local ExtKillAllBtn = Library:CreateExternalButton("KillAll", ExtButtonTexts.KillAll, UDim2.new(0, 120, 0.5, 35), function()
     Settings.AutoKillAll = not Settings.AutoKillAll
     Library:Notify("Auto Kill All", "Status: " .. (Settings.AutoKillAll and "ON" or "OFF"), 1.5)
 end)
 RegisterExternalButton(ExtKillAllBtn)
 
--- External Button Auto Bunnyhop
 local ExtBhopBtn = Library:CreateExternalButton("Bhop", ExtButtonTexts.Bhop, UDim2.new(0, 120, 0.5, 80), function()
     Settings.AutoBhopEnabled = not Settings.AutoBhopEnabled
     Library:Notify("Auto Bhop", "Status: " .. (Settings.AutoBhopEnabled and "ON" or "OFF"), 1.5)
