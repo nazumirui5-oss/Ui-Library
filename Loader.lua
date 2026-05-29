@@ -546,7 +546,7 @@ task.spawn(function()
 end)
 
 -- ========================================================
--- [[ COIN DETECTION AND FARM ENGINE (INSTANT & SMOOTH) ]]
+-- [[ COIN DETECTION AND FARM ENGINE (SMART TELEPORT) ]]
 -- ========================================================
 local CollectedCoins = {}
 
@@ -632,24 +632,33 @@ local function GetNearestCoin()
     return closestCoin
 end
 
+-- MODIFIKASI: Pilihan 2 - Jeda Pintar Dinamis Berdasarkan Jarak
 local function CollectCoin(coinPart)
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root or not coinPart then return end
     
-    -- Tandai koin dan parent-nya agar diabaikan pada pencarian berikutnya
+    -- Tandai koin agar tidak dideteksi ulang
     CollectedCoins[coinPart] = true
     if coinPart.Parent then
         CollectedCoins[coinPart.Parent] = true
     end
 
-    -- Pindahkan karakter ke koin
+    -- Reset kecepatan fisik agar karakter tidak terlempar
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    
+    -- Ambil jarak koin sebelum teleportasi
+    local distance = (root.Position - coinPart.Position).Magnitude
+
+    -- Teleportasi instan (TP langsung cepat)
     root.CFrame = coinPart.CFrame
     
-    -- Jeda minimal agar sistem physics game mendeteksi touch interest
-    task.wait()
+    -- Kalkulasi jeda dinamis secara otomatis (Makin jauh = jeda sedikit diperpanjang)
+    -- Batas bawah: 0.35 detik (sangat cepat), Batas atas: 1.15 detik (aman dari kick)
+    local dynamicDelay = math.clamp(distance * 0.0055, 0.35, 1.15)
+    
+    task.wait(dynamicDelay)
 end
 
 task.spawn(function()
@@ -659,7 +668,7 @@ task.spawn(function()
             if nearest then
                 CollectCoin(nearest)
             else
-                task.wait(0.02)
+                task.wait(0.2)
             end
         else
             task.wait(0.5)
