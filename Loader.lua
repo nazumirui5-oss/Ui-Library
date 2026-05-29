@@ -668,8 +668,13 @@ local function CollectCoin(coinPart)
         CollectedCoins[coinPart.Parent] = true
     end
 
-    -- Hitung jarak dan waktu tween berdasarkan kecepatan slider
-    local distance = (root.Position - coinPart.Position).Magnitude
+    -- 1. Posisi aman di bawah lantai (Offset -6.5 dari tinggi koin asli dan tiduran -90 derajat)
+    local safeUnderCFrame = coinPart.CFrame * CFrame.new(0, -6.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+    -- 2. Posisi target mengambil koin (Sama tinggi dengan koin)
+    local grabCFrame = coinPart.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
+
+    -- Hitung jarak horizontal dan waktu tween berdasarkan kecepatan slider
+    local distance = (root.Position - safeUnderCFrame.Position).Magnitude
     local speed = Settings.CoinFarmTweenSpeed or 90
     local tweenTime = distance / speed
     
@@ -678,22 +683,18 @@ local function CollectCoin(coinPart)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     root.Anchored = true
 
-    local tweenInfo = TweenInfo.new(
+    if currentCoinTween then pcall(function() currentCoinTween:Cancel() end) end
+    
+    -- TAHAP 1: MELUNCUR DI BAWAH LANTAI MENUJU DI BAWAH KOIN
+    local tweenInfo1 = TweenInfo.new(
         tweenTime, 
         Enum.EasingStyle.Linear, 
         Enum.EasingDirection.Out
     )
-    
-    -- KARAKTER TIDURAN DI BAWAH LANTAI (Offset -2.5 dan rotasi -90 derajat pada sumbu X)
-    local targetCFrame = coinPart.CFrame * CFrame.new(0, -2.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-    
-    if currentCoinTween then pcall(function() currentCoinTween:Cancel() end) end
-    
-    -- Eksekusi Tween Pergerakan Meluncur
-    currentCoinTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+    currentCoinTween = TweenService:Create(root, tweenInfo1, {CFrame = safeUnderCFrame})
     currentCoinTween:Play()
     
-    -- Menunggu tween selesai secara fleksibel atau berhenti jika modul dimatikan (Ditambahkan validasi CoinESP)
+    -- Menunggu meluncur selesai
     local completed = false
     local conn
     conn = currentCoinTween.Completed:Connect(function()
@@ -708,21 +709,56 @@ local function CollectCoin(coinPart)
         end)
         task.wait()
     end
-    
     if conn then conn:Disconnect() end
+    
+    -- TAHAP 2: NAIK KE ATAS UNTUK MENGAMBIL KOIN SECARA INSTAN / SANTAI
+    if Settings.CoinFarmEnabled and Settings.CoinESP and coinPart and coinPart.Parent then
+        local tweenInfoUp = TweenInfo.new(0.15, Enum.EasingStyle.QuadOut, Enum.EasingDirection.Out)
+        currentCoinTween = TweenService:Create(root, tweenInfoUp, {CFrame = grabCFrame})
+        currentCoinTween:Play()
+        
+        completed = false
+        conn = currentCoinTween.Completed:Connect(function()
+            completed = true
+            if conn then conn:Disconnect() end
+        end)
+        while not completed and Settings.CoinFarmEnabled and Settings.CoinESP do
+            task.wait()
+        end
+        if conn then conn:Disconnect() end
+        
+        -- Jeda sangat singkat untuk registrasi sentuhan koin oleh game server
+        task.wait(0.04)
+        
+        -- TAHAP 3: KEMBALI TURUN KE BAWAH LANTAI (SECARA CEPAT)
+        local tweenInfoDown = TweenInfo.new(0.12, Enum.EasingStyle.QuadIn, Enum.EasingDirection.In)
+        currentCoinTween = TweenService:Create(root, tweenInfoDown, {CFrame = safeUnderCFrame})
+        currentCoinTween:Play()
+        
+        completed = false
+        conn = currentCoinTween.Completed:Connect(function()
+            completed = true
+            if conn then conn:Disconnect() end
+        end)
+        while not completed and Settings.CoinFarmEnabled and Settings.CoinESP do
+            task.wait()
+        end
+        if conn then conn:Disconnect() end
+    end
+    
     if currentCoinTween then currentCoinTween:Cancel() end
     
-    -- Lepas kuncian anchor setelah proses selesai (karakter akan berdiri kembali secara otomatis)
+    -- Lepas kuncian anchor setelah seluruh proses selesai
     root.Anchored = false
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     
-    -- Jeda untuk sinkronisasi posisi di server
+    -- Jeda sinkronisasi posisi di server
     task.wait(0.15)
 end
 
 task.spawn(function()
     while true do
-        -- Coin Farm hanya akan bekerja jika Coin Farm ON dan Coin ESP (Visual Coin) juga ON
+        -- Coin Farm hanya akan bekerja jika Coin Farm ON and Coin ESP (Visual Coin) juga ON
         if Settings.CoinFarmEnabled and Settings.CoinESP then
             -- Deteksi jika tas/backpack koin sudah penuh (40 koin), langsung aktifkan fling murderer otomatis
             if IsBagFull() then
