@@ -27,9 +27,13 @@ local FlingFailsafeActive = false
 local OriginalCFrameBeforeFling = nil
 local SafePlatform = nil
 
+-- State Tambahan Untuk Coin Farm Underground Idle
+local WasUnderground = false
+local PreFarmCFrame = nil
+
 -- ========================================================================
 -- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
--- ========================================================
+-- ========================================================================
 local ExtButtonTexts = {
     Aimbot = "AIM",
     GrabGun = "GRAB",
@@ -128,6 +132,8 @@ local Settings = {
     -- Coin Farm Configuration
     CoinFarmEnabled = false,
     CoinFarmTweenSpeed = 90, -- Default kecepatan tween koin dibatasi ke maksimal 90
+    CoinUpTweenSpeed = 50,   -- Kecepatan tween naik ke atas koin (dapat diatur slider)
+    CoinMaxDistance = 300,   -- Jarak deteksi maksimal koin (default: 300 studs)
 
     -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
@@ -576,7 +582,7 @@ local function IsBagFull()
 end
 
 -- ========================================================================
--- [[ COIN DETECTION AND FARM ENGINE (FIXED & OPTIMIZED) ]]
+-- [[ COIN DETECTION AND FARM ENGINE (FIXED & OPTIMIZED WITH TWEEN SLIDERS) ]]
 -- ========================================================================
 local CollectedCoins = {}
 local ScannedCoins = {}
@@ -649,7 +655,15 @@ local function GetNearestCoin()
         end
     end
     
-    return closestCoin
+    -- Filter jarak maksimal koin sesuai slider konfigurasi
+    if closestCoin then
+        local distance = (root.Position - closestCoin.Position).Magnitude
+        if distance <= Settings.CoinMaxDistance then
+            return closestCoin
+        end
+    end
+    
+    return nil
 end
 
 local currentCoinTween = nil
@@ -695,10 +709,33 @@ local function CollectCoin(coinPart)
     end
     if conn then conn:Disconnect() end
     
-    -- TAHAP 2: Naik ke atas sebentar untuk menyentuh koin
+    -- TAHAP 2: Naik ke atas untuk menyentuh koin (MENGGUNAKAN TWEEN SPEED YANG DAPAT DIATUR SLIDER)
     if Settings.CoinFarmEnabled and coinPart and coinPart.Parent then
-        root.Anchored = false -- Matikan anchor sebentar agar sensor Touched aktif
-        root.CFrame = grabCFrame
+        root.Anchored = true -- Tetap di-anchor agar gerakan ke atas stabil dan lurus
+        
+        local upDistance = (root.Position - grabCFrame.Position).Magnitude
+        local upSpeed = Settings.CoinUpTweenSpeed or 50
+        local upTweenTime = upDistance / upSpeed
+        
+        local tweenInfo2 = TweenInfo.new(upTweenTime, Enum.EasingStyle.Linear)
+        currentCoinTween = TweenService:Create(root, tweenInfo2, {CFrame = grabCFrame})
+        currentCoinTween:Play()
+        
+        local completedUp = false
+        local connUp
+        connUp = currentCoinTween.Completed:Connect(function()
+            completedUp = true
+            if connUp then connUp:Disconnect() end
+        end)
+        
+        while not completedUp and Settings.CoinFarmEnabled do
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            task.wait()
+        end
+        if connUp then connUp:Disconnect() end
+        
+        -- Matikan anchor sebentar agar sensor sentuhan koin (Touched) aktif
+        root.Anchored = false 
         
         -- Gunakan firetouchinterest milik executor jika didukung agar koin langsung terambil instan
         if firetouchinterest then
@@ -709,9 +746,29 @@ local function CollectCoin(coinPart)
             task.wait(0.12) -- Jeda fisik jika executor tidak mendukung firetouchinterest
         end
         
-        -- TAHAP 3: Kembali ke bawah lantai agar aman dari deteksi
-        root.CFrame = safeUnderCFrame
+        -- TAHAP 3: Kembali ke bawah lantai agar aman dari deteksi (di-tween kembali ke bawah)
         root.Anchored = true
+        local downDistance = (root.Position - safeUnderCFrame.Position).Magnitude
+        local downSpeed = Settings.CoinFarmTweenSpeed or 90
+        local downTweenTime = downDistance / downSpeed
+        
+        local tweenInfo3 = TweenInfo.new(downTweenTime, Enum.EasingStyle.Linear)
+        currentCoinTween = TweenService:Create(root, tweenInfo3, {CFrame = safeUnderCFrame})
+        currentCoinTween:Play()
+        
+        local completedDown = false
+        local connDown
+        connDown = currentCoinTween.Completed:Connect(function()
+            completedDown = true
+            if connDown then connDown:Disconnect() end
+        end)
+        
+        while not completedDown and Settings.CoinFarmEnabled do
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            task.wait()
+        end
+        if connDown then connDown:Disconnect() end
+        
         task.wait(0.05)
     end
     
@@ -723,8 +780,12 @@ end
 
 task.spawn(function()
     while true do
-        -- Dependency ke Settings.CoinESP dihapus agar Auto Farm bisa bekerja secara mandiri
         if Settings.CoinFarmEnabled then
+            -- Menyimpan koordinat asli di permukaan tanah sebelum farming dimulai
+            if not PreFarmCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                PreFarmCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+            end
+
             if IsBagFull() then
                 if not Settings.AutoFlingMurder then
                     Settings.AutoFlingMurder = true
@@ -738,12 +799,44 @@ task.spawn(function()
             else
                 local nearest = GetNearestCoin()
                 if nearest then
+                    WasUnderground = true
                     CollectCoin(nearest)
                 else
-                    task.wait(0.2)
+                    -- MODE UNDERGROUND IDLE: TIDAK ADA KOIN / DI LUAR JANGKAUAN DETEKSI
+                    local character = LocalPlayer.Character
+                    local root = character and character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        
+                        -- Jika karakter belum diposisikan di bawah tanah, turunkan -6.5 stud agar aman
+                        if not WasUnderground then
+                            root.CFrame = root.CFrame * CFrame.new(0, -6.5, 0)
+                            WasUnderground = true
+                        end
+                        -- Mengunci koordinat karakter agar tidak terjatuh ke void map
+                        root.Anchored = true
+                    end
+                    task.wait(0.25)
                 end
             end
         else
+            -- Jika Coin Farm dimatikan, kembalikan posisi karakter ke atas permukaan tanah dengan selamat
+            if WasUnderground then
+                local character = LocalPlayer.Character
+                local root = character and character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.Anchored = false
+                    if PreFarmCFrame then
+                        root.CFrame = PreFarmCFrame
+                    else
+                        root.CFrame = root.CFrame * CFrame.new(0, 7.5, 0)
+                    end
+                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+                WasUnderground = false
+                PreFarmCFrame = nil
+            end
             task.wait(0.5)
         end
     end
@@ -1777,6 +1870,16 @@ TabSpecial:CreateSlider("Coin Farm Tween Speed", 20, 90, Settings.CoinFarmTweenS
     Settings.CoinFarmTweenSpeed = val
 end)
 
+-- SLIDER TWEEN SPEED KHUSUS SAAT NAIK MENGAMBIL KOIN KE ATAS (Dapat diatur dinamis)
+TabSpecial:CreateSlider("Coin Up Tween Speed", 10, 150, Settings.CoinUpTweenSpeed, function(val)
+    Settings.CoinUpTweenSpeed = val
+end)
+
+-- SLIDER JARAK DETEKSI MAKSIMAL KOIN (Jika koin di luar jarak ini, karakter idle di bawah tanah)
+TabSpecial:CreateSlider("Max Coin Distance (Studs)", 50, 1000, Settings.CoinMaxDistance, function(val)
+    Settings.CoinMaxDistance = val
+end)
+
 -- ========================================================================
 -- [[ DYNAMIC ACTIVE PLAYER RETRIEVER LOGIC ]]
 -- ========================================================================
@@ -2004,6 +2107,10 @@ end
 
 SafeConnect(LocalPlayer.CharacterAdded, function(char)
     pcall(SetupDoubleJump, char)
+    
+    -- Reset state coin farm saat karakter tereliminasi/respawn demi stabilitas
+    WasUnderground = false
+    PreFarmCFrame = nil
     
     local humanoid = char:WaitForChild("Humanoid")
     task.wait(0.5)
