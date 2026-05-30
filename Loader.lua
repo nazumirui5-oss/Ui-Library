@@ -1015,11 +1015,11 @@ local function TeleportAllPlayersToMe()
 end
 
 -- ========================================================================
--- [[ COIN ESP ENGINE (DYNAMIC SELECTIONBOX & HIGHLIGHT COIN GLOW) ]]
+-- [[ COIN ESP ENGINE (DYNAMIC BOXHANDLEADORNMENT COIN GLOW - 100% VISIBLE) ]]
 -- ========================================================================
 local function ClearCoinESP()
     for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "LouisCoinESP" or v.Name == "LouisCoinHighlight" then 
+        if v.Name == "LouisCoinESP" then 
             pcall(function() v:Destroy() end) 
         end
     end
@@ -1060,27 +1060,17 @@ local function ApplyCoinESP()
     end
 
     for _, coinPart in ipairs(coinsToHighlight) do
-        -- Menempelkan SelectionBox emas agar terlihat menembus dinding dan bypass 31-highlight limit roblox
+        -- Menempelkan BoxHandleAdornment emas agar terlihat menembus dinding dan bypass 31-highlight limit roblox
         if coinPart and coinPart.Parent and not coinPart:FindFirstChild("LouisCoinESP") then
-            local box = Instance.new("SelectionBox")
+            local box = Instance.new("BoxHandleAdornment")
             box.Name = "LouisCoinESP"
+            box.Size = coinPart.Size + Vector3.new(0.1, 0.1, 0.1)
             box.Color3 = Color3.fromRGB(255, 215, 0) -- Gold Color
-            box.LineThickness = 0.04
-            box.Adornee = coinPart
             box.AlwaysOnTop = true
+            box.ZIndex = 5
+            box.Transparency = 0.5
+            box.Adornee = coinPart
             box.Parent = coinPart
-        end
-        
-        -- Menempelkan Highlight emas untuk visual glow solid tambahan
-        if coinPart and coinPart.Parent and not coinPart:FindFirstChild("LouisCoinHighlight") then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "LouisCoinHighlight"
-            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Glow
-            highlight.FillTransparency = 0.4
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.OutlineTransparency = 0
-            highlight.Adornee = coinPart
-            highlight.Parent = coinPart
         end
     end
 end
