@@ -763,39 +763,36 @@ local function CollectCoin(coinPart)
     end
     if conn then conn:Disconnect() end
     
-    -- TAHAP 2: Pengambilan Koin Berakurasi Tinggi & Cepat
+    -- TAHAP 2: Pengambilan Koin Menggunakan Gerakan Fisik 'UP' Berakurasi Tinggi & Terbaca Server
     if Settings.CoinFarmEnabled and coinPart and coinPart.Parent then
-        if firetouchinterest then
-            -- Bypass fisik instan menggunakan API touchinterest (paling akurat, aman, dan tanpa desinkronisasi)
-            firetouchinterest(root, coinPart, 0)
-            task.wait(0.01)
-            firetouchinterest(root, coinPart, 1)
-            -- Trigger cadangan pada seluruh turunan pemancar sentuh koin
-            pcall(function()
-                for _, child in ipairs(coinPart.Parent:GetDescendants()) do
-                    if child:IsA("TouchTransmitter") then
-                        firetouchinterest(root, child.Parent, 0)
-                        task.wait(0.01)
-                        firetouchinterest(root, child.Parent, 1)
-                    end
-                end
-            end)
-            task.wait(0.04)
-        else
-            -- Fisik Fallback: Melakukan tween naik vertikal cepat & mematikan anchor sebentar agar menyentuh objek koin
-            root.Anchored = true
-            local upTween = TweenService:Create(root, TweenInfo.new(0.08, Enum.EasingStyle.Linear), {CFrame = grabCFrame})
-            upTween:Play()
-            upTween.Completed:Wait()
-            
-            root.Anchored = false
-            task.wait(0.08) -- Waktu tunggu fisik mendaftar sentuh
-            
-            root.Anchored = true
-            local downTween = TweenService:Create(root, TweenInfo.new(0.08, Enum.EasingStyle.Linear), {CFrame = safeUnderCFrame})
-            downTween:Play()
-            downTween.Completed:Wait()
+        -- Matikan tabrakan fisik secara menyeluruh agar karakter tidak menyangkut di rintangan atau lantai
+        for _, child in ipairs(character:GetDescendants()) do
+            if child:IsA("BasePart") then child.CanCollide = false end
         end
+
+        -- Hitung durasi tween naik berdasarkan pengaturan slider 'Coin Up Tween Speed'
+        local upSpeed = Settings.CoinUpTweenSpeed or 50
+        local upTweenTime = math.clamp(6.5 / upSpeed, 0.05, 0.5)
+
+        root.Anchored = true
+        local upTween = TweenService:Create(root, TweenInfo.new(upTweenTime, Enum.EasingStyle.Linear), {CFrame = grabCFrame})
+        upTween:Play()
+        upTween.Completed:Wait()
+        
+        -- Mematikan anchor sejenak dan menjaga posisi karakter agar tepat di koin sampai koin terdaftar masuk inventory
+        root.Anchored = false
+        local startTime = os.clock()
+        while coinPart and coinPart.Parent and (os.clock() - startTime < 0.35) and Settings.CoinFarmEnabled do
+            root.CFrame = grabCFrame
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            task.wait(0.01)
+        end
+        
+        -- Tarik kembali karakter ke bawah lantai dengan selamat
+        root.Anchored = true
+        local downTween = TweenService:Create(root, TweenInfo.new(upTweenTime, Enum.EasingStyle.Linear), {CFrame = safeUnderCFrame})
+        downTween:Play()
+        downTween.Completed:Wait()
     end
     
     if currentCoinTween then currentCoinTween:Cancel() end
