@@ -857,20 +857,23 @@ task.spawn(function()
                     
                     if mHum and mHum.Health > 0 and root then
                         root.Anchored = false
+                        Settings.TouchFling = true -- INTEGRASI TERINTEGRAL: Hidupkan Touch Fling selama fase ini
                         
                         -- Mengaktifkan tabrakan fisik karakter lokal agar Fling bekerja dengan sukses
                         for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
                             if child:IsA("BasePart") then child.CanCollide = true end
                         end
                         
-                        -- Mengaplikasikan rotasi dan kecepatan berdaya tinggi
-                        root.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
-                        root.AssemblyAngularVelocity = Vector3.new(0, 99999, 0)
+                        -- Mengaplikasikan rotasi dan kecepatan berdaya tinggi (Didukung sistem Touch Fling Engine)
+                        local multiplier = Settings.FlingPower * 1000
+                        root.AssemblyLinearVelocity = Vector3.new(multiplier, multiplier, multiplier)
+                        root.AssemblyAngularVelocity = Vector3.new(0, multiplier, 0)
                         root.CFrame = mRoot.CFrame * CFrame.new(math.random(-1, 1) * 0.1, 0, math.random(-1, 1) * 0.1)
                     end
-                    task.wait(0.05)
+                    task.wait(0.02)
                 else
                     -- Jika Murderer belum muncul/belum terdeteksi, bersembunyi aman di bawah tanah
+                    Settings.TouchFling = false -- Nonaktifkan Touch Fling sementara jika tidak ada target
                     if root then
                         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -884,6 +887,7 @@ task.spawn(function()
                 end
             else
                 -- JIKA TIDAK PENUH / TIMER BERJALAN: Lakukan penjemputan koin terdekat
+                Settings.TouchFling = false -- Pastikan Touch Fling dinonaktifkan saat mengumpulkan koin biasa
                 local nearest = GetNearestCoin()
                 if nearest then
                     WasUnderground = true
@@ -910,6 +914,7 @@ task.spawn(function()
         else
             -- Jika Coin Farm dimatikan, kembalikan posisi karakter ke atas permukaan tanah dengan selamat
             if WasUnderground then
+                Settings.TouchFling = false -- Pastikan Touch Fling nonaktif
                 local character = LocalPlayer.Character
                 local root = character and character:FindFirstChild("HumanoidRootPart")
                 if root then
