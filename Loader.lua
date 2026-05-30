@@ -31,6 +31,7 @@ local SafePlatform = nil
 local WasUnderground = false
 local PreFarmCFrame = nil
 local CollectedCoinsCount = 0
+local CachedCoinLabel = nil
 
 -- ========================================================================
 -- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
@@ -554,67 +555,52 @@ task.spawn(function()
 end)
 
 -- ========================================================================
--- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (UPGRADED) ]]
+-- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (FIXED) ]]
 -- ========================================================================
-local CachedCoinLabel = nil
-
-local function ScanEntireUIForCoins()
+local function GetActualCoinCountAndLimit()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
     local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
-    if not mainGui then return nil end
+    local gameGui = mainGui and mainGui:FindFirstChild("Game")
+    local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
 
-    -- Memindai seluruh keturunan di dalam MainGUI tanpa mempedulikan struktur folder
-    for _, object in ipairs(mainGui:GetDescendants()) do
-        if object:IsA("TextLabel") then
-            local nameLower = object.Name:lower()
-            local parentNameLower = object.Parent and object.Parent.Name:lower() or ""
-            local text = object.Text
-
-            -- Mencari indikator label koin/tas/uang secara komprehensif
-            if nameLower == "coins" or nameLower == "cash" or nameLower == "amount" or nameLower == "value" or
-               parentNameLower:find("bag") or parentNameLower:find("coin") or parentNameLower:find("cash") or parentNameLower:find("container") then
+    if cashBag and cashBag.Visible then
+        for _, object in ipairs(cashBag:GetDescendants()) do
+            if object:IsA("TextLabel") and object.Visible then
+                local text = object.Text
                 
-                if text:match("%d+") then
-                    return object
+                local current, max = text:match("(%d+)%s*/%s*(%d+)")
+                if current and max then
+                    return tonumber(current), tonumber(max)
+                end
+                
+                local singleNumber = text:match("%d+")
+                if singleNumber then
+                    return tonumber(singleNumber), 40
                 end
             end
         end
     end
-    return nil
-end
-
-local function GetActualCoinCountAndLimit()
-    -- Jika cache hilang atau hancur saat respawn, jalankan ulang pemindaian
-    if not CachedCoinLabel or not CachedCoinLabel.Parent then
-        CachedCoinLabel = ScanEntireUIForCoins()
-    end
-
-    if CachedCoinLabel then
-        local text = CachedCoinLabel.Text
-        
-        -- Deteksi tipe data pecahan (contoh "15/40" atau "15 / 40")
-        local current, max = text:match("(%d+)%s*/%s*(%d+)")
-        if current and max then
-            return tonumber(current), tonumber(max)
-        end
-        
-        -- Deteksi angka satuan murni (contoh "15")
-        local singleNumber = tonumber(text:match("%d+"))
-        if singleNumber then
-            return singleNumber, 40 -- Kembalikan batas limit default 40
-        end
-    end
-
     return nil, nil
 end
 
 local function IsBagFull()
+    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
+    local gameGui = mainGui and mainGui:FindFirstChild("Game")
+    local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
+
+    if cashBag then
+        local fullIndicator = cashBag:FindFirstChild("Full")
+        if fullIndicator and fullIndicator.Visible then
+            return true
+        end
+    end
+
     local current, max = GetActualCoinCountAndLimit()
     if current and max then
         return current >= max
     end
     
-    -- Fallback ke penghitungan manual jika UI tidak dapat dibaca oleh executor
     return CollectedCoinsCount >= 40
 end
 
@@ -711,6 +697,24 @@ local function DeepScanWorkspaceCoins()
     end
 end
 
+-- Memeriksa apakah ada pemain lain yang terlalu dekat dengan koin
+local function IsAnotherPlayerNear(coinPart)
+    local exclusionRadius = 12 -- Koin diabaikan jika ada pemain lain dalam radius 12 stud
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if root and humanoid and humanoid.Health > 0 then
+                local distance = (root.Position - coinPart.Position).Magnitude
+                if distance < exclusionRadius then
+                    return true -- Ada pemain lain dekat koin ini, anggap koin sudah diambil
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function GetNearestCoin()
     local character = LocalPlayer.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -727,10 +731,13 @@ local function GetNearestCoin()
     
     for _, coinPart in ipairs(ScannedCoins) do
         if coinPart and coinPart.Parent and not CollectedCoins[coinPart] then
-            local distance = (root.Position - coinPart.Position).Magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestCoin = coinPart
+            -- Menerapkan proteksi anti-berebut koin dengan pemain lain
+            if not IsAnotherPlayerNear(coinPart) then
+                local distance = (root.Position - coinPart.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestCoin = coinPart
+                end
             end
         end
     end
