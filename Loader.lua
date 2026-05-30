@@ -554,28 +554,35 @@ task.spawn(function()
 end)
 
 -- ========================================================================
--- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (RECURSIVE) ]]
+-- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (FIXED) ]]
 -- ========================================================================
 local function GetActualCoinCountAndLimit()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
     local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
     if not mainGui then return nil, nil end
     
-    -- Mencari text label koin secara dinamis di seluruh bagian MainGUI
-    for _, descendant in ipairs(mainGui:GetDescendants()) do
-        if descendant.Name == "Coins" and descendant:IsA("TextLabel") then
-            -- Memastikan label ini berada di dalam container CoinBags milik MM2
-            if descendant:FindFirstAncestor("CoinBags") then
-                local text = descendant.Text
-                -- Ekstraksi angka koin (contoh format: "35/40" atau "35 / 40")
-                local current, max = text:match("(%d+)%s*/%s*(%d+)")
-                if current and max then
-                    return tonumber(current), tonumber(max)
-                else
-                    -- Jika format teks hanya angka biasa tanpa garis miring
-                    local singleVal = text:match("^%s*(%d+)")
-                    if singleVal then
-                        return tonumber(singleVal), 40
+    local coinBags = mainGui:FindFirstChild("CoinBags", true)
+    if coinBags then
+        -- Mencari TextLabel "Coins" yang berada di dalam kontainer CoinBags yang saat ini aktif/terlihat
+        for _, descendant in ipairs(coinBags:GetDescendants()) do
+            if descendant:IsA("TextLabel") and descendant.Name == "Coins" then
+                -- Memastikan elemen UI ini dan seluruh induknya sampai ke mainGui dalam keadaan terlihat (Visible)
+                local isVisible = descendant.Visible
+                local currentParent = descendant.Parent
+                while currentParent and currentParent ~= mainGui do
+                    if currentParent:IsA("GuiObject") and not currentParent.Visible then
+                        isVisible = false
+                        break
+                    end
+                    currentParent = currentParent.Parent
+                end
+                
+                if isVisible then
+                    local text = descendant.Text
+                    local count = tonumber(text:match("%d+"))
+                    if count then
+                        -- Kembalikan jumlah koin yang aktif, default batasan kantong 40 koin
+                        return count, 40
                     end
                 end
             end
@@ -590,7 +597,7 @@ local function IsBagFull()
         return current >= max
     end
     
-    -- Fallback ke penghitungan manual jika UI tidak terbaca oleh executor Anda
+    -- Fallback ke penghitungan manual jika UI tidak dapat dibaca oleh executor
     return CollectedCoinsCount >= 40
 end
 
@@ -616,15 +623,7 @@ local function GetCoinContainer()
         return CachedCoinContainer
     end
     CachedCoinContainer = nil
-    for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj.Name == "Normal" or obj.Name == "Map" then
-            local container = obj:FindFirstChild("CoinContainer", true)
-            if container then
-                CachedCoinContainer = container
-                return container
-            end
-        end
-    end
+    
     local container = Workspace:FindFirstChild("CoinContainer", true)
     if container then
         CachedCoinContainer = container
@@ -633,7 +632,7 @@ local function GetCoinContainer()
     return nil
 end
 
--- Mendeteksi part fisik representasi koin secara rekursif & akurat
+-- Mendeteksi part fisik koin secara rekursif & akurat
 local function FindCoinBasePart(coinServer)
     if not coinServer then return nil end
     if coinServer:IsA("BasePart") then
@@ -999,14 +998,20 @@ local function TeleportAllPlayersToMe()
     end
 end
 
--- ========================================================
--- [[ COIN ESP ENGINE (WITH DEEP SCAN ENHANCEMENTS) ]]
--- ========================================================
+-- ========================================================================
+-- [[ COIN ESP ENGINE (DYNAMIC HIGHLIGHT STABILITY & CLEAN SHUTDOWN) ]]
+-- ========================================================================
+local function ClearCoinESP()
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v.Name == "LouisCoinESP" then 
+            pcall(function() v:Destroy() end) 
+        end
+    end
+end
+
 local function ApplyCoinESP()
     if not Settings.CoinESP then 
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "LouisCoinESP" then v:Destroy() end
-        end
+        ClearCoinESP()
         return 
     end
     
@@ -1015,29 +1020,37 @@ local function ApplyCoinESP()
     
     if container then
         for _, coin in ipairs(container:GetChildren()) do
-            table.insert(coinsToHighlight, coin)
+            if coin:IsA("Model") or coin:IsA("BasePart") then
+                table.insert(coinsToHighlight, coin)
+            end
         end
     else
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "Coin_Server" or v.Name == "Coin" or v.Name == "MainCoin" then
-                table.insert(coinsToHighlight, v)
+        -- Fallback: Pencarian cadangan terbatas hanya di dalam Map aktif saja agar hemat FPS
+        for _, object in ipairs(Workspace:GetChildren()) do
+            if object.Name == "Normal" or object.Name == "Map" then
+                for _, subObj in ipairs(object:GetDescendants()) do
+                    if subObj:IsA("BasePart") then
+                        local nameLower = subObj.Name:lower()
+                        if nameLower:find("coin") then
+                            table.insert(coinsToHighlight, subObj)
+                        end
+                    end
+                end
             end
         end
     end
 
     for _, coin in ipairs(coinsToHighlight) do
-        local coinPart = FindCoinBasePart(coin)
-            
-        -- Hanya beri Highlight pada koin yang memiliki visual aktif
-        if coinPart and coinPart.Transparency < 0.9 and not coinPart:FindFirstChild("LouisCoinESP") then
+        -- Berikan highlight secara merata langsung pada model representasi koin
+        if coin and not coin:FindFirstChild("LouisCoinESP") then
             local highlight = Instance.new("Highlight")
             highlight.Name = "LouisCoinESP"
             highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
             highlight.FillTransparency = 0.4
             highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             highlight.OutlineTransparency = 0
-            highlight.Adornee = coinPart
-            highlight.Parent = coinPart
+            highlight.Adornee = coin
+            highlight.Parent = coin
         end
     end
 end
@@ -1046,12 +1059,6 @@ task.spawn(function()
     while true do
         if Settings.CoinESP then
             pcall(ApplyCoinESP)
-        else
-            pcall(function()
-                for _, v in ipairs(Workspace:GetDescendants()) do
-                    if v.Name == "LouisCoinESP" then v:Destroy() end
-                end
-            end)
         end
         task.wait(1.5)
     end
@@ -1811,9 +1818,7 @@ end)
 TabVisuals:CreateToggle("Coin Highlight ESP", false, function(state)
     Settings.CoinESP = state
     if not state then
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v.Name == "LouisCoinESP" then v:Destroy() end
-        end
+        task.spawn(ClearCoinESP)
     end
 end)
 
