@@ -557,6 +557,9 @@ end)
 -- ========================================================================
 -- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (FIXED) ]]
 -- ========================================================================
+local CoinUiConnection = nil
+local lastNotifiedCount = -1
+
 local function GetActualCoinCountAndLimit()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
     local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
@@ -582,6 +585,75 @@ local function GetActualCoinCountAndLimit()
     end
     return nil, nil
 end
+
+local function SetupCoinUiListener()
+    if CoinUiConnection then 
+        pcall(function() CoinUiConnection:Disconnect() end)
+        CoinUiConnection = nil
+    end
+    
+    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
+    local gameGui = mainGui and mainGui:FindFirstChild("Game")
+    local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
+    
+    if not cashBag then return end
+    
+    local targetLabel = nil
+    for _, object in ipairs(cashBag:GetDescendants()) do
+        if object:IsA("TextLabel") and object.Visible then
+            local text = object.Text
+            if text:match("%d+") then
+                targetLabel = object
+                break
+            end
+        end
+    end
+    
+    if targetLabel then
+        CoinUiConnection = targetLabel:GetPropertyChangedSignal("Text"):Connect(function()
+            local text = targetLabel.Text
+            local current, max = text:match("(%d+)%s*/%s*(%d+)")
+            if not current then
+                local singleNumber = text:match("%d+")
+                if singleNumber then
+                    current, max = singleNumber, 40
+                end
+            end
+            
+            if current then
+                local currentNum = tonumber(current)
+                local maxNum = tonumber(max) or 40
+                if currentNum ~= lastNotifiedCount then
+                    lastNotifiedCount = currentNum
+                    CollectedCoinsCount = currentNum
+                    Library:Notify("Coin Farm", "Koin terkumpul: " .. currentNum .. " / " .. maxNum, 1.5)
+                end
+            end
+        end)
+        table.insert(_G.LouisConnections, CoinUiConnection)
+    end
+end
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if Settings.CoinFarmEnabled then
+                local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
+                local gameGui = mainGui and mainGui:FindFirstChild("Game")
+                local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
+                
+                if cashBag and cashBag.Visible then
+                    if not CoinUiConnection or CoinUiConnection.Connected == false then
+                        SetupCoinUiListener()
+                    end
+                end
+            end
+        end)
+        task.wait(1)
+    end
+end)
 
 local function IsBagFull()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -830,16 +902,14 @@ local function CollectCoin(coinPart)
 
         task.wait(0.15) -- Jeda singkat agar server memperbarui data koin terlebih dahulu
 
-        -- Deteksi jumlah koin dari UI secara akurat
+        -- Deteksi internal untuk sinkronisasi nilai CollectedCoinsCount
         local afterCount, maxLimit = GetActualCoinCountAndLimit()
         if afterCount then
             CollectedCoinsCount = afterCount
-            Library:Notify("Coin Farm", "Koin terkumpul: " .. afterCount .. " / " .. (maxLimit or 40), 1.5)
         else
             -- Jika UI tidak terdeteksi, kita gunakan perhitungan manual
             if initiallyExists and (not coinPart or not coinPart.Parent) then
                 CollectedCoinsCount = CollectedCoinsCount + 1
-                Library:Notify("Coin Farm", "Koin terkumpul (Manual): " .. CollectedCoinsCount .. " / 40", 1.5)
             end
         end
     end
