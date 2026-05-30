@@ -27,11 +27,13 @@ local FlingFailsafeActive = false
 local OriginalCFrameBeforeFling = nil
 local SafePlatform = nil
 
--- State Tambahan Untuk Coin Farm Underground Idle
+-- State Tambahan Untuk Coin Farm Underground Idle & Timer
 local WasUnderground = false
 local PreFarmCFrame = nil
 local CollectedCoinsCount = 0
-local CachedCoinLabel = nil
+local CoinFarmTimeLeft = 60
+local IsFlingingFromFarm = false
+local FlingDurationLeft = 12
 
 -- ========================================================================
 -- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
@@ -136,6 +138,7 @@ local Settings = {
     CoinFarmTweenSpeed = 90, -- Default kecepatan tween koin dibatasi ke maksimal 90
     CoinUpTweenSpeed = 50,   -- Kecepatan tween naik ke atas koin (dapat diatur slider)
     CoinMaxDistance = 300,   -- Jarak deteksi maksimal koin (default: 300 studs)
+    CoinFarmTimerValue = 1,  -- Default: 1 Menit
 
     -- Additional Integration Features (From Louis Lite HUD)
     InfiniteJump = false,
@@ -555,126 +558,42 @@ task.spawn(function()
 end)
 
 -- ========================================================================
--- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (FIXED) ]]
+-- [[ COIN FARM DETECTOR BACK-THREAD TIMER SYSTEM ]]
 -- ========================================================================
-local CoinUiConnection = nil
-local lastNotifiedCount = -1
-
-local function GetActualCoinCountAndLimit()
-    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
-    local gameGui = mainGui and mainGui:FindFirstChild("Game")
-    local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
-
-    if cashBag and cashBag.Visible then
-        for _, object in ipairs(cashBag:GetDescendants()) do
-            if object:IsA("TextLabel") and object.Visible then
-                local text = object.Text
-                
-                local current, max = text:match("(%d+)%s*/%s*(%d+)")
-                if current and max then
-                    return tonumber(current), tonumber(max)
-                end
-                
-                local singleNumber = text:match("%d+")
-                if singleNumber then
-                    return tonumber(singleNumber), 40
-                end
-            end
-        end
-    end
-    return nil, nil
-end
-
-local function SetupCoinUiListener()
-    if CoinUiConnection then 
-        pcall(function() CoinUiConnection:Disconnect() end)
-        CoinUiConnection = nil
-    end
-    
-    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
-    local gameGui = mainGui and mainGui:FindFirstChild("Game")
-    local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
-    
-    if not cashBag then return end
-    
-    local targetLabel = nil
-    for _, object in ipairs(cashBag:GetDescendants()) do
-        if object:IsA("TextLabel") and object.Visible then
-            local text = object.Text
-            if text:match("%d+") then
-                targetLabel = object
-                break
-            end
-        end
-    end
-    
-    if targetLabel then
-        CoinUiConnection = targetLabel:GetPropertyChangedSignal("Text"):Connect(function()
-            local text = targetLabel.Text
-            local current, max = text:match("(%d+)%s*/%s*(%d+)")
-            if not current then
-                local singleNumber = text:match("%d+")
-                if singleNumber then
-                    current, max = singleNumber, 40
-                end
-            end
-            
-            if current then
-                local currentNum = tonumber(current)
-                local maxNum = tonumber(max) or 40
-                if currentNum ~= lastNotifiedCount then
-                    lastNotifiedCount = currentNum
-                    CollectedCoinsCount = currentNum
-                    Library:Notify("Coin Farm", "Koin terkumpul: " .. currentNum .. " / " .. maxNum, 1.5)
-                end
-            end
-        end)
-        table.insert(_G.LouisConnections, CoinUiConnection)
-    end
-end
-
 task.spawn(function()
     while true do
-        pcall(function()
-            if Settings.CoinFarmEnabled then
-                local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
-                local gameGui = mainGui and mainGui:FindFirstChild("Game")
-                local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
-                
-                if cashBag and cashBag.Visible then
-                    if not CoinUiConnection or CoinUiConnection.Connected == false then
-                        SetupCoinUiListener()
+        task.wait(1)
+        if Settings.CoinFarmEnabled then
+            if not IsFlingingFromFarm then
+                if CoinFarmTimeLeft > 0 then
+                    CoinFarmTimeLeft = CoinFarmTimeLeft - 1
+                    
+                    -- Memberikan notifikasi setiap 10 detik sekali
+                    if CoinFarmTimeLeft % 10 == 0 and CoinFarmTimeLeft > 0 then
+                        Library:Notify("Coin Farm Timer", "Fling Murderer dalam: " .. CoinFarmTimeLeft .. " detik", 2)
                     end
+                else
+                    -- Waktu habis! Aktifkan transisi ke mode Fling
+                    IsFlingingFromFarm = true
+                    FlingDurationLeft = 12 -- Durasi proses Fling ke Murderer (12 Detik)
+                    Library:Notify("Farm Fling Status", "Waktu habis! Meluncur untuk Fling Murderer selama 12 detik.", 3)
+                end
+            else
+                if FlingDurationLeft > 0 then
+                    FlingDurationLeft = FlingDurationLeft - 1
+                else
+                    -- Durasi Fling selesai, reset timer dan kembali mengumpulkan koin
+                    IsFlingingFromFarm = false
+                    CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
+                    Library:Notify("Farm Resumed", "Proses Fling selesai! Melanjutkan pengumpulan koin kembali.", 3)
                 end
             end
-        end)
-        task.wait(1)
-    end
-end)
-
-local function IsBagFull()
-    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
-    local gameGui = mainGui and mainGui:FindFirstChild("Game")
-    local cashBag = gameGui and gameGui:FindFirstChild("CashBag")
-
-    if cashBag then
-        local fullIndicator = cashBag:FindFirstChild("Full")
-        if fullIndicator and fullIndicator.Visible then
-            return true
+        else
+            CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
+            IsFlingingFromFarm = false
         end
     end
-
-    local current, max = GetActualCoinCountAndLimit()
-    if current and max then
-        return current >= max
-    end
-    
-    return CollectedCoinsCount >= 40
-end
+end)
 
 -- ========================================================================
 -- [[ COIN DETECTION AND FARM ENGINE (FIXED & OPTIMIZED) ]]
@@ -903,14 +822,8 @@ local function CollectCoin(coinPart)
         task.wait(0.15) -- Jeda singkat agar server memperbarui data koin terlebih dahulu
 
         -- Deteksi internal untuk sinkronisasi nilai CollectedCoinsCount
-        local afterCount, maxLimit = GetActualCoinCountAndLimit()
-        if afterCount then
-            CollectedCoinsCount = afterCount
-        else
-            -- Jika UI tidak terdeteksi, kita gunakan perhitungan manual
-            if initiallyExists and (not coinPart or not coinPart.Parent) then
-                CollectedCoinsCount = CollectedCoinsCount + 1
-            end
+        if initiallyExists and (not coinPart or not coinPart.Parent) then
+            CollectedCoinsCount = CollectedCoinsCount + 1
         end
     end
     
@@ -929,8 +842,8 @@ task.spawn(function()
                 PreFarmCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
             end
 
-            if IsBagFull() then
-                -- JIKA PENUH: Unanchor karakter, aktifkan tabrakan, dan jalankan Fling otomatis ke Murderer
+            if IsFlingingFromFarm then
+                -- JIKA WAKTU HABIS: Unanchor karakter, aktifkan tabrakan, dan jalankan Fling otomatis ke Murderer
                 local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 local murderer = GetTargetByRole("Murderer")
                 
@@ -966,7 +879,7 @@ task.spawn(function()
                     task.wait(0.5)
                 end
             else
-                -- JIKA TIDAK PENUH: Lakukan penjemputan koin terdekat
+                -- JIKA TIDAK PENUH / TIMER BERJALAN: Lakukan penjemputan koin terdekat
                 local nearest = GetNearestCoin()
                 if nearest then
                     WasUnderground = true
@@ -1093,7 +1006,7 @@ local function TeleportAllPlayersToMe()
 end
 
 -- ========================================================================
--- [[ COIN ESP ENGINE (DYNAMIC HIGHLIGHT STABILITY & CLEAN SHUTDOWN) ]]
+-- [[ COIN ESP ENGINE (DYNAMIC SELECTIONBOX COIN GLOW - 100% VISIBLE) ]]
 -- ========================================================================
 local function ClearCoinESP()
     for _, v in ipairs(Workspace:GetDescendants()) do
@@ -1114,8 +1027,11 @@ local function ApplyCoinESP()
     
     if container then
         for _, coin in ipairs(container:GetChildren()) do
-            if coin:IsA("Model") or coin:IsA("BasePart") then
-                table.insert(coinsToHighlight, coin)
+            if coin.Name == "Coin_Server" or coin:IsA("Model") or coin:IsA("BasePart") then
+                local targetPart = FindCoinBasePart(coin)
+                if targetPart then
+                    table.insert(coinsToHighlight, targetPart)
+                end
             end
         end
     else
@@ -1134,17 +1050,16 @@ local function ApplyCoinESP()
         end
     end
 
-    for _, coin in ipairs(coinsToHighlight) do
-        -- Berikan highlight secara merata langsung pada model representasi koin
-        if coin and not coin:FindFirstChild("LouisCoinESP") then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "LouisCoinESP"
-            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Color
-            highlight.FillTransparency = 0.4
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.OutlineTransparency = 0
-            highlight.Adornee = coin
-            highlight.Parent = coin
+    for _, coinPart in ipairs(coinsToHighlight) do
+        -- Menempelkan SelectionBox emas agar terlihat menembus dinding dan bypass 31-highlight limit roblox
+        if coinPart and coinPart.Parent and not coinPart:FindFirstChild("LouisCoinESP") then
+            local box = Instance.new("SelectionBox")
+            box.Name = "LouisCoinESP"
+            box.Color3 = Color3.fromRGB(255, 215, 0) -- Gold Color
+            box.LineThickness = 0.04
+            box.Adornee = coinPart
+            box.AlwaysOnTop = true
+            box.Parent = coinPart
         end
     end
 end
@@ -1227,7 +1142,7 @@ local FlingVelocity
 SafeConnect(RunService.Stepped, function()
     if (Settings.NoclipEnabled or Settings.CoinFarmEnabled or IsGrabbing) and LocalPlayer.Character then
         -- Tabrakan fisik dipertahankan jika Coin Farm sedang melakukan Fling otomatis
-        local isFlingingInFarm = Settings.CoinFarmEnabled and IsBagFull()
+        local isFlingingInFarm = Settings.CoinFarmEnabled and IsFlingingFromFarm
         if not isFlingingInFarm then
             for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
                 if child:IsA("BasePart") then child.CanCollide = false end
@@ -2047,6 +1962,18 @@ local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 TabSpecial:CreateParagraph("Coin Autofarm", "Automatically scan and collect coins on the map.")
 TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
+    if state then
+        CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
+        IsFlingingFromFarm = false
+    end
+end)
+
+-- SLIDER DURASI WAKTU SEBELUM MELAKUKAN FLING (1 s/d 5 Menit)
+TabSpecial:CreateSlider("Fling Murderer Timer (Minutes)", 1, 5, Settings.CoinFarmTimerValue, function(val)
+    Settings.CoinFarmTimerValue = val
+    if not IsFlingingFromFarm then
+        CoinFarmTimeLeft = val * 60
+    end
 end)
 
 -- SLIDER TWEEN SPEED KHUSUS COIN FARM (Dibatasi maksimal 90)
@@ -2297,7 +2224,8 @@ SafeConnect(LocalPlayer.CharacterAdded, function(char)
     PreFarmCFrame = nil
     CachedCoinContainer = nil
     CollectedCoinsCount = 0
-    CachedCoinLabel = nil
+    IsFlingingFromFarm = false
+    CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
     
     local humanoid = char:WaitForChild("Humanoid")
     task.wait(0.5)
