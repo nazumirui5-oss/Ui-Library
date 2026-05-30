@@ -558,44 +558,6 @@ task.spawn(function()
 end)
 
 -- ========================================================================
--- [[ COIN FARM DETECTOR BACK-THREAD TIMER SYSTEM ]]
--- ========================================================================
-task.spawn(function()
-    while true do
-        task.wait(1)
-        if Settings.CoinFarmEnabled then
-            if not IsFlingingFromFarm then
-                if CoinFarmTimeLeft > 0 then
-                    CoinFarmTimeLeft = CoinFarmTimeLeft - 1
-                    
-                    -- Memberikan notifikasi setiap 10 detik sekali
-                    if CoinFarmTimeLeft % 10 == 0 and CoinFarmTimeLeft > 0 then
-                        Library:Notify("Coin Farm Timer", "Fling Murderer dalam: " .. CoinFarmTimeLeft .. " detik", 2)
-                    end
-                else
-                    -- Waktu habis! Aktifkan transisi ke mode Fling
-                    IsFlingingFromFarm = true
-                    FlingDurationLeft = 12 -- Durasi proses Fling ke Murderer (12 Detik)
-                    Library:Notify("Farm Fling Status", "Waktu habis! Meluncur untuk Fling Murderer selama 12 detik.", 3)
-                end
-            else
-                if FlingDurationLeft > 0 then
-                    FlingDurationLeft = FlingDurationLeft - 1
-                else
-                    -- Durasi Fling selesai, reset timer dan kembali mengumpulkan koin
-                    IsFlingingFromFarm = false
-                    CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
-                    Library:Notify("Farm Resumed", "Proses Fling selesai! Melanjutkan pengumpulan koin kembali.", 3)
-                end
-            end
-        else
-            CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
-            IsFlingingFromFarm = false
-        end
-    end
-end)
-
--- ========================================================================
 -- [[ COIN DETECTION AND FARM ENGINE (FIXED & OPTIMIZED) ]]
 -- ========================================================================
 local CollectedCoins = {}
@@ -832,6 +794,48 @@ local function CollectCoin(coinPart)
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     task.wait(0.05)
 end
+
+-- ========================================================================
+-- [[ COIN FARM DETECTOR BACK-THREAD TIMER SYSTEM ]]
+-- ========================================================================
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if Settings.CoinFarmEnabled then
+            if not IsFlingingFromFarm then
+                -- MODIFIKASI: Timer hanya berjalan jika mendeteksi koin di jarak tertentu
+                local nearest = GetNearestCoin()
+                if nearest then
+                    if CoinFarmTimeLeft > 0 then
+                        CoinFarmTimeLeft = CoinFarmTimeLeft - 1
+                        
+                        -- Memberikan notifikasi setiap 10 detik sekali
+                        if CoinFarmTimeLeft % 10 == 0 and CoinFarmTimeLeft > 0 then
+                            Library:Notify("Coin Farm Timer", "Fling Murderer dalam: " .. CoinFarmTimeLeft .. " detik", 2)
+                        end
+                    else
+                        -- Waktu habis! Aktifkan transisi ke mode Fling
+                        IsFlingingFromFarm = true
+                        FlingDurationLeft = 12 -- Durasi proses Fling ke Murderer (12 Detik)
+                        Library:Notify("Farm Fling Status", "Waktu habis! Meluncur untuk Fling Murderer selama 12 detik.", 3)
+                    end
+                end
+            else
+                if FlingDurationLeft > 0 then
+                    FlingDurationLeft = FlingDurationLeft - 1
+                else
+                    -- Durasi Fling selesai, reset timer dan kembali mengumpulkan koin
+                    IsFlingingFromFarm = false
+                    CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
+                    Library:Notify("Farm Resumed", "Proses Fling selesai! Melanjutkan pengumpulan koin kembali.", 3)
+                end
+            end
+        else
+            CoinFarmTimeLeft = Settings.CoinFarmTimerValue * 60
+            IsFlingingFromFarm = false
+        end
+    end
+end)
 
 -- MAIN COIN FARMING LOOP
 task.spawn(function()
