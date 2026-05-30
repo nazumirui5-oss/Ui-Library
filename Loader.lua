@@ -653,17 +653,26 @@ local function DeepScanWorkspaceCoins()
     end
 end
 
--- Memeriksa apakah ada pemain lain yang terlalu dekat dengan koin
+-- Memeriksa apakah koin aman dari pemain lain & Murderer
 local function IsAnotherPlayerNear(coinPart)
-    local exclusionRadius = 12 -- Koin diabaikan jika ada pemain lain dalam radius 12 stud
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local root = player.Character:FindFirstChild("HumanoidRootPart")
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
             if root and humanoid and humanoid.Health > 0 then
                 local distance = (root.Position - coinPart.Position).Magnitude
-                if distance < exclusionRadius then
-                    return true -- Ada pemain lain dekat koin ini, anggap koin sudah diambil
+                local role = GetMM2Role(player)
+                
+                if role == "Murderer" then
+                    -- Mengabaikan koin jika terlalu dekat dengan Murderer (di kisaran 30-40 studs, diatur ke 35 studs)
+                    if distance < 35 then
+                        return true
+                    end
+                else
+                    -- Mengabaikan koin jika pemain lain terlalu dekat dalam radius 7 studs
+                    if distance < 7 then
+                        return true
+                    end
                 end
             end
         end
@@ -687,7 +696,7 @@ local function GetNearestCoin()
     
     for _, coinPart in ipairs(ScannedCoins) do
         if coinPart and coinPart.Parent and not CollectedCoins[coinPart] then
-            -- Menerapkan proteksi anti-berebut koin dengan pemain lain
+            -- Menerapkan proteksi anti-berebut koin dengan pemain lain & anti-mendekati murderer
             if not IsAnotherPlayerNear(coinPart) then
                 local distance = (root.Position - coinPart.Position).Magnitude
                 if distance < shortestDistance then
