@@ -1015,11 +1015,11 @@ local function TeleportAllPlayersToMe()
 end
 
 -- ========================================================================
--- [[ COIN ESP ENGINE (DYNAMIC SELECTIONBOX COIN GLOW - 100% VISIBLE) ]]
+-- [[ COIN ESP ENGINE (DYNAMIC SELECTIONBOX & HIGHLIGHT COIN GLOW) ]]
 -- ========================================================================
 local function ClearCoinESP()
     for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "LouisCoinESP" then 
+        if v.Name == "LouisCoinESP" or v.Name == "LouisCoinHighlight" then 
             pcall(function() v:Destroy() end) 
         end
     end
@@ -1069,6 +1069,18 @@ local function ApplyCoinESP()
             box.Adornee = coinPart
             box.AlwaysOnTop = true
             box.Parent = coinPart
+        end
+        
+        -- Menempelkan Highlight emas untuk visual glow solid tambahan
+        if coinPart and coinPart.Parent and not coinPart:FindFirstChild("LouisCoinHighlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "LouisCoinHighlight"
+            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold Glow
+            highlight.FillTransparency = 0.4
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.OutlineTransparency = 0
+            highlight.Adornee = coinPart
+            highlight.Parent = coinPart
         end
     end
 end
