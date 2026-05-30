@@ -51,7 +51,8 @@ local ExtButtonTexts = {
     LoadPos = "LOAD_POS",
     KillAll = "KILL_ALL",
     Bhop = "BHOP",
-    SafeZone = "SAFE_ZONE"
+    SafeZone = "SAFE_ZONE",
+    FlingGrab = "FS_GRAB"
 }
 
 -- ========================================================================
@@ -153,11 +154,13 @@ local Settings = {
     FlingMurderExtEnabled = false,
     FlingSheriffExtEnabled = false,
     PosExtEnabled = false,
+    FlingGrabExtEnabled = false, -- Status External Button Fling + Grab
 
     -- Imported Settings From New Script
     AutoKillAll = false,
     SafeZoneEnabled = false,
-    AutoBhopEnabled = false
+    AutoBhopEnabled = false,
+    EarlyRoleDetect = true -- Deteksi Role Sejak Awal Ronde
 }
 
 local OriginalFOV = Camera.FieldOfView
@@ -1144,6 +1147,110 @@ local function FlingPlayer(targetPlayer)
 end
 
 -- ========================================================================
+-- [[ NEW CUSTOM COMBATION: SAFE FLING SHERIFF + INSTANT GRAB GUN ]]
+-- ========================================================================
+local function SafeFlingSheriffAndGrab()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not humanoid or humanoid.Health <= 0 then 
+        Library:Notify("Fling + Grab Error", "Karakter belum siap atau mati.", 2)
+        return 
+    end
+    
+    local target = GetTargetByRole("Sheriff")
+    if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+        Library:Notify("Fling + Grab Error", "Sheriff tidak ditemukan atau sudah tereliminasi.", 2.5)
+        return
+    end
+    
+    local targetRoot = target.Character.HumanoidRootPart
+    local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
+    
+    local originalPos = root.CFrame
+    local originalFlingState = Settings.TouchFling
+    
+    Library:Notify("Fling + Grab", "Memulai Fling Sheriff... Tetap Aman.", 2)
+    
+    -- Aktifkan Touch Fling Fisik
+    Settings.TouchFling = true
+    
+    -- Loop penyerangan fisik fling secara terkontrol (Maksimal 3.5 detik penyerangan)
+    local flingSuccess = false
+    local startTime = os.clock()
+    while os.clock() - startTime < 3.5 do
+        if not targetRoot or not targetHum or targetHum.Health <= 0 then
+            flingSuccess = true
+            break
+        end
+        if not root or humanoid.Health <= 0 then
+            break
+        end
+        
+        -- Deteksi pencegahan jatuh ke void saat proses fling terjadi
+        if root.Position.Y < -80 then
+            root.CFrame = originalPos
+            task.wait(0.1)
+        end
+        
+        -- Jaga karakter kita agar tidak saling bertabrakan fisik secara ekstrem (Noclip-on)
+        for _, child in ipairs(char:GetDescendants()) do
+            if child:IsA("BasePart") then child.CanCollide = false end
+        end
+        
+        -- Teleportasi tepat di area sheriff untuk mengaplikasikan rotasi fling
+        root.CFrame = targetRoot.CFrame * CFrame.new(math.random(-1, 1) * 0.12, 0, math.random(-1, 1) * 0.12)
+        task.wait(0.02)
+    end
+    
+    -- Reset status Fling & Hentikan gaya fisik agar tidak melayang terlempar
+    Settings.TouchFling = originalFlingState
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    
+    -- Tarik pulang koordinat ke posisi semula secepatnya demi keamanan
+    root.CFrame = originalPos
+    task.wait(0.1)
+    
+    -- Proses pencarian dan pengambilan Pistol Sheriff yang terjatuh
+    Library:Notify("Fling + Grab", "Fling Selesai! Memindai senjata jatuh...", 2)
+    local grabStartTime = os.clock()
+    local gunGrabbed = false
+    while os.clock() - grabStartTime < 5 do
+        local activeGun = ScanForDroppedGun()
+        if activeGun then
+            Library:Notify("Fling + Grab", "Pistol jatuh terdeteksi! Mengambil secepatnya...", 1.5)
+            
+            -- Matikan tabrakan saat mendarat di atas pistol
+            for _, child in ipairs(char:GetDescendants()) do
+                if child:IsA("BasePart") then child.CanCollide = false end
+            end
+            
+            -- Ambil pistol secara instan
+            root.CFrame = activeGun.CFrame + Vector3.new(0, 1.5, 0)
+            task.wait(0.3)
+            
+            -- Kembalikan lagi ke koordinat aman awal
+            root.CFrame = originalPos
+            gunGrabbed = true
+            break
+        end
+        task.wait(0.1)
+    end
+    
+    -- Pembersihan Akhir Kecepatan Fisik
+    root.CFrame = originalPos
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    
+    if gunGrabbed then
+        Library:Notify("Fling + Grab", "Sukses melumpuhkan Sheriff dan mendapatkan Pistol!", 3)
+    else
+        Library:Notify("Fling + Grab", "Sheriff dilumpuhkan, namun pistol gagal diambil/tidak jatuh.", 3)
+    end
+end
+
+-- ========================================================================
 -- [[ MOBILITY PHYSICS ENGINE (FLY, NOCLIP, SPIN, FLING, SPEED, JUMP) ]]
 -- ========================================================================
 local SpinVelocity
@@ -1606,6 +1713,55 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ========================================================================
+-- [[ DETEKSI INSTAN ROLE SEJAK AWAL RONDE (BACKPACK & CHAR LISTENER) ]]
+-- ========================================================================
+local function MonitorRolesForEarlyDetect(player)
+    if player == LocalPlayer then return end
+    
+    local function onChildAdded(child)
+        if not Settings.EarlyRoleDetect then return end
+        if child:IsA("Tool") then
+            if child.Name == "Knife" then
+                Library:Notify("Role Detected Early", player.DisplayName .. " (@" .. player.Name .. ") adalah MURDERER!", 5)
+            elseif child.Name == "Gun" then
+                Library:Notify("Role Detected Early", player.DisplayName .. " (@" .. player.Name .. ") adalah SHERIFF!", 5)
+            end
+        end
+    end
+
+    local function setupBackpack(backpack)
+        backpack.ChildAdded:Connect(onChildAdded)
+        for _, child in ipairs(backpack:GetChildren()) do
+            onChildAdded(child)
+        end
+    end
+
+    local function setupCharacter(char)
+        char.ChildAdded:Connect(onChildAdded)
+        for _, child in ipairs(char:GetChildren()) do
+            onChildAdded(child)
+        end
+    end
+
+    player.CharacterAdded:Connect(setupCharacter)
+    if player.Character then setupCharacter(player.Character) end
+
+    player.ChildAdded:Connect(function(child)
+        if child.Name == "Backpack" then
+            setupBackpack(child)
+        end
+    end)
+    
+    local bp = player:FindFirstChild("Backpack")
+    if bp then setupBackpack(bp) end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    MonitorRolesForEarlyDetect(p)
+end
+SafeConnect(Players.PlayerAdded, MonitorRolesForEarlyDetect)
+
+-- ========================================================================
 -- [[ EXTERNAL BUTTON INITIALIZATION FROM UI LIBRARY ]]
 -- ========================================================================
 local ExtAimbotBtn = Library:CreateExternalButton("Aimbot", ExtButtonTexts.Aimbot, UDim2.new(0, 20, 0.5, -55), function()
@@ -1712,6 +1868,12 @@ local ExtSafeZoneBtn = Library:CreateExternalButton("SafeZone", ExtButtonTexts.S
 end)
 RegisterExternalButton(ExtSafeZoneBtn)
 
+-- External Button Safe Fling + Instant Grab Gun
+local ExtFlingGrabBtn = Library:CreateExternalButton("FlingGrab", ExtButtonTexts.FlingGrab, UDim2.new(0, 170, 0.5, -10), function()
+    SafeFlingSheriffAndGrab()
+end)
+RegisterExternalButton(ExtFlingGrabBtn)
+
 ExtAimbotBtn:SetVisible(false)
 ExtGrabBtn:SetVisible(false)
 ExtDoubleJumpBtn:SetVisible(false)
@@ -1725,6 +1887,7 @@ ExtLoadPosBtn:SetVisible(false)
 ExtKillAllBtn:SetVisible(false)
 ExtBhopBtn:SetVisible(false)
 ExtSafeZoneBtn:SetVisible(false)
+ExtFlingGrabBtn:SetVisible(false)
 
 -- ========================================================================
 -- [[ MAIN MENU STRUCTURE ]]
@@ -1970,6 +2133,11 @@ end)
 -- --- TAB 5: MM2 SPECIAL UTILITIES ---
 local TabSpecial = Window:CreateTab("MM2 Specials", "rbxassetid://4483362458")
 
+TabSpecial:CreateParagraph("Early Role Detection Settings", "Detect roles before action begins.")
+TabSpecial:CreateToggle("Early Role Detector Notification", true, function(state)
+    Settings.EarlyRoleDetect = state
+end)
+
 TabSpecial:CreateParagraph("Coin Autofarm", "Automatically scan and collect coins on the map.")
 TabSpecial:CreateToggle("Activate Auto Farm Coins", false, function(state)
     Settings.CoinFarmEnabled = state
@@ -2075,6 +2243,16 @@ TabSpecial:CreateButton("Instant Teleport to Selected Target Character", functio
 end)
 
 TabSpecial:CreateParagraph("Fling Glitches", "Violent rotation engine designed to push physical targets.")
+
+TabSpecial:CreateButton("Safe Fling Sheriff + Instant Grab Gun", function()
+    SafeFlingSheriffAndGrab()
+end)
+
+TabSpecial:CreateToggle("Show Fling & Grab Button [FG]", false, function(state)
+    Settings.FlingGrabExtEnabled = state
+    ExtFlingGrabBtn:SetVisible(state)
+end)
+
 TabSpecial:CreateButton("Auto Fling Murderer Instance", function()
     Settings.AutoFlingMurder = not Settings.AutoFlingMurder
     if Settings.AutoFlingMurder then 
@@ -2195,6 +2373,10 @@ end)
 
 TabControls:CreateSlider("Safe Zone Button Scale", 10, 200, 100, function(val)
     SetButtonSize(ExtSafeZoneBtn, val / 100)
+end)
+
+TabControls:CreateSlider("Fling & Grab Button Scale", 10, 200, 100, function(val)
+    SetButtonSize(ExtFlingGrabBtn, val / 100)
 end)
 
 TabControls:CreateParagraph("Window Lock", "Lock window dragging positions.")
