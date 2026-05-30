@@ -554,9 +554,43 @@ task.spawn(function()
 end)
 
 -- ========================================================================
--- [[ DETEKSI JUMLAH KOIN / BACKPACK FULL DETECTION ]]
+-- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (RECURSIVE) ]]
 -- ========================================================================
+local function GetActualCoinCountAndLimit()
+    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
+    if not mainGui then return nil, nil end
+    
+    -- Mencari text label koin secara dinamis di seluruh bagian MainGUI
+    for _, descendant in ipairs(mainGui:GetDescendants()) do
+        if descendant.Name == "Coins" and descendant:IsA("TextLabel") then
+            -- Memastikan label ini berada di dalam container CoinBags milik MM2
+            if descendant:FindFirstAncestor("CoinBags") then
+                local text = descendant.Text
+                -- Ekstraksi angka koin (contoh format: "35/40" atau "35 / 40")
+                local current, max = text:match("(%d+)%s*/%s*(%d+)")
+                if current and max then
+                    return tonumber(current), tonumber(max)
+                else
+                    -- Jika format teks hanya angka biasa tanpa garis miring
+                    local singleVal = text:match("^%s*(%d+)")
+                    if singleVal then
+                        return tonumber(singleVal), 40
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
 local function IsBagFull()
+    local current, max = GetActualCoinCountAndLimit()
+    if current and max then
+        return current >= max
+    end
+    
+    -- Fallback ke penghitungan manual jika UI tidak terbaca oleh executor Anda
     return CollectedCoinsCount >= 40
 end
 
@@ -765,17 +799,26 @@ local function CollectCoin(coinPart)
             task.wait(0.01)
         end
         
-        -- Deteksi apakah koin berhasil diambil (hilang dari workspace)
-        if initiallyExists and (not coinPart or not coinPart.Parent) then
-            CollectedCoinsCount = CollectedCoinsCount + 1
-            Library:Notify("Coin Farm", "Koin terkumpul: " .. CollectedCoinsCount .. " / 40", 1.5)
-        end
-        
         -- Tarik kembali karakter ke bawah lantai dengan selamat
         root.Anchored = true
         local downTween = TweenService:Create(root, TweenInfo.new(upTweenTime, Enum.EasingStyle.Linear), {CFrame = safeUnderCFrame})
         downTween:Play()
         downTween.Completed:Wait()
+
+        task.wait(0.15) -- Jeda singkat agar server memperbarui data koin terlebih dahulu
+
+        -- Deteksi jumlah koin dari UI secara akurat
+        local afterCount, maxLimit = GetActualCoinCountAndLimit()
+        if afterCount then
+            CollectedCoinsCount = afterCount
+            Library:Notify("Coin Farm", "Koin terkumpul: " .. afterCount .. " / " .. (maxLimit or 40), 1.5)
+        else
+            -- Jika UI tidak terdeteksi, kita gunakan perhitungan manual
+            if initiallyExists and (not coinPart or not coinPart.Parent) then
+                CollectedCoinsCount = CollectedCoinsCount + 1
+                Library:Notify("Coin Farm", "Koin terkumpul (Manual): " .. CollectedCoinsCount .. " / 40", 1.5)
+            end
+        end
     end
     
     if currentCoinTween then currentCoinTween:Cancel() end
