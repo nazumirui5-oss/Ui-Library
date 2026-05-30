@@ -30,6 +30,7 @@ local SafePlatform = nil
 -- State Tambahan Untuk Coin Farm Underground Idle
 local WasUnderground = false
 local PreFarmCFrame = nil
+local CollectedCoinsCount = 0
 
 -- ========================================================================
 -- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
@@ -556,32 +557,7 @@ end)
 -- [[ DETEKSI JUMLAH KOIN / BACKPACK FULL DETECTION ]]
 -- ========================================================================
 local function IsBagFull()
-    local isFull = false
-    pcall(function()
-        local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-        if playerGui then
-            local mainGui = playerGui:FindFirstChild("MainGUI") or playerGui:FindFirstChild("MainGui")
-            local cashBag = mainGui and mainGui:FindFirstChild("Game") and mainGui.Game:FindFirstChild("CashBag")
-            if cashBag and cashBag.Visible then
-                -- 1. Deteksi label "Full"
-                local fullLabel = cashBag:FindFirstChild("Full")
-                if fullLabel and (fullLabel.Visible or fullLabel.TextTransparency < 1) then
-                    isFull = true
-                else
-                    -- 2. Deteksi teks parsing format (contoh: "40/40" atau "50/50")
-                    local coinsLabel = cashBag:FindFirstChild("Coins") or cashBag:FindFirstChild("Amount") or cashBag:FindFirstChildOfClass("TextLabel")
-                    if coinsLabel and coinsLabel:IsA("TextLabel") then
-                        local text = coinsLabel.Text:gsub("<[^>]+>", "") -- Bersihkan rich text html tags
-                        local cur, max = text:match("(%d+)%s*/%s*(%d+)")
-                        if cur and max and tonumber(cur) >= tonumber(max) then
-                            isFull = true
-                        end
-                    end
-                end
-            end
-        end
-    end)
-    return isFull
+    return CollectedCoinsCount >= 40
 end
 
 -- ========================================================================
@@ -782,10 +758,17 @@ local function CollectCoin(coinPart)
         -- Mematikan anchor sejenak dan menjaga posisi karakter agar tepat di koin sampai koin terdaftar masuk inventory
         root.Anchored = false
         local startTime = os.clock()
+        local initiallyExists = (coinPart and coinPart.Parent) and true or false
         while coinPart and coinPart.Parent and (os.clock() - startTime < 0.35) and Settings.CoinFarmEnabled do
             root.CFrame = grabCFrame
             root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             task.wait(0.01)
+        end
+        
+        -- Deteksi apakah koin berhasil diambil (hilang dari workspace)
+        if initiallyExists and (not coinPart or not coinPart.Parent) then
+            CollectedCoinsCount = CollectedCoinsCount + 1
+            Library:Notify("Coin Farm", "Koin terkumpul: " .. CollectedCoinsCount .. " / 40", 1.5)
         end
         
         -- Tarik kembali karakter ke bawah lantai dengan selamat
@@ -2171,6 +2154,7 @@ SafeConnect(LocalPlayer.CharacterAdded, function(char)
     WasUnderground = false
     PreFarmCFrame = nil
     CachedCoinContainer = nil
+    CollectedCoinsCount = 0
     
     local humanoid = char:WaitForChild("Humanoid")
     task.wait(0.5)
