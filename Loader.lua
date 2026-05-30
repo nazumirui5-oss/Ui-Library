@@ -554,40 +554,57 @@ task.spawn(function()
 end)
 
 -- ========================================================================
--- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (FIXED) ]]
+-- [[ DETEKSI JUMLAH KOIN / BAG FULL DYNAMIC DETECTION (UPGRADED) ]]
 -- ========================================================================
-local function GetActualCoinCountAndLimit()
+local CachedCoinLabel = nil
+
+local function ScanEntireUIForCoins()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
     local mainGui = PlayerGui and PlayerGui:FindFirstChild("MainGUI")
-    if not mainGui then return nil, nil end
-    
-    local coinBags = mainGui:FindFirstChild("CoinBags", true)
-    if coinBags then
-        -- Mencari TextLabel "Coins" yang berada di dalam kontainer CoinBags yang saat ini aktif/terlihat
-        for _, descendant in ipairs(coinBags:GetDescendants()) do
-            if descendant:IsA("TextLabel") and descendant.Name == "Coins" then
-                -- Memastikan elemen UI ini dan seluruh induknya sampai ke mainGui dalam keadaan terlihat (Visible)
-                local isVisible = descendant.Visible
-                local currentParent = descendant.Parent
-                while currentParent and currentParent ~= mainGui do
-                    if currentParent:IsA("GuiObject") and not currentParent.Visible then
-                        isVisible = false
-                        break
-                    end
-                    currentParent = currentParent.Parent
-                end
+    if not mainGui then return nil end
+
+    -- Memindai seluruh keturunan di dalam MainGUI tanpa mempedulikan struktur folder
+    for _, object in ipairs(mainGui:GetDescendants()) do
+        if object:IsA("TextLabel") then
+            local nameLower = object.Name:lower()
+            local parentNameLower = object.Parent and object.Parent.Name:lower() or ""
+            local text = object.Text
+
+            -- Mencari indikator label koin/tas/uang secara komprehensif
+            if nameLower == "coins" or nameLower == "cash" or nameLower == "amount" or nameLower == "value" or
+               parentNameLower:find("bag") or parentNameLower:find("coin") or parentNameLower:find("cash") or parentNameLower:find("container") then
                 
-                if isVisible then
-                    local text = descendant.Text
-                    local count = tonumber(text:match("%d+"))
-                    if count then
-                        -- Kembalikan jumlah koin yang aktif, default batasan kantong 40 koin
-                        return count, 40
-                    end
+                if text:match("%d+") then
+                    return object
                 end
             end
         end
     end
+    return nil
+end
+
+local function GetActualCoinCountAndLimit()
+    -- Jika cache hilang atau hancur saat respawn, jalankan ulang pemindaian
+    if not CachedCoinLabel or not CachedCoinLabel.Parent then
+        CachedCoinLabel = ScanEntireUIForCoins()
+    end
+
+    if CachedCoinLabel then
+        local text = CachedCoinLabel.Text
+        
+        -- Deteksi tipe data pecahan (contoh "15/40" atau "15 / 40")
+        local current, max = text:match("(%d+)%s*/%s*(%d+)")
+        if current and max then
+            return tonumber(current), tonumber(max)
+        end
+        
+        -- Deteksi angka satuan murni (contoh "15")
+        local singleNumber = tonumber(text:match("%d+"))
+        if singleNumber then
+            return singleNumber, 40 -- Kembalikan batas limit default 40
+        end
+    end
+
     return nil, nil
 end
 
@@ -2203,6 +2220,7 @@ SafeConnect(LocalPlayer.CharacterAdded, function(char)
     PreFarmCFrame = nil
     CachedCoinContainer = nil
     CollectedCoinsCount = 0
+    CachedCoinLabel = nil
     
     local humanoid = char:WaitForChild("Humanoid")
     task.wait(0.5)
