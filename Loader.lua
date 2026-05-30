@@ -29,7 +29,7 @@ local SafePlatform = nil
 
 -- ========================================================================
 -- [[ EXTERNAL BUTTON TEXT CUSTOMIZATION ]]
--- ========================================================================
+-- ========================================================
 local ExtButtonTexts = {
     Aimbot = "AIM",
     GrabGun = "GRAB",
@@ -575,56 +575,52 @@ local function IsBagFull()
     return isFull
 end
 
--- ========================================================
--- [[ COIN DETECTION AND FARM ENGINE (RECURSIVE & TWEEN) ]]
--- ========================================================
+-- ========================================================================
+-- [[ COIN DETECTION AND FARM ENGINE (FIXED & OPTIMIZED) ]]
+-- ========================================================================
 local CollectedCoins = {}
 local ScannedCoins = {}
 local lastCoinScan = 0
 
--- Bersihkan daftar koin yang sudah diambil secara berkala
+-- Bersihkan daftar koin yang sudah diambil secara berkala agar tidak lag
 task.spawn(function()
     while true do
-        task.wait(5)
+        task.wait(10)
         table.clear(CollectedCoins)
     end
 end)
 
--- Melakukan pencarian koin secara mendalam (hanya mendeteksi koin yang ber-visual asli / ber-ESP)
+-- Melakukan pencarian koin secara mendalam yang lebih akurat
 local function DeepScanWorkspaceCoins()
     table.clear(ScannedCoins)
-    for _, object in ipairs(Workspace:GetDescendants()) do
-        local isCoin = false
-        local coinPart = nil
-        
-        -- Deteksi berdasarkan Nama Part & Memiliki Visual (Transparency < 0.9)
-        if object:IsA("BasePart") then
-            local nameLower = object.Name:lower()
-            if (nameLower == "coin" or nameLower == "maincoin" or nameLower == "coin_server" or nameLower:find("coin")) and object.Transparency < 0.9 then
-                isCoin = true
-                coinPart = object
-            end
-        end
-        
-        -- Deteksi berdasarkan Highlight ESP Koin (Cadangan)
-        if not isCoin and object.Name == "LouisCoinESP" and object.Parent and object.Parent:IsA("BasePart") then
-            if object.Parent.Transparency < 0.9 then
-                isCoin = true
-                coinPart = object.Parent
-            end
-        end
-        
-        -- Deteksi berdasarkan CoinContainer
-        if not isCoin and object.Name == "CoinContainer" then
-            for _, child in ipairs(object:GetDescendants()) do
-                if child:IsA("BasePart") and child.Transparency < 0.9 then
-                    table.insert(ScannedCoins, child)
+    
+    -- Cari CoinContainer di seluruh Workspace secara aman
+    for _, container in ipairs(Workspace:GetDescendants()) do
+        if container.Name == "CoinContainer" then
+            for _, coin in ipairs(container:GetChildren()) do
+                -- Koin MM2 biasanya berupa model 'Coin_Server' atau part langsung
+                local targetPart = coin:FindFirstChild("Coin") 
+                    or coin:FindFirstChild("CoinVisual") 
+                    or coin:FindFirstChild("MainCoin") 
+                    or coin:FindFirstChildOfClass("TouchTransmitter") and coin.Parent
+                    or (coin:IsA("BasePart") and coin)
+                
+                if targetPart and targetPart:IsA("BasePart") then
+                    table.insert(ScannedCoins, targetPart)
                 end
             end
         end
-        
-        if isCoin and coinPart then
-            table.insert(ScannedCoins, coinPart)
+    end
+    
+    -- Cadangan: Jika CoinContainer tidak ditemukan, cari part dengan nama koin
+    if #ScannedCoins == 0 then
+        for _, object in ipairs(Workspace:GetDescendants()) do
+            if object:IsA("BasePart") then
+                local nameLower = object.Name:lower()
+                if (nameLower == "coin" or nameLower == "maincoin" or nameLower == "coin_server" or nameLower:find("coin")) then
+                    table.insert(ScannedCoins, object)
+                end
+            end
         end
     end
 end
@@ -634,8 +630,8 @@ local function GetNearestCoin()
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
     
-    -- Lakukan pemindaian mendalam ke seluruh Workspace setiap 0.5 detik (mencegah lag FPS)
-    if os.clock() - lastCoinScan > 0.5 then
+    -- Batasi pemindaian ulang setiap 0.8 detik agar menghemat FPS
+    if os.clock() - lastCoinScan > 0.8 then
         pcall(DeepScanWorkspaceCoins)
         lastCoinScan = os.clock()
     end
@@ -662,39 +658,30 @@ local function CollectCoin(coinPart)
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root or not coinPart then return end
     
-    -- Tandai koin agar tidak diambil berulang kali
     CollectedCoins[coinPart] = true
     if coinPart.Parent then
         CollectedCoins[coinPart.Parent] = true
     end
 
-    -- 1. Posisi aman di bawah lantai (Offset -6.5 dari tinggi koin asli dan tiduran -90 derajat)
-    local safeUnderCFrame = coinPart.CFrame * CFrame.new(0, -6.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-    -- 2. Posisi target mengambil koin (Sama tinggi dengan koin)
-    local grabCFrame = coinPart.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
+    -- Posisi aman di bawah lantai (-6.5 studs agar tidak terlihat terbang oleh pemain lain)
+    local safeUnderCFrame = coinPart.CFrame * CFrame.new(0, -6.5, 0)
+    local grabCFrame = coinPart.CFrame
 
-    -- Hitung jarak horizontal dan waktu tween berdasarkan kecepatan slider
     local distance = (root.Position - safeUnderCFrame.Position).Magnitude
     local speed = Settings.CoinFarmTweenSpeed or 90
     local tweenTime = distance / speed
     
-    -- AMANKAN FISIK & JALANKAN ANCHOR UNTUK MENANGKIS DETEKSI VELOCITY SPIKE
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     root.Anchored = true
 
     if currentCoinTween then pcall(function() currentCoinTween:Cancel() end) end
     
-    -- TAHAP 1: MELUNCUR DI BAWAH LANTAI MENUJU DI BAWAH KOIN
-    local tweenInfo1 = TweenInfo.new(
-        tweenTime, 
-        Enum.EasingStyle.Linear, 
-        Enum.EasingDirection.Out
-    )
+    -- TAHAP 1: Meluncur di bawah lantai menuju posisi koin
+    local tweenInfo1 = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
     currentCoinTween = TweenService:Create(root, tweenInfo1, {CFrame = safeUnderCFrame})
     currentCoinTween:Play()
     
-    -- Menunggu meluncur selesai
     local completed = false
     local conn
     conn = currentCoinTween.Completed:Connect(function()
@@ -702,65 +689,42 @@ local function CollectCoin(coinPart)
         if conn then conn:Disconnect() end
     end)
     
-    while not completed and Settings.CoinFarmEnabled and Settings.CoinESP and coinPart and coinPart.Parent do
-        pcall(function()
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        end)
+    while not completed and Settings.CoinFarmEnabled do
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         task.wait()
     end
     if conn then conn:Disconnect() end
     
-    -- TAHAP 2: NAIK KE ATAS UNTUK MENGAMBIL KOIN SECARA INSTAN / SANTAI
-    if Settings.CoinFarmEnabled and Settings.CoinESP and coinPart and coinPart.Parent then
-        local tweenInfoUp = TweenInfo.new(0.15, Enum.EasingStyle.QuadOut, Enum.EasingDirection.Out)
-        currentCoinTween = TweenService:Create(root, tweenInfoUp, {CFrame = grabCFrame})
-        currentCoinTween:Play()
+    -- TAHAP 2: Naik ke atas sebentar untuk menyentuh koin
+    if Settings.CoinFarmEnabled and coinPart and coinPart.Parent then
+        root.Anchored = false -- Matikan anchor sebentar agar sensor Touched aktif
+        root.CFrame = grabCFrame
         
-        completed = false
-        conn = currentCoinTween.Completed:Connect(function()
-            completed = true
-            if conn then conn:Disconnect() end
-        end)
-        while not completed and Settings.CoinFarmEnabled and Settings.CoinESP do
-            task.wait()
+        -- Gunakan firetouchinterest milik executor jika didukung agar koin langsung terambil instan
+        if firetouchinterest then
+            firetouchinterest(root, coinPart, 0)
+            task.wait(0.05)
+            firetouchinterest(root, coinPart, 1)
+        else
+            task.wait(0.12) -- Jeda fisik jika executor tidak mendukung firetouchinterest
         end
-        if conn then conn:Disconnect() end
         
-        -- Jeda sangat singkat untuk registrasi sentuhan koin oleh game server
-        task.wait(0.04)
-        
-        -- TAHAP 3: KEMBALI TURUN KE BAWAH LANTAI (SECARA CEPAT)
-        local tweenInfoDown = TweenInfo.new(0.12, Enum.EasingStyle.QuadIn, Enum.EasingDirection.In)
-        currentCoinTween = TweenService:Create(root, tweenInfoDown, {CFrame = safeUnderCFrame})
-        currentCoinTween:Play()
-        
-        completed = false
-        conn = currentCoinTween.Completed:Connect(function()
-            completed = true
-            if conn then conn:Disconnect() end
-        end)
-        while not completed and Settings.CoinFarmEnabled and Settings.CoinESP do
-            task.wait()
-        end
-        if conn then conn:Disconnect() end
+        -- TAHAP 3: Kembali ke bawah lantai agar aman dari deteksi
+        root.CFrame = safeUnderCFrame
+        root.Anchored = true
+        task.wait(0.05)
     end
     
     if currentCoinTween then currentCoinTween:Cancel() end
-    
-    -- Lepas kuncian anchor setelah seluruh proses selesai
     root.Anchored = false
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-    
-    -- Jeda sinkronisasi posisi di server
-    task.wait(0.15)
+    task.wait(0.1)
 end
 
 task.spawn(function()
     while true do
-        -- Coin Farm hanya akan bekerja jika Coin Farm ON and Coin ESP (Visual Coin) juga ON
-        if Settings.CoinFarmEnabled and Settings.CoinESP then
-            -- Deteksi jika tas/backpack koin sudah penuh (40 koin), langsung aktifkan fling murderer otomatis
+        -- Dependency ke Settings.CoinESP dihapus agar Auto Farm bisa bekerja secara mandiri
+        if Settings.CoinFarmEnabled then
             if IsBagFull() then
                 if not Settings.AutoFlingMurder then
                     Settings.AutoFlingMurder = true
@@ -768,15 +732,15 @@ task.spawn(function()
                     UpdateFlingState("Murderer", true)
                     UpdateFlingState("Sheriff", false)
                     if _G.SyncFlingButtons then _G.SyncFlingButtons() end
-                    Library:Notify("Coin Farm", "Backpack full (40 coins)! Flinging Murderer...", 3)
+                    Library:Notify("Coin Farm", "Backpack full! Flinging Murderer...", 3)
                 end
-                task.wait(1.5)
+                task.wait(2)
             else
                 local nearest = GetNearestCoin()
                 if nearest then
                     CollectCoin(nearest)
                 else
-                    task.wait(0.1)
+                    task.wait(0.2)
                 end
             end
         else
