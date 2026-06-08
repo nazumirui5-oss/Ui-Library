@@ -6,15 +6,11 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
--- ========================================================
--- [[ 0. CONFIGURATION & ENGINE SYNCHRONIZATION ]]
--- ========================================================
 Library.Flags = {}
 Library.Elements = {}
-Library.ExternalButtons = {} -- Registrasi untuk melacak tombol eksternal
+Library.ExternalButtons = {}
 local ConfigFileName = "LouisHub_UI_Config.json"
 
--- Function to save configuration to a local file internally
 function Library:SaveConfig()
     if not writefile then return end
     pcall(function()
@@ -22,7 +18,6 @@ function Library:SaveConfig()
     end)
 end
 
--- Function to load configuration from a local file internally
 function Library:LoadConfig()
     if not isfile or not readfile then return end
     if isfile(ConfigFileName) then
@@ -31,10 +26,8 @@ function Library:LoadConfig()
             for flag, val in pairs(decoded) do
                 Library.Flags[flag] = val
                 if Library.Elements[flag] then
-                    -- Safely call Set with ignoreSave = true to avoid recursive savings
                     Library.Elements[flag]:Set(val, true)
                 elseif type(flag) == "string" and flag:sub(1, 7) == "ExtBtn_" then
-                    -- Memuat posisi tombol eksternal yang tersimpan
                     local btnId = flag:sub(8)
                     local targetBtn = Library.ExternalButtons[btnId] or Library.ExternalButtons[tonumber(btnId)]
                     if targetBtn and type(val) == "table" and val.ScaleX and val.OffsetX and val.ScaleY and val.OffsetY then
@@ -46,14 +39,9 @@ function Library:LoadConfig()
     end
 end
 
--- ========================================================
--- [[ 1. MAIN ENGINE SYSTEM (DYNAMIC RGB & DRAG) ]]
--- ========================================================
 local RGBElements = {}
 
--- Register instance property for smooth rainbow spectrum cycles
 local function RegisterRGB(instance, property)
-    -- Prevent duplicate registrations to optimize performance
     for _, item in ipairs(RGBElements) do
         if item.Instance == instance and item.Property == property then
             return
@@ -62,7 +50,6 @@ local function RegisterRGB(instance, property)
     table.insert(RGBElements, {Instance = instance, Property = property})
 end
 
--- Remove instance property from rainbow spectrum cycles
 local function UnregisterRGB(instance, property)
     for i = #RGBElements, 1, -1 do
         if RGBElements[i].Instance == instance and RGBElements[i].Property == property then
@@ -71,10 +58,9 @@ local function UnregisterRGB(instance, property)
     end
 end
 
--- Fast full-saturation RGB loop using os.clock()
 RunService.RenderStepped:Connect(function()
-    local hue = (os.clock() % 4) / 4 -- Cycle transition speed (4 seconds)
-    local rainbowColor = Color3.fromHSV(hue, 1, 1) -- Maximum Saturation & Brightness
+    local hue = (os.clock() % 4) / 4
+    local rainbowColor = Color3.fromHSV(hue, 1, 1)
     
     for i = #RGBElements, 1, -1 do
         local item = RGBElements[i]
@@ -88,7 +74,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Drag utility compatible with PC (Mouse) and Mobile (Touch) input
 local function EnableDrag(dragFrame, parentFrame, onDragEnd)
     local dragging, dragInput, dragStart, startPos
     
@@ -133,23 +118,19 @@ local function EnableDrag(dragFrame, parentFrame, onDragEnd)
     end)
 end
 
--- Retrieve or initialize global ScreenGui container (Full Screen Mobile)
 local MainGui
 local function GetMainGui()
     if not MainGui then
         MainGui = Instance.new("ScreenGui")
         MainGui.Name = "LouisHub_ModernUI"
         MainGui.ResetOnSpawn = false
-        MainGui.IgnoreGuiInset = true -- Make UI completely full screen on Mobile without cutting off topbar
-        MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Resolve ZIndex overlapping bugs on some executors
+        MainGui.IgnoreGuiInset = true
+        MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         MainGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
     end
     return MainGui
 end
 
--- ========================================================
--- [[ 2. MODERN NOTIFICATION SYSTEM ]]
--- ========================================================
 local NotificationGui
 local function GetNotificationHolder()
     if not NotificationGui then
@@ -189,7 +170,6 @@ function Library:Notify(title, desc, duration)
     NotifStroke.Thickness = 1.2
     RegisterRGB(NotifStroke, "Color")
 
-    -- RGB accent strip on the left side
     local NotifAccent = Instance.new("Frame", NotifFrame)
     NotifAccent.Size = UDim2.new(0, 4, 1, 0)
     NotifAccent.Position = UDim2.new(0, 0, 0, 0)
@@ -230,13 +210,9 @@ function Library:Notify(title, desc, duration)
     end)
 end
 
--- ========================================================
--- [[ 3. REBUILT RGB LOADING SCREEN SYSTEM ]]
--- ========================================================
 local function StartLoading(titleText, subtitleText, onComplete)
     local ScreenGui = GetMainGui()
     
-    -- Create Loading Gui Container
     local LoadingGui = Instance.new("Frame", ScreenGui)
     LoadingGui.Name = "Louis_Loading_Screen"
     LoadingGui.Size = UDim2.new(1, 0, 1, 0)
@@ -244,9 +220,8 @@ local function StartLoading(titleText, subtitleText, onComplete)
     LoadingGui.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
     LoadingGui.BackgroundTransparency = 0
     LoadingGui.BorderSizePixel = 0
-    LoadingGui.ZIndex = 9990 -- Set slightly below text elements to prevent obstruction
+    LoadingGui.ZIndex = 9990
 
-    -- Profile Frame (ZIndex raised so it is not covered by the black screen)
     local ProfileFrame = Instance.new("Frame", LoadingGui)
     ProfileFrame.Size = UDim2.new(0, 220, 0, 60)
     ProfileFrame.Position = UDim2.new(0, 20, 1, -80)
@@ -288,7 +263,6 @@ local function StartLoading(titleText, subtitleText, onComplete)
     UserInfo.ZIndex = 9995
     UserInfo.Text = '<font color="rgb(200, 200, 200)">MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="9" color="rgb(150, 150, 150)">ID: ' .. LocalPlayer.UserId .. '</font>'
 
-    -- Title & Subtitle Labels (ZIndex 9995)
     local Title = Instance.new("TextLabel", LoadingGui)
     Title.Size = UDim2.new(1, 0, 0, 45)
     Title.Position = UDim2.new(0, 0, 0.35, 0)
@@ -296,7 +270,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     Title.Font = Enum.Font.MontserratBold
     Title.TextSize = 38
     Title.RichText = true
-    Title.Text = (titleText or "LOUIS HUB"):upper() -- Menghapus teks "FREE"
+    Title.Text = (titleText or "LOUIS HUB"):upper()
     Title.TextTransparency = 1
     Title.ZIndex = 9995
     RegisterRGB(Title, "TextColor3")
@@ -312,7 +286,6 @@ local function StartLoading(titleText, subtitleText, onComplete)
     SubTitle.TextTransparency = 1
     SubTitle.ZIndex = 9995
 
-    -- Loading Bar (ZIndex 9995)
     local BarBg = Instance.new("Frame", LoadingGui)
     BarBg.Size = UDim2.new(0.5, 0, 0, 6)
     BarBg.Position = UDim2.new(0.25, 0, 0.65, 0)
@@ -326,7 +299,6 @@ local function StartLoading(titleText, subtitleText, onComplete)
     Instance.new("UICorner", BarFill)
     RegisterRGB(BarFill, "BackgroundColor3")
 
-    -- Skip Button
     local SkipBtn = Instance.new("TextButton", LoadingGui)
     SkipBtn.Size = UDim2.new(0, 120, 0, 36)
     SkipBtn.Position = UDim2.new(0.5, -60, 0.82, 0)
@@ -335,13 +307,12 @@ local function StartLoading(titleText, subtitleText, onComplete)
     SkipBtn.TextColor3 = Color3.new(1, 1, 1)
     SkipBtn.Font = Enum.Font.MontserratBold
     SkipBtn.TextSize = 14
-    SkipBtn.ZIndex = 10000 -- Above other loading elements
+    SkipBtn.ZIndex = 10000
     SkipBtn.TextTransparency = 1
     
     local SkipCorner = Instance.new("UICorner", SkipBtn)
     SkipCorner.CornerRadius = UDim.new(0, 8)
     local SkipStroke = Instance.new("UIStroke", SkipBtn)
-    SkipCorner.CornerRadius = UDim.new(0, 8)
     SkipStroke.Color = Color3.fromRGB(45, 45, 50)
     SkipStroke.Thickness = 1
 
@@ -395,7 +366,6 @@ local function StartLoading(titleText, subtitleText, onComplete)
 
     SkipBtn.MouseButton1Click:Connect(ForceExit)
 
-    -- Element Entry Animation
     local entryTween = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     TweenService:Create(Title, entryTween, {TextTransparency = 0}):Play()
     TweenService:Create(ProfileImage, entryTween, {ImageTransparency = 0}):Play()
@@ -430,9 +400,6 @@ local function StartLoading(titleText, subtitleText, onComplete)
     if not skipTriggered then ForceExit() end
 end
 
--- ========================================================
--- [[ 4. METHODS: CREATE MAIN WINDOW ]]
--- ========================================================
 function Library:CreateWindow(titleText, subtitleText)
     local Window = {
         Tabs = {},
@@ -444,7 +411,6 @@ function Library:CreateWindow(titleText, subtitleText)
 
     local ScreenGui = GetMainGui()
 
-    -- Main UI Container Frame
     local MainFrame = Instance.new("Frame")
     MainFrame.Size = UDim2.new(0, 530, 0, 340)
     MainFrame.Position = UDim2.new(0.5, -265, 0.5, -170)
@@ -457,12 +423,10 @@ function Library:CreateWindow(titleText, subtitleText)
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 10)
 
-    -- Full Outer RGB Stroke
     local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Thickness = 1.5
     RegisterRGB(MainStroke, "Color")
 
-    -- Header Panel
     local Header = Instance.new("Frame", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 50)
     Header.BackgroundTransparency = 1
@@ -519,14 +483,12 @@ function Library:CreateWindow(titleText, subtitleText)
     SubtitleLabel.Font = Enum.Font.Montserrat
     SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Clean Horizontal RGB Separator Line
     local HeaderSeparator = Instance.new("Frame", MainFrame)
     HeaderSeparator.Size = UDim2.new(1, 0, 0, 1)
     HeaderSeparator.Position = UDim2.new(0, 0, 0, 50)
     HeaderSeparator.BorderSizePixel = 0
     RegisterRGB(HeaderSeparator, "BackgroundColor3")
 
-    -- Sidebar Container
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 145, 1, -65)
     Sidebar.Position = UDim2.new(0, 12, 0, 57)
@@ -538,7 +500,6 @@ function Library:CreateWindow(titleText, subtitleText)
     SidebarStroke.Color = Color3.fromRGB(35, 35, 40)
     SidebarStroke.Thickness = 1
 
-    -- Tab Selection Scroll Area
     local TabContainer = Instance.new("ScrollingFrame", Sidebar)
     TabContainer.Size = UDim2.new(1, -12, 1, -12)
     TabContainer.Position = UDim2.new(0, 6, 0, 6)
@@ -549,7 +510,6 @@ function Library:CreateWindow(titleText, subtitleText)
     local TabLayout = Instance.new("UIListLayout", TabContainer)
     TabLayout.Padding = UDim.new(0, 5)
 
-    -- Primary Content Workspace
     local ContentArea = Instance.new("Frame", MainFrame)
     ContentArea.Size = UDim2.new(1, -180, 1, -65)
     ContentArea.Position = UDim2.new(0, 168, 0, 57)
@@ -617,7 +577,6 @@ function Library:CreateWindow(titleText, subtitleText)
         TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
     end)
 
-    -- [[ 4a. FLOATING ICON OPEN CLOSE ]]
     local FloatingToggle = Instance.new("TextButton", ScreenGui)
     FloatingToggle.Name = "FloatingToggleIcon"
     FloatingToggle.Size = UDim2.new(0, 52, 0, 52)
@@ -630,12 +589,10 @@ function Library:CreateWindow(titleText, subtitleText)
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
     ToggleCorner.CornerRadius = UDim.new(0, 10)
 
-    -- Floating Toggle Border (RGB Glow)
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1.5
-    RegisterRGB(ToggleStroke, "Color") -- Enable RGB effect for floating button border
+    RegisterRGB(ToggleStroke, "Color")
 
-    -- Menu Icon (RGB Glow)
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Name = "Icon"
     ToggleIconImage.Size = UDim2.new(0, 26, 0, 26)
@@ -643,7 +600,7 @@ function Library:CreateWindow(titleText, subtitleText)
     ToggleIconImage.BackgroundTransparency = 1
     ToggleIconImage.Image = "rbxassetid://10734887784"
     ToggleIconImage.ScaleType = Enum.ScaleType.Fit
-    RegisterRGB(ToggleIconImage, "ImageColor3") -- Enable RGB effect for internal image icon
+    RegisterRGB(ToggleIconImage, "ImageColor3")
 
     EnableDrag(FloatingToggle, FloatingToggle)
 
@@ -700,7 +657,6 @@ function Library:CreateWindow(titleText, subtitleText)
 
     CloseBtn.MouseButton1Click:Connect(CloseGui)
 
-    -- Run Loading Screen
     StartLoading(titleText, subtitleText, function()
         firstTimeOpen = true
         FloatingToggle.Position = UDim2.new(0.5, -26, 0.5, -26)
@@ -709,7 +665,6 @@ function Library:CreateWindow(titleText, subtitleText)
         
         TweenService:Create(FloatingToggle, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 52, 0, 52)}):Play()
 
-        -- AUTO-LOAD CONFIG (Automatically called deferred when screen loading finishes)
         task.spawn(function()
             task.wait(1)
             Library:LoadConfig()
@@ -738,9 +693,6 @@ function Library:CreateWindow(titleText, subtitleText)
         end)
     end
 
-    -- ========================================================
-    -- [[ 5. METHODS: CREATE NEW TAB ]]
-    -- ========================================================
     function Window:CreateTab(tabName, iconAssetId)
         local Tab = {}
         
@@ -835,9 +787,6 @@ function Library:CreateWindow(titleText, subtitleText)
             Select()
         end
 
-        -- ========================================================
-        -- [[ 5a. TAB ELEMENT: CREATE BUTTON ]]
-        -- ========================================================
         function Tab:CreateButton(buttonText, callback)
             local Button = Instance.new("TextButton", TabContent)
             Button.Size = UDim2.new(1, -6, 0, 38)
@@ -886,14 +835,10 @@ function Library:CreateWindow(titleText, subtitleText)
             end)
         end
 
-        -- ========================================================
-        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE (CONFIG SYNCHRONIZATION) ]]
-        -- ========================================================
         function Tab:CreateToggle(toggleText, defaultVal, flag, callback)
             local actualFlag = flag
             local actualCallback = callback
             
-            -- Determine dynamic parameters to maintain compatibility with legacy script calls
             if type(flag) == "function" then
                 actualCallback = flag
                 actualFlag = toggleText:gsub("%s+", "")
@@ -956,7 +901,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
                 Library.Flags[actualFlag] = Toggle.State
                 if not ignoreSave then
-                    Library:SaveConfig() -- Auto-save on value change
+                    Library:SaveConfig()
                 end
             end
 
@@ -979,9 +924,6 @@ function Library:CreateWindow(titleText, subtitleText)
             return toggleController
         end
 
-        -- ========================================================
-        -- [[ 5c. TAB ELEMENT: CREATE SLIDER (CONFIG SYNCHRONIZATION) ]]
-        -- ========================================================
         function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
             local actualFlag = flag
             local actualCallback = callback
@@ -1038,7 +980,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 Library.Flags[actualFlag] = Slider.Value
                 if not ignoreSave then
-                    Library:SaveConfig() -- Auto-save on value change
+                    Library:SaveConfig()
                 end
             end
 
@@ -1083,9 +1025,6 @@ function Library:CreateWindow(titleText, subtitleText)
             return sliderController
         end
 
-        -- ========================================================
-        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN (CONFIG SYNCHRONIZATION) ]]
-        -- ========================================================
         function Tab:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
             local actualFlag = flag
             local actualCallback = callback
@@ -1198,7 +1137,7 @@ function Library:CreateWindow(titleText, subtitleText)
                         Refresh()
                         
                         Library.Flags[actualFlag] = opt
-                        Library:SaveConfig() -- Auto-save on value change
+                        Library:SaveConfig()
                         
                         if actualCallback then task.spawn(function() actualCallback(opt) end) end
                     end)
@@ -1241,7 +1180,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 if actualCallback then task.spawn(function() actualCallback(val) end) end
             end
 
-            -- External refresh feature to dynamically update option list
             function dropdownController:Refresh(newOptions)
                 options = newOptions
                 if Dropdown.Open then
@@ -1257,9 +1195,6 @@ function Library:CreateWindow(titleText, subtitleText)
             return dropdownController
         end
 
-        -- ========================================================
-        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX (CONFIG SYNCHRONIZATION) ]]
-        -- ========================================================
         function Tab:CreateTextBox(labelText, placeholderText, flag, callback)
             local actualFlag = flag
             local actualCallback = callback
@@ -1317,7 +1252,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 TweenService:Create(TextBoxFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
                 
                 Library.Flags[actualFlag] = InputBox.Text
-                Library:SaveConfig() -- Auto-save on value change
+                Library:SaveConfig()
                 
                 if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
             end)
@@ -1338,9 +1273,6 @@ function Library:CreateWindow(titleText, subtitleText)
             return textboxController
         end
 
-        -- ========================================================
-        -- [[ 5f. TAB ELEMENT: CREATE PARAGRAPH ]]
-        -- ========================================================
         function Tab:CreateParagraph(titleText, descText)
             local ParagraphFrame = Instance.new("Frame", TabContent)
             ParagraphFrame.Size = UDim2.new(1, -6, 0, 56)
@@ -1380,9 +1312,6 @@ function Library:CreateWindow(titleText, subtitleText)
     return Window
 end
 
--- ========================================================
--- [[ 6. EXTERNAL UTILITY BUTTON SYSTEM ]]
--- ========================================================
 function Library:CreateExternalButton(id, text, defaultPos, callback)
     local ScreenGui = GetMainGui()
 
@@ -1390,7 +1319,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     ExtBtn.Name = "ExternalButton_" .. tostring(id)
     ExtBtn.Size = UDim2.new(0, 44, 0, 44)
     
-    -- Memeriksa apakah ada posisi tersimpan di dalam berkas konfigurasi
     local savedPos = Library.Flags["ExtBtn_" .. tostring(id)]
     local finalPos = defaultPos
     if savedPos and type(savedPos) == "table" and savedPos.ScaleX then
@@ -1407,7 +1335,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     ExtBtn.AutoButtonColor = false
     ExtBtn.Parent = ScreenGui
 
-    -- Mendaftarkan referensi tombol untuk fungsi LoadConfig
     Library.ExternalButtons[tostring(id)] = ExtBtn
     Library.ExternalButtons[id] = ExtBtn
 
@@ -1418,7 +1345,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     Stroke.Thickness = 1.5
     RegisterRGB(Stroke, "Color")
 
-    -- Drag utility dengan fungsi callback untuk langsung menyimpan posisi saat digeser
     EnableDrag(ExtBtn, ExtBtn, function(finalPos)
         Library.Flags["ExtBtn_" .. tostring(id)] = {
             ScaleX = finalPos.X.Scale,
@@ -1442,7 +1368,7 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     end)
 
     local buttonController = {}
-    buttonController.Instance = ExtBtn -- Main Instance reference so it can be safely read externally
+    buttonController.Instance = ExtBtn
 
     function buttonController:SetText(newText)
         ExtBtn.Text = tostring(newText)
@@ -1464,7 +1390,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         end
     end
 
-    -- New drag lock method for external buttons
     function buttonController:SetDragLock(state)
         ExtBtn:SetAttribute("DragLocked", state)
     end
