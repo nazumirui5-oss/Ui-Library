@@ -280,7 +280,8 @@ local function StartLoading(titleText, subtitleText, onComplete)
     Title.Font = Enum.Font.MontserratBold
     Title.TextSize = 38
     Title.RichText = true
-    Title.Text = (titleText or "LOUIS HUB"):upper() .. ' <font color="rgb(255, 255, 255)">FREE</font>'
+    -- "FREE" tag removed as requested
+    Title.Text = (titleText or "LOUIS HUB"):upper()
     Title.TextTransparency = 1
     Title.ZIndex = 9995
     RegisterRGB(Title, "TextColor3")
@@ -1284,7 +1285,6 @@ function Library:CreateWindow(titleText, subtitleText)
             InputBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 110)
             InputBox.TextSize = 11
             InputBox.Font = Enum.Font.Montserrat
-            InputBox.ClearTextOnFocus = false
 
             Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 5)
             local InputStroke = Instance.new("UIStroke", InputBox)
