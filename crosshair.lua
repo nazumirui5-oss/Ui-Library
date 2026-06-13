@@ -1,5 +1,5 @@
 -- ========================================================================
--- [[ LOUIS HUB - SEPARATE ADVANCED CROSSHAIR MODULE (v3.0 FINAL) ]]
+-- [[ LOUIS HUB - SEPARATE ADVANCED CROSSHAIR MODULE (v3.1 FIXED) ]]
 -- ========================================================================
 
 -- Inisialisasi tabel global jika dipanggil secara independen
@@ -44,8 +44,11 @@ if _G.LouisCrosshairDrawings then
 end
 _G.LouisCrosshairDrawings = {}
 
--- Kembalikan kursor default pada awal pemuatan ulang
-pcall(function() Mouse.Icon = "" end)
+-- Kembalikan kursor default & aktifkan kembali mouse icon saat reset
+pcall(function() 
+    Mouse.Icon = ""
+    UserInputService.MouseIconEnabled = true
+end)
 
 -- ==========================================
 -- [[ 2. INITIALIZE GUI (FOR IMAGE MODE) ]]
@@ -90,6 +93,19 @@ local RightLine = CreateLine()
 local CenterCircle = CreateCircle()
 
 -- ==========================================
+-- [[ Helper: Extract Clean ID ]]
+-- ==========================================
+-- Ekstraksi angka ID secara aman tanpa memotong indeks Preset
+local function GetCleanImageId(id)
+    local str = tostring(id)
+    local found = str:match("ID:%s*(%d+)")
+    if found then
+        return found
+    end
+    return str:gsub("%D", "")
+end
+
+-- ==========================================
 -- [[ 4. ROTATION MATRIX MATHEMATICS ]]
 -- ==========================================
 -- Memutar koordinat titik (X, Y) di sekitar titik tengah layar berdasarkan sudut derajat
@@ -131,16 +147,14 @@ RenderConnection = RunService.RenderStepped:Connect(function()
         isEnabled = false
     end
 
-    -- Sembunyikan kursor dan titik putih kursor default Roblox secara FE
+    -- Sembunyikan kursor sistem & titik putih kursor default Roblox secara mutlak (FE) [3.1.7]
     if isEnabled and config.HideDefaultCursor then
         pcall(function()
-            Mouse.Icon = "rbxassetid://2660144675"
+            UserInputService.MouseIconEnabled = false
         end)
     else
         pcall(function()
-            if Mouse.Icon == "rbxassetid://2660144675" then
-                Mouse.Icon = ""
-            end
+            UserInputService.MouseIconEnabled = true
         end)
     end
 
@@ -178,7 +192,7 @@ RenderConnection = RunService.RenderStepped:Connect(function()
 
     -- [[ STYLE 1: IMAGE / ROBLOX ASSET ID (Dengan protokol rbxthumb) ]]
     if style == "Image" then
-        local cleanId = tostring(config.ImageId):gsub("%D", "")
+        local cleanId = GetCleanImageId(config.ImageId)
         if cleanId ~= "" then
             CrosshairImage.Image = "rbxthumb://type=Asset&id=" .. cleanId .. "&w=420&h=420"
             CrosshairImage.Size = UDim2.new(0, size * 2, 0, size * 2)
@@ -234,4 +248,4 @@ if _G.LouisConnections then
     table.insert(_G.LouisConnections, RenderConnection)
 end
 
-print("[LOUIS HUB]: Separate Crosshair Module (v3.0 Final) Initialized.")
+print("[LOUIS HUB]: Separate Crosshair Module (v3.1 Fixed) Loaded Successfully.")
