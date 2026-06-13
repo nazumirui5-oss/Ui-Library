@@ -1,5 +1,5 @@
 -- ========================================================================
--- [[ LOUIS HUB - SEPARATE ADVANCED CROSSHAIR MODULE (v2.2 FINAL ROTATION) ]]
+-- [[ LOUIS HUB - SEPARATE ADVANCED CROSSHAIR MODULE (v3.0 FINAL) ]]
 -- ========================================================================
 
 -- Inisialisasi tabel global jika dipanggil secara independen
@@ -14,12 +14,18 @@ _G.CrosshairSettings = _G.CrosshairSettings or {
     ImageId = "6877713475",
     Rotation = 0,
     AutoSpin = false,
-    SpinSpeed = 50
+    SpinSpeed = 50,
+    OnlyShiftLock = false,
+    HideDefaultCursor = true
 }
 
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 
 -- ==========================================
 -- [[ 1. CLEANUP SYSTEM (PERSISTENCE) ]]
@@ -37,6 +43,9 @@ if _G.LouisCrosshairDrawings then
     end
 end
 _G.LouisCrosshairDrawings = {}
+
+-- Kembalikan kursor default pada awal pemuatan ulang
+pcall(function() Mouse.Icon = "" end)
 
 -- ==========================================
 -- [[ 2. INITIALIZE GUI (FOR IMAGE MODE) ]]
@@ -114,7 +123,29 @@ local RenderConnection
 RenderConnection = RunService.RenderStepped:Connect(function()
     local config = _G.CrosshairSettings
     
-    if not config or not config.Enabled then
+    local isEnabled = config and config.Enabled
+    local isShiftLocked = UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter
+
+    -- Sembunyikan jika OnlyShiftLock aktif tapi Shift Lock sedang mati
+    if isEnabled and config.OnlyShiftLock and not isShiftLocked then
+        isEnabled = false
+    end
+
+    -- Sembunyikan kursor dan titik putih kursor default Roblox secara FE
+    if isEnabled and config.HideDefaultCursor then
+        pcall(function()
+            Mouse.Icon = "rbxassetid://2660144675"
+        end)
+    else
+        pcall(function()
+            if Mouse.Icon == "rbxassetid://2660144675" then
+                Mouse.Icon = ""
+            end
+        end)
+    end
+
+    -- Matikan semua rendering jika dinonaktifkan
+    if not isEnabled then
         TopLine.Visible = false
         BottomLine.Visible = false
         LeftLine.Visible = false
@@ -137,7 +168,7 @@ RenderConnection = RunService.RenderStepped:Connect(function()
         currentRotation = (os.clock() * (config.SpinSpeed or 50)) % 360
     end
 
-    -- Sembunyikan semua elemen rendering terlebih dahulu sebelum render ulang
+    -- Sembunyikan semua elemen sebelum proses render ulang
     TopLine.Visible = false
     BottomLine.Visible = false
     LeftLine.Visible = false
@@ -145,31 +176,31 @@ RenderConnection = RunService.RenderStepped:Connect(function()
     CenterCircle.Visible = false
     CrosshairImage.Visible = false
 
-    -- [[ STYLE 1: IMAGE / ROBLOX ASSET ID ]]
+    -- [[ STYLE 1: IMAGE / ROBLOX ASSET ID (Dengan protokol rbxthumb) ]]
     if style == "Image" then
         local cleanId = tostring(config.ImageId):gsub("%D", "")
         if cleanId ~= "" then
-            CrosshairImage.Image = "rbxassetid://" .. cleanId
+            CrosshairImage.Image = "rbxthumb://type=Asset&id=" .. cleanId .. "&w=420&h=420"
             CrosshairImage.Size = UDim2.new(0, size * 2, 0, size * 2)
             CrosshairImage.ImageColor3 = activeColor 
-            CrosshairImage.Rotation = currentRotation -- Mendukung rotasi & putar otomatis
+            CrosshairImage.Rotation = currentRotation
             CrosshairImage.Visible = true
         end
 
-    -- [[ STYLE 2: STANDARD CROSS (TER-ROTASI) ]]
+    -- [[ STYLE 2: STANDARD CROSS ]]
     elseif style == "Cross" then
         RenderRotatedLine(TopLine, Vector2.new(0, -gap), Vector2.new(0, -(gap + size)), center, currentRotation, thickness, activeColor)
         RenderRotatedLine(BottomLine, Vector2.new(0, gap), Vector2.new(0, gap + size), center, currentRotation, thickness, activeColor)
         RenderRotatedLine(LeftLine, Vector2.new(-gap, 0), Vector2.new(-(gap + size), 0), center, currentRotation, thickness, activeColor)
         RenderRotatedLine(RightLine, Vector2.new(gap, 0), Vector2.new(gap + size, 0), center, currentRotation, thickness, activeColor)
 
-    -- [[ STYLE 3: T-SHAPE (TER-ROTASI) ]]
+    -- [[ STYLE 3: T-SHAPE ]]
     elseif style == "T-Shape" then
         RenderRotatedLine(BottomLine, Vector2.new(0, gap), Vector2.new(0, gap + size), center, currentRotation, thickness, activeColor)
         RenderRotatedLine(LeftLine, Vector2.new(-gap, 0), Vector2.new(-(gap + size), 0), center, currentRotation, thickness, activeColor)
         RenderRotatedLine(RightLine, Vector2.new(gap, 0), Vector2.new(gap + size, 0), center, currentRotation, thickness, activeColor)
 
-    -- [[ STYLE 4: DIAMOND / BELAH KETUPAT (TER-ROTASI) ]]
+    -- [[ STYLE 4: DIAMOND ]]
     elseif style == "Diamond" then
         local offset = gap + size
         RenderRotatedLine(TopLine, Vector2.new(-offset, 0), Vector2.new(0, -offset), center, currentRotation, thickness, activeColor)
@@ -198,9 +229,9 @@ RenderConnection = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Simpan koneksi ke tabel koneksi global Louis Hub agar aman saat re-execute
+-- Simpan koneksi render ke sistem koneksi global
 if _G.LouisConnections then
     table.insert(_G.LouisConnections, RenderConnection)
 end
 
-print("[LOUIS HUB]: Separate Crosshair Module (v2.2 Final) Loaded Successfully.")
+print("[LOUIS HUB]: Separate Crosshair Module (v3.0 Final) Initialized.")
