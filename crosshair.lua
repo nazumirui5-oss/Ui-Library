@@ -1,5 +1,5 @@
 -- ========================================================================
--- [[ LOUIS HUB - SEPARATE ADVANCED CROSSHAIR MODULE (v3.1 FIXED) ]]
+-- [[ LOUIS HUB - SEPARATE ADVANCED CROSSHAIR MODULE (v3.2 FINAL CENTERED) ]]
 -- ========================================================================
 
 -- Inisialisasi tabel global jika dipanggil secara independen
@@ -57,6 +57,7 @@ local CrosshairGui = Instance.new("ScreenGui")
 CrosshairGui.Name = "Louis_ImageCrosshair"
 CrosshairGui.DisplayOrder = 10000
 CrosshairGui.ResetOnSpawn = false
+CrosshairGui.IgnoreGuiInset = true -- Mengabaikan Topbar inset agar posisi gambar benar-benar di pusat layar
 CrosshairGui.Parent = CoreGui
 
 local CrosshairImage = Instance.new("ImageLabel")
@@ -95,7 +96,6 @@ local CenterCircle = CreateCircle()
 -- ==========================================
 -- [[ Helper: Extract Clean ID ]]
 -- ==========================================
--- Ekstraksi angka ID secara aman tanpa memotong indeks Preset
 local function GetCleanImageId(id)
     local str = tostring(id)
     local found = str:match("ID:%s*(%d+)")
@@ -108,7 +108,6 @@ end
 -- ==========================================
 -- [[ 4. ROTATION MATRIX MATHEMATICS ]]
 -- ==========================================
--- Memutar koordinat titik (X, Y) di sekitar titik tengah layar berdasarkan sudut derajat
 local function RotatePoint(point, center, angleDegrees)
     local angleRad = math.rad(angleDegrees)
     local cosTheta = math.cos(angleRad)
@@ -123,7 +122,6 @@ local function RotatePoint(point, center, angleDegrees)
     return Vector2.new(rotatedX + center.X, rotatedY + center.Y)
 end
 
--- Render garis vektor yang telah ter-rotasi secara matematis
 local function RenderRotatedLine(lineObj, fromOffset, toOffset, center, angle, thickness, color)
     lineObj.From = RotatePoint(center + fromOffset, center, angle)
     lineObj.To = RotatePoint(center + toOffset, center, angle)
@@ -147,7 +145,7 @@ RenderConnection = RunService.RenderStepped:Connect(function()
         isEnabled = false
     end
 
-    -- Sembunyikan kursor sistem & titik putih kursor default Roblox secara mutlak (FE) [3.1.7]
+    -- Sembunyikan kursor sistem & titik putih kursor default Roblox secara mutlak (FE)
     if isEnabled and config.HideDefaultCursor then
         pcall(function()
             UserInputService.MouseIconEnabled = false
@@ -248,4 +246,4 @@ if _G.LouisConnections then
     table.insert(_G.LouisConnections, RenderConnection)
 end
 
-print("[LOUIS HUB]: Separate Crosshair Module (v3.1 Fixed) Loaded Successfully.")
+print("[LOUIS HUB]: Separate Crosshair Module (v3.2 Final Centered) Loaded.")
