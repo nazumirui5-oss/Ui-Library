@@ -10,6 +10,7 @@ return function(Window, Library)
 
     local HttpService = game:GetService("HttpService")
     local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService") -- Ditambahkan untuk mencegah error RunService nil
     local LocalPlayer = Players.LocalPlayer
 
     -- Setup Preset Database
@@ -283,7 +284,7 @@ return function(Window, Library)
             ["Catwalk Glam"] = "98854111361360", 
             ["Knight"] = "10921125935", 
             ["Pirate"] = "750785176", 
-            ["Bold"] = "16738333171", 
+            ["Bold"] = "16738339817", 
             ["Sports (Adidas)"] = "18537387180", 
             ["Stylized"] = "4708190607", 
             ["Astronaut"] = "891663592", 
