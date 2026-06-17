@@ -192,7 +192,8 @@ RenderConnection = RunService.RenderStepped:Connect(function()
     if style == "Image" then
         local cleanId = GetCleanImageId(config.ImageId)
         if cleanId ~= "" then
-            CrosshairImage.Image = "rbxthumb://type=Asset&id=" .. cleanId .. "&w=420&h=420"
+            -- Berhasil disinkronkan ke resolusi w=150&h=150 agar sama dengan preview box menu utama
+            CrosshairImage.Image = "rbxthumb://type=Asset&id=" .. cleanId .. "&w=150&h=150"
             CrosshairImage.Size = UDim2.new(0, size * 2, 0, size * 2)
             CrosshairImage.ImageColor3 = activeColor 
             CrosshairImage.Rotation = currentRotation
