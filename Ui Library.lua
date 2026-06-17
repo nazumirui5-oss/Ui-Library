@@ -14,15 +14,17 @@ Library.Elements = {}
 Library.ExternalButtons = {} -- Merekam tombol eksternal untuk penanganan reset posisi
 Library.LoadedConfigCache = {} -- Sistem Cache untuk menghindari race condition
 
-local SettingsFileName = "LouisHub_UI_Settings.json"
+-- Menggunakan ID Unik Map (PlaceId) agar konfigurasi antar-game tidak saling menimpa
+local PlaceId = game.PlaceId
+local SettingsFileName = "LouisHub_UI_Settings_" .. tostring(PlaceId) .. ".json"
 local CurrentProfile = "Profile 1"
 local AutoLoadEnabled = false
 
--- Fungsi Pra-Muat: Membaca data langsung saat script pertama kali dieksekusi
+-- Fungsi Pra-Muat: Membaca data langsung saat script pertama kali dieksekusi khusus untuk PlaceId ini
 local function PreloadConfiguration()
     if not isfile or not readfile then return end
     
-    -- 1. Baca metadata profil aktif
+    -- 1. Baca metadata profil aktif khusus untuk PlaceId ini
     if isfile(SettingsFileName) then
         pcall(function()
             local meta = HttpService:JSONDecode(readfile(SettingsFileName))
@@ -33,8 +35,8 @@ local function PreloadConfiguration()
         end)
     end
     
-    -- 2. Baca isi konfigurasi profil aktif langsung ke cache & flags agar tidak hilang saat autosave
-    local fileName = "LouisHub_UI_Config_" .. CurrentProfile .. ".json"
+    -- 2. Baca isi konfigurasi profil aktif khusus untuk PlaceId ini langsung ke cache & flags
+    local fileName = "LouisHub_UI_Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
     if isfile(fileName) then
         pcall(function()
             local decoded = HttpService:JSONDecode(readfile(fileName))
@@ -71,7 +73,7 @@ end
 function Library:SaveConfig(quiet)
     if not writefile then return end
     local success, err = pcall(function()
-        local fileName = "LouisHub_UI_Config_" .. CurrentProfile .. ".json"
+        local fileName = "LouisHub_UI_Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
         
         -- Filter meta flags agar tidak merusak konfigurasi profil lain (mencegah loop/lag)
         local filteredFlags = {}
@@ -121,7 +123,7 @@ function Library:LoadConfig(force, preloadOnly)
 
     -- Memuat file konfigurasi jika fitur AutoLoad aktif atau jika dipicu secara manual (force)
     if AutoLoadEnabled or force or preloadOnly then
-        local fileName = "LouisHub_UI_Config_" .. CurrentProfile .. ".json"
+        local fileName = "LouisHub_UI_Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
         if isfile(fileName) then
             local success, err = pcall(function()
                 local decoded = HttpService:JSONDecode(readfile(fileName))
