@@ -876,7 +876,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 finalIcon = "rbxthumb://type=Asset&id=" .. tostring(iconAssetId) .. "&w=150&h=150"
             elseif type(iconAssetId) == "string" and iconAssetId:find("^rbxassetid://") then
                 local id = iconAssetId:gsub("^rbxassetid://", "")
-                finalIcon = "rbxthumb://type=Asset&id= id" .. id .. "&w=150&h=150"
+                finalIcon = "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150" -- DIPERBAIKI (Teks ganda '= id' telah dihapus)
             end
             
             IconLabel.Image = finalIcon
