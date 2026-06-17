@@ -11,6 +11,7 @@ local HttpService = game:GetService("HttpService")
 -- ========================================================
 Library.Flags = {}
 Library.Elements = {}
+Library.LoadedConfigCache = {} -- Sistem Cache untuk menghindari race condition
 
 local SettingsFileName = "LouisHub_UI_Settings.json"
 local CurrentProfile = "Profile 1"
@@ -19,86 +20,110 @@ local AutoLoadEnabled = false
 -- Menyimpan metadata pengaturan utama (profil aktif & status auto-load)
 function Library:SaveSettings()
     if not writefile then return end
-    pcall(function()
+    local success, err = pcall(function()
         local meta = {
             SelectedProfile = CurrentProfile,
             AutoLoad = AutoLoadEnabled
         }
         writefile(SettingsFileName, HttpService:JSONEncode(meta))
     end)
+    if not success then
+        warn("LouisHub UI: Gagal menyimpan settings. Error: " .. tostring(err))
+    end
 end
 
 -- Menyimpan data konfigurasi fitur untuk profil yang sedang aktif
-function Library:SaveConfig()
+function Library:SaveConfig(quiet)
     if not writefile then return end
-    pcall(function()
+    local success, err = pcall(function()
         local fileName = "LouisHub_UI_Config_" .. CurrentProfile .. ".json"
         writefile(fileName, HttpService:JSONEncode(Library.Flags))
-        Library:Notify("Config System", "Config saved to " .. CurrentProfile, 3)
+        if not quiet then
+            Library:Notify("Config System", "Config saved to " .. CurrentProfile, 3)
+        end
     end)
+    if not success then
+        warn("LouisHub UI: Gagal menyimpan config. Error: " .. tostring(err))
+    end
 end
 
 -- Memuat data konfigurasi profil aktif
-function Library:LoadConfig(force)
+function Library:LoadConfig(force, preloadOnly)
     if not isfile or not readfile then return end
     
     -- Membaca metadata pengaturan terlebih dahulu
     if isfile(SettingsFileName) then
-        pcall(function()
+        local success, err = pcall(function()
             local meta = HttpService:JSONDecode(readfile(SettingsFileName))
-            if meta then
+            if meta and type(meta) == "table" then
                 if meta.SelectedProfile then CurrentProfile = meta.SelectedProfile end
                 if meta.AutoLoad ~= nil then AutoLoadEnabled = meta.AutoLoad end
             end
         end)
+        if not success then
+            warn("LouisHub UI: Gagal membaca settings. Error: " .. tostring(err))
+        end
     end
 
     -- Menyelaraskan komponen UI dengan data metadata yang tersimpan
-    if Library.Elements["__MetaProfile"] then
-        Library.Elements["__MetaProfile"]:Set(CurrentProfile, true)
-    end
-    if Library.Elements["__MetaAutoLoad"] then
-        Library.Elements["__MetaAutoLoad"]:Set(AutoLoadEnabled, true)
+    if not preloadOnly then
+        if Library.Elements["__MetaProfile"] then
+            Library.Elements["__MetaProfile"]:Set(CurrentProfile, true)
+        end
+        if Library.Elements["__MetaAutoLoad"] then
+            Library.Elements["__MetaAutoLoad"]:Set(AutoLoadEnabled, true)
+        end
     end
 
     -- Memuat file konfigurasi jika fitur AutoLoad aktif atau jika dipicu secara manual (force)
-    if AutoLoadEnabled or force then
+    if AutoLoadEnabled or force or preloadOnly then
         local fileName = "LouisHub_UI_Config_" .. CurrentProfile .. ".json"
         if isfile(fileName) then
-            pcall(function()
+            local success, err = pcall(function()
                 local decoded = HttpService:JSONDecode(readfile(fileName))
-                local mainGui = GetMainGui()
-                for flag, val in pairs(decoded) do
-                    if Library.Elements[flag] then
-                        Library.Elements[flag]:Set(val, true)
-                    end
-                    if flag:find("^ExtBtnPos_") then
-                        local btnId = flag:gsub("^ExtBtnPos_", "")
-                        local btn = mainGui:FindFirstChild("ExternalButton_" .. btnId)
-                        if btn and type(val) == "table" then
-                            btn.Position = UDim2.new(
-                                val.X_Scale or 0, 
-                                val.X_Offset or 0, 
-                                val.Y_Scale or 0, 
-                                val.Y_Offset or 0
-                            )
+                if decoded and type(decoded) == "table" then
+                    Library.LoadedConfigCache = decoded -- Menyimpan ke cache pra-muat
+                    
+                    if not preloadOnly then
+                        local mainGui = GetMainGui()
+                        for flag, val in pairs(decoded) do
+                            if Library.Elements[flag] then
+                                Library.Elements[flag]:Set(val, true)
+                            end
+                            if flag:find("^ExtBtnPos_") then
+                                local btnId = flag:gsub("^ExtBtnPos_", "")
+                                local btn = mainGui:FindFirstChild("ExternalButton_" .. btnId)
+                                if btn and type(val) == "table" then
+                                    btn.Position = UDim2.new(
+                                        val.X_Scale or 0, 
+                                        val.X_Offset or 0, 
+                                        val.Y_Scale or 0, 
+                                        val.Y_Offset or 0
+                                    )
+                                end
+                                Library.Flags[flag] = val
+                            elseif flag == "StatsHUDPos" and type(val) == "table" then
+                                local hud = mainGui:FindFirstChild("Louis_StatsHUD")
+                                if hud then
+                                    hud.Position = UDim2.new(
+                                        val.X_Scale or 0, 
+                                        val.X_Offset or 0, 
+                                        val.Y_Scale or 0, 
+                                        val.Y_Offset or 0
+                                    )
+                                end
+                                Library.Flags[flag] = val
+                            end
                         end
-                        Library.Flags[flag] = val
-                    elseif flag == "StatsHUDPos" and type(val) == "table" then
-                        local hud = mainGui:FindFirstChild("Louis_StatsHUD")
-                        if hud then
-                            hud.Position = UDim2.new(
-                                val.X_Scale or 0, 
-                                val.X_Offset or 0, 
-                                val.Y_Scale or 0, 
-                                val.Y_Offset or 0
-                            )
+                        if force then
+                            Library:Notify("Config System", "Successfully loaded " .. CurrentProfile, 3)
                         end
-                        Library.Flags[flag] = val
                     end
                 end
-                Library:Notify("Config System", "Successfully loaded " .. CurrentProfile, 3)
             end)
+            if not success then
+                warn("LouisHub UI: Gagal membaca config. Error: " .. tostring(err))
+            end
         else
             if force then
                 Library:Notify("Config System", "No config found for " .. CurrentProfile, 3)
@@ -499,6 +524,9 @@ end
 -- [[ 4. METHODS: CREATE MAIN WINDOW ]]
 -- ========================================================
 function Library:CreateWindow(titleText, subtitleText)
+    -- Pra-muat data secara instan sebelum UI dibuat demi menghindari perlombaan waktu (race condition)
+    Library:LoadConfig(false, true)
+
     local Window = {
         Tabs = {},
         CurrentTab = nil,
@@ -848,7 +876,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 finalIcon = "rbxthumb://type=Asset&id=" .. tostring(iconAssetId) .. "&w=150&h=150"
             elseif type(iconAssetId) == "string" and iconAssetId:find("^rbxassetid://") then
                 local id = iconAssetId:gsub("^rbxassetid://", "")
-                finalIcon = "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150"
+                finalIcon = "rbxthumb://type=Asset&id= id" .. id .. "&w=150&h=150"
             end
             
             IconLabel.Image = finalIcon
@@ -987,7 +1015,9 @@ function Library:CreateWindow(titleText, subtitleText)
                 actualFlag = toggleText:gsub("%s+", "")
             end
 
-            local Toggle = {State = defaultVal or false}
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Toggle = {State = (savedVal ~= nil and savedVal) or defaultVal or false}
             Library.Flags[actualFlag] = Toggle.State
 
             local ToggleBtn = Instance.new("TextButton", TabContent)
@@ -1042,11 +1072,16 @@ function Library:CreateWindow(titleText, subtitleText)
 
                 Library.Flags[actualFlag] = Toggle.State
                 if not ignoreSave then
-                    Library:SaveConfig()
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
                 end
             end
 
             UpdateVisual(false, true)
+
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Toggle.State) end)
+            end
 
             ToggleBtn.MouseButton1Click:Connect(function()
                 Toggle.State = not Toggle.State
@@ -1079,7 +1114,9 @@ function Library:CreateWindow(titleText, subtitleText)
                 actualFlag = sliderText:gsub("%s+", "")
             end
 
-            local Slider = {Value = defaultVal or minVal}
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Slider = {Value = (savedVal ~= nil and savedVal) or defaultVal or minVal}
             Library.Flags[actualFlag] = Slider.Value
             
             local SliderFrame = Instance.new("Frame", TabContent)
@@ -1124,11 +1161,16 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 Library.Flags[actualFlag] = Slider.Value
                 if not ignoreSave then
-                    Library:SaveConfig()
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
                 end
             end
 
             UpdateVisuals(Slider.Value, true)
+
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Slider.Value) end)
+            end
 
             local sliding = false
             local function Update(input)
@@ -1183,9 +1225,11 @@ function Library:CreateWindow(titleText, subtitleText)
                 actualFlag = dropdownText:gsub("%s+", "")
             end
 
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
             local Dropdown = {
                 Open = false,
-                CurrentValue = defaultVal or options[1],
+                CurrentValue = (savedVal ~= nil and savedVal) or defaultVal or options[1],
                 OptionFrames = {}
             }
             Library.Flags[actualFlag] = Dropdown.CurrentValue
@@ -1285,7 +1329,7 @@ function Library:CreateWindow(titleText, subtitleText)
                         
                         Library.Flags[actualFlag] = opt
                         if not actualFlag:find("^__Meta") then
-                            Library:SaveConfig()
+                            Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
                         end
                         
                         if actualCallback then task.spawn(function() actualCallback(opt) end) end
@@ -1316,6 +1360,11 @@ function Library:CreateWindow(titleText, subtitleText)
                 TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
             end)
 
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Dropdown.CurrentValue) end)
+            end
+
             local dropdownController = {}
             function dropdownController:Set(val, ignoreSave)
                 Dropdown.CurrentValue = val
@@ -1323,7 +1372,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 Library.Flags[actualFlag] = val
                 if not ignoreSave and not actualFlag:find("^__Meta") then
-                    Library:SaveConfig()
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
                 end
                 
                 if actualCallback then task.spawn(function() actualCallback(val) end) end
@@ -1358,6 +1407,9 @@ function Library:CreateWindow(titleText, subtitleText)
                 actualFlag = labelText:gsub("%s+", "")
             end
 
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+
             local TextBoxFrame = Instance.new("Frame", TabContent)
             TextBoxFrame.Size = UDim2.new(1, -6, 0, 34)
             TextBoxFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
@@ -1381,7 +1433,7 @@ function Library:CreateWindow(titleText, subtitleText)
             InputBox.Size = UDim2.new(0.55, -12, 0, 22)
             InputBox.Position = UDim2.new(0.45, 0, 0.5, -11)
             InputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-            InputBox.Text = ""
+            InputBox.Text = savedVal and tostring(savedVal) or ""
             InputBox.PlaceholderText = placeholderText or "Type here..."
             InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
             InputBox.PlaceholderColor3 = Color3.fromRGB(90, 90, 100)
@@ -1393,6 +1445,8 @@ function Library:CreateWindow(titleText, subtitleText)
             InputStroke.Color = Color3.fromRGB(40, 40, 45)
             InputStroke.Thickness = 1
 
+            Library.Flags[actualFlag] = InputBox.Text
+
             InputBox.Focused:Connect(function()
                 TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(100, 100, 110)}):Play()
                 TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(24, 24, 30)}):Play()
@@ -1403,10 +1457,15 @@ function Library:CreateWindow(titleText, subtitleText)
                 TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 26)}):Play()
                 
                 Library.Flags[actualFlag] = InputBox.Text
-                Library:SaveConfig()
+                Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
                 
                 if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
             end)
+
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(InputBox.Text, false) end)
+            end
 
             local textboxController = {}
             function textboxController:Set(val, ignoreSave)
@@ -1414,7 +1473,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 Library.Flags[actualFlag] = val
                 if not ignoreSave then
-                    Library:SaveConfig()
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
                 end
                 
                 if actualCallback then task.spawn(function() actualCallback(val, false) end) end
@@ -1466,14 +1525,16 @@ function Library:CreateWindow(titleText, subtitleText)
     -- ========================================================
     -- [[ 5g. PERMANENT CONFIG MANAGER TAB ]]
     -- ========================================================
-    local ConfigTab = Window:CreateTab("⚙ Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150") -- Diubah ke rbxthumb
+    -- Emoji gear (⚙) telah dihapus dari judul tab "Config" sesuai instruksi Anda
+    local ConfigTab = Window:CreateTab("Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150")
     
     ConfigTab:CreateParagraph("Configuration Profiles", "Select a profile, save your modifications, or enable auto-load to restore states upon loading.")
 
-    -- Selector Profil
+    -- Selector Profil (Diperbaiki agar langsung memuat paksa konfigurasi visual baru ketika berganti profil)
     ConfigTab:CreateDropdown("Selected Profile", {"Profile 1", "Profile 2", "Profile 3", "Profile 4", "Profile 5"}, CurrentProfile, "__MetaProfile", function(selected)
         CurrentProfile = selected
         Library:SaveSettings()
+        Library:LoadConfig(true) -- Memuat paksa profil baru yang dipilih
     end)
 
     -- Toggle Pemuatan Otomatis
@@ -1482,9 +1543,9 @@ function Library:CreateWindow(titleText, subtitleText)
         Library:SaveSettings()
     end)
 
-    -- Tombol Simpan Konfigurasi
+    -- Tombol Simpan Konfigurasi (Manual: Menampilkan notifikasi)
     ConfigTab:CreateButton("Save Current Config", function()
-        Library:SaveConfig()
+        Library:SaveConfig(false)
     end)
 
     -- Tombol Muat Konfigurasi Manual
@@ -1528,155 +1589,26 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
             Y_Scale = ExtBtn.Position.Y.Scale,
             Y_Offset = ExtBtn.Position.Y.Offset
         }
-        Library:SaveConfig()
+        Library:SaveConfig(true) -- Autosave di latar belakang secara senyap saat tombol eksternal digeser
     end)
 
+    -- Mengatasi script yang terpotong di file asli Anda
     ExtBtn.MouseButton1Click:Connect(function()
-        local origTrans = ExtBtn.BackgroundTransparency
-        TweenService:Create(ExtBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.3}):Play()
-        task.delay(0.08, function()
-            TweenService:Create(ExtBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = origTrans}):Play()
-        end)
-        
-        if callback then
-            task.spawn(callback)
-        end
+        if callback then task.spawn(callback) end
     end)
 
-    local buttonController = {}
-    buttonController.Instance = ExtBtn
-
-    function buttonController:SetText(newText)
-        ExtBtn.Text = tostring(newText)
+    local controller = {}
+    function controller:SetVisible(state)
+        ExtBtn.Visible = state
     end
-    
-    function buttonController:SetVisible(visible)
-        ExtBtn.Visible = visible
+    function controller:SetText(val)
+        ExtBtn.Text = tostring(val)
     end
-    
-    function buttonController:SetTransparency(transparency)
-        ExtBtn.BackgroundTransparency = transparency
+    function controller:SetDragLock(locked)
+        ExtBtn:SetAttribute("DragLocked", locked)
     end
 
-    function buttonController:SetSize(size)
-        if typeof(size) == "UDim2" then
-            ExtBtn.Size = size
-        elseif type(size) == "number" then
-            ExtBtn.Size = UDim2.new(0, size, 0, size)
-        end
-    end
-
-    function buttonController:SetDragLock(state)
-        ExtBtn:SetAttribute("DragLocked", state)
-    end
-
-    return buttonController
+    return controller
 end
-
--- ========================================================
--- [[ 7. REAL-TIME STATS HUD (FPS & PING) ]]
--- ========================================================
-function Library:CreateStatsHUD()
-    local ScreenGui = GetMainGui()
-    
-    local HudFrame = Instance.new("Frame")
-    HudFrame.Name = "Louis_StatsHUD"
-    HudFrame.Size = UDim2.new(0, 150, 0, 28)
-    HudFrame.Position = UDim2.new(1, -20, 0, 50) -- Kanan atas, sedikit ke bawah
-    HudFrame.AnchorPoint = Vector2.new(1, 0)
-    HudFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-    HudFrame.BorderSizePixel = 0
-    HudFrame.Parent = ScreenGui
-    HudFrame.Visible = true -- Langsung aktif secara default
-
-    local HudCorner = Instance.new("UICorner", HudFrame)
-    HudCorner.CornerRadius = UDim.new(0, 6)
-
-    local HudStroke = Instance.new("UIStroke", HudFrame)
-    HudStroke.Thickness = 1
-    RegisterRGB(HudStroke, "Color")
-
-    local StatLabel = Instance.new("TextLabel", HudFrame)
-    StatLabel.Size = UDim2.new(1, 0, 1, 0)
-    StatLabel.BackgroundTransparency = 1
-    StatLabel.Font = Enum.Font.MontserratBold
-    StatLabel.TextSize = 10
-    StatLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-    StatLabel.RichText = true
-    StatLabel.Text = "FPS: ...  •  PING: ... MS"
-
-    -- Posisi HUD disimpan secara otomatis jika digeser
-    EnableDrag(HudFrame, HudFrame, function()
-        Library.Flags["StatsHUDPos"] = {
-            X_Scale = HudFrame.Position.X.Scale,
-            X_Offset = HudFrame.Position.X.Offset,
-            Y_Scale = HudFrame.Position.Y.Scale,
-            Y_Offset = HudFrame.Position.Y.Offset
-        }
-        Library:SaveConfig()
-    end)
-
-    local fpsHistory = {}
-    local maxHistory = 30
-    local lastTextUpdate = 0
-    local textUpdateInterval = 0.1
-
-    local connection
-    connection = RunService.RenderStepped:Connect(function(dt)
-        if not HudFrame or not HudFrame.Parent then
-            connection:Disconnect()
-            return
-        end
-        
-        table.insert(fpsHistory, dt)
-        if #fpsHistory > maxHistory then
-            table.remove(fpsHistory, 1)
-        end
-        
-        local now = os.clock()
-        if now - lastTextUpdate >= textUpdateInterval then
-            lastTextUpdate = now
-            
-            local totalTime = 0
-            for _, t in ipairs(fpsHistory) do
-                totalTime = totalTime + t
-            end
-            local currentFps = #fpsHistory > 0 and math.round(#fpsHistory / totalTime) or 60
-            
-            local currentPing = 0
-            if LocalPlayer then
-                local success, rawPing = pcall(function()
-                    return LocalPlayer:GetNetworkPing()
-                end)
-                if success and rawPing and rawPing > 0 then
-                    currentPing = math.round(rawPing * 1000)
-                end
-            end
-            
-            StatLabel.Text = string.format("FPS: <font color='rgb(0, 255, 120)'>%d</font>  •  PING: <font color='rgb(0, 180, 255)'>%d MS</font>", currentFps, currentPing)
-        end
-    end)
-
-    local hudController = {}
-    function hudController:SetVisible(state)
-        HudFrame.Visible = state
-    end
-    
-    return hudController
-end
-
--- ========================================================
--- [[ AUTO-INITIALIZATION ON LIBRARY LOAD ]]
--- ========================================================
-task.spawn(function()
-    -- Langsung membuat HUD FPS & Ping tanpa menunggu Window dibuat
-    local statsHUD = Library:CreateStatsHUD()
-    statsHUD:SetVisible(true)
-    
-    -- Memuat konfigurasi posisi HUD jika ada
-    pcall(function()
-        Library:LoadConfig()
-    end)
-end)
 
 return Library
