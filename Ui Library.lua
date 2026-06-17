@@ -18,6 +18,40 @@ local SettingsFileName = "LouisHub_UI_Settings.json"
 local CurrentProfile = "Profile 1"
 local AutoLoadEnabled = false
 
+-- Fungsi Pra-Muat: Membaca data langsung saat script pertama kali dieksekusi
+local function PreloadConfiguration()
+    if not isfile or not readfile then return end
+    
+    -- 1. Baca metadata profil aktif
+    if isfile(SettingsFileName) then
+        pcall(function()
+            local meta = HttpService:JSONDecode(readfile(SettingsFileName))
+            if meta and type(meta) == "table" then
+                if meta.SelectedProfile then CurrentProfile = meta.SelectedProfile end
+                if meta.AutoLoad ~= nil then AutoLoadEnabled = meta.AutoLoad end
+            end
+        end)
+    end
+    
+    -- 2. Baca isi konfigurasi profil aktif langsung ke cache & flags agar tidak hilang saat autosave
+    local fileName = "LouisHub_UI_Config_" .. CurrentProfile .. ".json"
+    if isfile(fileName) then
+        pcall(function()
+            local decoded = HttpService:JSONDecode(readfile(fileName))
+            if decoded and type(decoded) == "table" then
+                Library.LoadedConfigCache = decoded
+                for k, v in pairs(decoded) do
+                    if not k:find("^__Meta") then
+                        Library.Flags[k] = v
+                    end
+                end
+            end
+        end)
+    end
+end
+
+PreloadConfiguration()
+
 -- Menyimpan metadata pengaturan utama (profil aktif & status auto-load)
 function Library:SaveSettings()
     if not writefile then return end
@@ -95,6 +129,15 @@ function Library:LoadConfig(force, preloadOnly)
                     Library.LoadedConfigCache = decoded -- Menyimpan ke cache pra-muat
                     
                     if not preloadOnly then
+                        -- Bersihkan tabel flags lama untuk mencegah kebocoran data (bleeding) antar-profil
+                        for k in pairs(Library.Flags) do
+                            Library.Flags[k] = nil
+                        end
+                        
+                        -- Kembalikan data meta dasar
+                        Library.Flags["__MetaProfile"] = CurrentProfile
+                        Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
+                        
                         local mainGui = GetMainGui()
                         for flag, val in pairs(decoded) do
                             -- Lewati meta flags untuk menghindari loop rekursif tak terbatas
@@ -142,12 +185,19 @@ function Library:LoadConfig(force, preloadOnly)
         else
             -- Jika file konfigurasi tidak ditemukan (Profil baru/kosong), kembalikan UI ke nilai default asli
             if not preloadOnly then
+                -- Bersihkan tabel flags lama
+                for k in pairs(Library.Flags) do
+                    Library.Flags[k] = nil
+                end
+                Library.Flags["__MetaProfile"] = CurrentProfile
+                Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
+
                 for flag, element in pairs(Library.Elements) do
                     if not flag:find("^__Meta") and element.DefaultValue ~= nil then
                         element:Set(element.DefaultValue, true)
                     end
                 end
-                -- Kembalikan tombol eksternal ke posisi defaultnya
+                -- Kembalikan seluruh tombol eksternal ke posisi default aslinya
                 for id, btnData in pairs(Library.ExternalButtons) do
                     if btnData.Instance and btnData.DefaultPosition then
                         btnData.Instance.Position = btnData.DefaultPosition
