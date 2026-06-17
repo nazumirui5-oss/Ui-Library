@@ -42,6 +42,17 @@ function Library:LoadConfig()
                         )
                     end
                     Library.Flags[flag] = val
+                elseif flag == "StatsHUDPos" and type(val) == "table" then
+                    local hud = mainGui:FindFirstChild("Louis_StatsHUD")
+                    if hud then
+                        hud.Position = UDim2.new(
+                            val.X_Scale or 0, 
+                            val.X_Offset or 0, 
+                            val.Y_Scale or 0, 
+                            val.Y_Offset or 0
+                        )
+                    end
+                    Library.Flags[flag] = val
                 end
             end
         end)
@@ -72,7 +83,7 @@ end
 
 RunService.RenderStepped:Connect(function()
     local hue = (os.clock() % 4) / 4
-    local rainbowColor = Color3.fromHSV(hue, 0.85, 0.95) -- Sedikit dikurangi saturasi agar warna RGB terlihat lebih soft/premium
+    local rainbowColor = Color3.fromHSV(hue, 0.85, 0.95)
     
     for i = #RGBElements, 1, -1 do
         local item = RGBElements[i]
@@ -132,7 +143,19 @@ local function GetMainGui()
         MainGui.ResetOnSpawn = false
         MainGui.IgnoreGuiInset = true
         MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        MainGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
+        
+        local parent
+        if gethui then
+            parent = gethui()
+        else
+            local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+            if success and coreGui then
+                parent = coreGui
+            else
+                parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+        end
+        MainGui.Parent = parent
     end
     return MainGui
 end
@@ -146,7 +169,19 @@ local function GetNotificationHolder()
         NotificationGui = Instance.new("ScreenGui")
         NotificationGui.Name = "Louis_Notification_System"
         NotificationGui.DisplayOrder = 9999
-        NotificationGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
+        
+        local parent
+        if gethui then
+            parent = gethui()
+        else
+            local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+            if success and coreGui then
+                parent = coreGui
+            else
+                parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+        end
+        NotificationGui.Parent = parent
         
         local Holder = Instance.new("Frame", NotificationGui)
         Holder.Name = "Holder"
@@ -298,7 +333,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     SubTitle.ZIndex = 9995
 
     local BarBg = Instance.new("Frame", LoadingGui)
-    BarBg.Size = UDim2.new(0.4, 0, 0, 4) -- Samping bar diperkecil dan ditipiskan untuk kesan premium
+    BarBg.Size = UDim2.new(0.4, 0, 0, 4)
     BarBg.Position = UDim2.new(0.3, 0, 0.62, 0)
     BarBg.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     BarBg.ZIndex = 9995
@@ -426,7 +461,7 @@ function Library:CreateWindow(titleText, subtitleText)
     local ScreenGui = GetMainGui()
 
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 520, 0, 330) -- Sedikit disesuaikan agar proporsinya lebih elegan
+    MainFrame.Size = UDim2.new(0, 520, 0, 330)
     MainFrame.Position = UDim2.new(0.5, -260, 0.5, -165)
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
     MainFrame.BorderSizePixel = 0
@@ -435,10 +470,10 @@ function Library:CreateWindow(titleText, subtitleText)
     MainFrame.Visible = false
 
     local MainCorner = Instance.new("UICorner", MainFrame)
-    MainCorner.CornerRadius = UDim.new(0, 8) -- Sudut melengkung yang lebih rapat dan bersih
+    MainCorner.CornerRadius = UDim.new(0, 8)
 
     local MainStroke = Instance.new("UIStroke", MainFrame)
-    MainStroke.Thickness = 1 -- Ketebalan border dikurangi agar tampak premium
+    MainStroke.Thickness = 1
     RegisterRGB(MainStroke, "Color")
 
     -- Header Panel
@@ -508,7 +543,7 @@ function Library:CreateWindow(titleText, subtitleText)
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 140, 1, -58)
     Sidebar.Position = UDim2.new(0, 12, 0, 52)
-    Sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 22) -- Sedikit disesuaikan
+    Sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     Sidebar.BorderSizePixel = 0
     Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6)
     
@@ -724,7 +759,7 @@ function Library:CreateWindow(titleText, subtitleText)
         TabContent.Visible = false
 
         local ContentLayout = Instance.new("UIListLayout", TabContent)
-        ContentLayout.Padding = UDim.new(0, 6) -- Jarak elemen dipersempit agar rapi
+        ContentLayout.Padding = UDim.new(0, 6)
         ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
         ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -732,9 +767,9 @@ function Library:CreateWindow(titleText, subtitleText)
         end)
 
         local TabButton = Instance.new("TextButton", TabContainer)
-        TabButton.Size = UDim2.new(1, 0, 0, 32) -- Tinggi Tab Button sedikit dikurangi agar compact
+        TabButton.Size = UDim2.new(1, 0, 0, 32)
         TabButton.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
-        TabButton.BackgroundTransparency = 1 -- Default transparan untuk estetika minimalis
+        TabButton.BackgroundTransparency = 1
         TabButton.Text = ""
         TabButton.AutoButtonColor = false
         Instance.new("UICorner", TabButton).CornerRadius = UDim.new(0, 5)
@@ -742,10 +777,10 @@ function Library:CreateWindow(titleText, subtitleText)
         local TabBtnStroke = Instance.new("UIStroke", TabButton)
         TabBtnStroke.Color = Color3.fromRGB(35, 35, 40)
         TabBtnStroke.Thickness = 1
-        TabBtnStroke.Transparency = 1 -- Default stroke disembunyikan agar bersih
+        TabBtnStroke.Transparency = 1
 
         local TabIndicator = Instance.new("Frame", TabButton)
-        TabIndicator.Size = UDim2.new(0, 2.5, 1, -12) -- Garis indikator lebih halus
+        TabIndicator.Size = UDim2.new(0, 2.5, 1, -12)
         TabIndicator.Position = UDim2.new(0, 4, 0, 6)
         TabIndicator.BorderSizePixel = 0
         TabIndicator.Visible = false
@@ -833,7 +868,7 @@ function Library:CreateWindow(titleText, subtitleText)
         -- ========================================================
         function Tab:CreateButton(buttonText, callback)
             local Button = Instance.new("TextButton", TabContent)
-            Button.Size = UDim2.new(1, -6, 0, 34) -- Menjadi lebih compact
+            Button.Size = UDim2.new(1, -6, 0, 34)
             Button.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
             Button.Text = ""
             Button.AutoButtonColor = false
@@ -917,7 +952,6 @@ function Library:CreateWindow(titleText, subtitleText)
             TextLabel.Font = Enum.Font.MontserratMedium
             TextLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-            -- Switch Frame: Dimodelkan agar menyerupai pill premium
             local SwitchBg = Instance.new("Frame", ToggleBtn)
             SwitchBg.Size = UDim2.new(0, 32, 0, 16)
             SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
@@ -990,7 +1024,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Library.Flags[actualFlag] = Slider.Value
             
             local SliderFrame = Instance.new("Frame", TabContent)
-            SliderFrame.Size = UDim2.new(1, -6, 0, 48) -- Sedikit lebih compact
+            SliderFrame.Size = UDim2.new(1, -6, 0, 48)
             SliderFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
             
             Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 5)
@@ -1008,7 +1042,6 @@ function Library:CreateWindow(titleText, subtitleText)
             TitleLabel.Font = Enum.Font.MontserratMedium
             TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-            -- Slider Bar: Dibuat super tipis dan bersih (ultra slim premium)
             local SliderBg = Instance.new("TextButton", SliderFrame)
             SliderBg.Size = UDim2.new(1, -24, 0, 4)
             SliderBg.Position = UDim2.new(0, 12, 1, -12)
@@ -1144,7 +1177,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
                 for _, opt in ipairs(options) do
                     local OptBtn = Instance.new("TextButton", OptionContainer)
-                    OptBtn.Size = UDim2.new(1, 0, 0, 26) -- Ketinggian opsi diturunkan
+                    OptBtn.Size = UDim2.new(1, 0, 0, 26)
                     OptBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 31)
                     OptBtn.Text = ""
                     OptBtn.AutoButtonColor = false
@@ -1284,7 +1317,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Label.TextXAlignment = Enum.TextXAlignment.Left
 
             local InputBox = Instance.new("TextBox", TextBoxFrame)
-            InputBox.Size = UDim2.new(0.55, -12, 0, 22) -- Lebih compact
+            InputBox.Size = UDim2.new(0.55, -12, 0, 22)
             InputBox.Position = UDim2.new(0.45, 0, 0.5, -11)
             InputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
             InputBox.Text = ""
@@ -1380,7 +1413,7 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
 
     local ExtBtn = Instance.new("TextButton")
     ExtBtn.Name = "ExternalButton_" .. tostring(id)
-    ExtBtn.Size = UDim2.new(0, 40, 0, 40) -- Lebih ringkas
+    ExtBtn.Size = UDim2.new(0, 40, 0, 40)
     ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
     ExtBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     ExtBtn.BackgroundTransparency = 0.5
@@ -1449,5 +1482,111 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
 
     return buttonController
 end
+
+-- ========================================================
+-- [[ 7. REAL-TIME STATS HUD (FPS & PING) ]]
+-- ========================================================
+function Library:CreateStatsHUD()
+    local ScreenGui = GetMainGui()
+    
+    local HudFrame = Instance.new("Frame")
+    HudFrame.Name = "Louis_StatsHUD"
+    HudFrame.Size = UDim2.new(0, 150, 0, 28)
+    HudFrame.Position = UDim2.new(1, -20, 0, 50) -- Kanan atas, sedikit ke bawah
+    HudFrame.AnchorPoint = Vector2.new(1, 0)
+    HudFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    HudFrame.BorderSizePixel = 0
+    HudFrame.Parent = ScreenGui
+    HudFrame.Visible = true -- Langsung aktif secara default
+
+    local HudCorner = Instance.new("UICorner", HudFrame)
+    HudCorner.CornerRadius = UDim.new(0, 6)
+
+    local HudStroke = Instance.new("UIStroke", HudFrame)
+    HudStroke.Thickness = 1
+    RegisterRGB(HudStroke, "Color")
+
+    local StatLabel = Instance.new("TextLabel", HudFrame)
+    StatLabel.Size = UDim2.new(1, 0, 1, 0)
+    StatLabel.BackgroundTransparency = 1
+    StatLabel.Font = Enum.Font.MontserratBold
+    StatLabel.TextSize = 10
+    StatLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    StatLabel.RichText = true
+    StatLabel.Text = "FPS: ...  •  PING: ... MS"
+
+    -- Posisi HUD disimpan secara otomatis jika digeser
+    EnableDrag(HudFrame, HudFrame, function()
+        Library.Flags["StatsHUDPos"] = {
+            X_Scale = HudFrame.Position.X.Scale,
+            X_Offset = HudFrame.Position.X.Offset,
+            Y_Scale = HudFrame.Position.Y.Scale,
+            Y_Offset = HudFrame.Position.Y.Offset
+        }
+        Library:SaveConfig()
+    end)
+
+    local fpsHistory = {}
+    local maxHistory = 30
+    local lastTextUpdate = 0
+    local textUpdateInterval = 0.1
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function(dt)
+        if not HudFrame or not HudFrame.Parent then
+            connection:Disconnect()
+            return
+        end
+        
+        table.insert(fpsHistory, dt)
+        if #fpsHistory > maxHistory then
+            table.remove(fpsHistory, 1)
+        end
+        
+        local now = os.clock()
+        if now - lastTextUpdate >= textUpdateInterval then
+            lastTextUpdate = now
+            
+            local totalTime = 0
+            for _, t in ipairs(fpsHistory) do
+                totalTime = totalTime + t
+            end
+            local currentFps = #fpsHistory > 0 and math.round(#fpsHistory / totalTime) or 60
+            
+            local currentPing = 0
+            if LocalPlayer then
+                local success, rawPing = pcall(function()
+                    return LocalPlayer:GetNetworkPing()
+                end)
+                if success and rawPing and rawPing > 0 then
+                    currentPing = math.round(rawPing * 1000)
+                end
+            end
+            
+            StatLabel.Text = string.format("FPS: <font color='rgb(0, 255, 120)'>%d</font>  •  PING: <font color='rgb(0, 180, 255)'>%d MS</font>", currentFps, currentPing)
+        end
+    end)
+
+    local hudController = {}
+    function hudController:SetVisible(state)
+        HudFrame.Visible = state
+    end
+    
+    return hudController
+end
+
+-- ========================================================
+-- [[ AUTO-INITIALIZATION ON LIBRARY LOAD ]]
+-- ========================================================
+task.spawn(function()
+    -- Langsung membuat HUD FPS & Ping tanpa menunggu Window dibuat
+    local statsHUD = Library:CreateStatsHUD()
+    statsHUD:SetVisible(true)
+    
+    -- Memuat konfigurasi posisi HUD jika ada
+    pcall(function()
+        Library:LoadConfig()
+    end)
+end)
 
 return Library
