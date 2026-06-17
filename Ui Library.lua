@@ -11,6 +11,7 @@ local HttpService = game:GetService("HttpService")
 -- ========================================================
 Library.Flags = {}
 Library.Elements = {}
+Library.ExternalButtons = {} -- Merekam tombol eksternal untuk penanganan reset posisi
 Library.LoadedConfigCache = {} -- Sistem Cache untuk menghindari race condition
 
 local SettingsFileName = "LouisHub_UI_Settings.json"
@@ -37,7 +38,16 @@ function Library:SaveConfig(quiet)
     if not writefile then return end
     local success, err = pcall(function()
         local fileName = "LouisHub_UI_Config_" .. CurrentProfile .. ".json"
-        writefile(fileName, HttpService:JSONEncode(Library.Flags))
+        
+        -- Filter meta flags agar tidak merusak konfigurasi profil lain (mencegah loop/lag)
+        local filteredFlags = {}
+        for k, v in pairs(Library.Flags) do
+            if not k:find("^__Meta") then
+                filteredFlags[k] = v
+            end
+        end
+        
+        writefile(fileName, HttpService:JSONEncode(filteredFlags))
         if not quiet then
             Library:Notify("Config System", "Config saved to " .. CurrentProfile, 3)
         end
@@ -87,6 +97,11 @@ function Library:LoadConfig(force, preloadOnly)
                     if not preloadOnly then
                         local mainGui = GetMainGui()
                         for flag, val in pairs(decoded) do
+                            -- Lewati meta flags untuk menghindari loop rekursif tak terbatas
+                            if flag:find("^__Meta") then
+                                continue
+                            end
+                            
                             if Library.Elements[flag] then
                                 Library.Elements[flag]:Set(val, true)
                             end
@@ -125,8 +140,22 @@ function Library:LoadConfig(force, preloadOnly)
                 warn("LouisHub UI: Gagal membaca config. Error: " .. tostring(err))
             end
         else
-            if force then
-                Library:Notify("Config System", "No config found for " .. CurrentProfile, 3)
+            -- Jika file konfigurasi tidak ditemukan (Profil baru/kosong), kembalikan UI ke nilai default asli
+            if not preloadOnly then
+                for flag, element in pairs(Library.Elements) do
+                    if not flag:find("^__Meta") and element.DefaultValue ~= nil then
+                        element:Set(element.DefaultValue, true)
+                    end
+                end
+                -- Kembalikan tombol eksternal ke posisi defaultnya
+                for id, btnData in pairs(Library.ExternalButtons) do
+                    if btnData.Instance and btnData.DefaultPosition then
+                        btnData.Instance.Position = btnData.DefaultPosition
+                    end
+                end
+                if force then
+                    Library:Notify("Config System", "Profile is empty. UI reset to default for " .. CurrentProfile, 3)
+                end
             end
         end
     end
@@ -876,7 +905,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 finalIcon = "rbxthumb://type=Asset&id=" .. tostring(iconAssetId) .. "&w=150&h=150"
             elseif type(iconAssetId) == "string" and iconAssetId:find("^rbxassetid://") then
                 local id = iconAssetId:gsub("^rbxassetid://", "")
-                finalIcon = "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150" -- DIPERBAIKI (Teks ganda '= id' telah dihapus)
+                finalIcon = "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150"
             end
             
             IconLabel.Image = finalIcon
@@ -1090,6 +1119,7 @@ function Library:CreateWindow(titleText, subtitleText)
             end)
 
             local toggleController = {}
+            toggleController.DefaultValue = defaultVal or false -- Merekam nilai default asli untuk penanganan reset
             function toggleController:Set(state, ignoreSave)
                 Toggle.State = state
                 UpdateVisual(true, ignoreSave)
@@ -1202,6 +1232,7 @@ function Library:CreateWindow(titleText, subtitleText)
             end)
 
             local sliderController = {}
+            sliderController.DefaultValue = defaultVal or minVal -- Merekam nilai default asli untuk penanganan reset
             function sliderController:Set(val, ignoreSave)
                 UpdateVisuals(val, ignoreSave)
                 if actualCallback then task.spawn(function() actualCallback(Slider.Value) end) end
@@ -1366,6 +1397,7 @@ function Library:CreateWindow(titleText, subtitleText)
             end
 
             local dropdownController = {}
+            dropdownController.DefaultValue = defaultVal or options[1] -- Merekam nilai default asli untuk penanganan reset
             function dropdownController:Set(val, ignoreSave)
                 Dropdown.CurrentValue = val
                 TextLabel.Text = dropdownText .. " (" .. tostring(val) .. ")"
@@ -1468,6 +1500,7 @@ function Library:CreateWindow(titleText, subtitleText)
             end
 
             local textboxController = {}
+            textboxController.DefaultValue = "" -- Merekam nilai default asli untuk penanganan reset
             function textboxController:Set(val, ignoreSave)
                 InputBox.Text = tostring(val)
                 
@@ -1565,7 +1598,20 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     local ExtBtn = Instance.new("TextButton")
     ExtBtn.Name = "ExternalButton_" .. tostring(id)
     ExtBtn.Size = UDim2.new(0, 40, 0, 40)
-    ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
+    
+    -- Memuat letak koordinat tombol eksternal langsung dari memori cache jika sudah ada
+    local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["ExtBtnPos_" .. tostring(id)]
+    if savedPos and type(savedPos) == "table" then
+        ExtBtn.Position = UDim2.new(
+            savedPos.X_Scale or 0, 
+            savedPos.X_Offset or 0, 
+            savedPos.Y_Scale or 0, 
+            savedPos.Y_Offset or 0
+        )
+    else
+        ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
+    end
+
     ExtBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     ExtBtn.BackgroundTransparency = 0.5
     ExtBtn.Text = text or "A"
@@ -1591,6 +1637,12 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         }
         Library:SaveConfig(true) -- Autosave di latar belakang secara senyap saat tombol eksternal digeser
     end)
+
+    -- Merekam tombol eksternal dan posisi default aslinya demi mendukung fitur auto-reset
+    Library.ExternalButtons[id] = {
+        Instance = ExtBtn,
+        DefaultPosition = defaultPos or UDim2.new(0, 20, 0.5, 0)
+    }
 
     -- Mengatasi script yang terpotong di file asli Anda
     ExtBtn.MouseButton1Click:Connect(function()
