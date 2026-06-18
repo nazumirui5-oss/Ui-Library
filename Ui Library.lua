@@ -1712,6 +1712,13 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     function controller:SetDragLock(locked)
         ExtBtn:SetAttribute("DragLocked", locked)
     end
+    function controller:SetSize(size)
+        if typeof(size) == "UDim2" then
+            ExtBtn.Size = size
+        elseif type(size) == "number" then
+            ExtBtn.Size = UDim2.new(0, size, 0, size)
+        end
+    end
 
     return controller
 end
