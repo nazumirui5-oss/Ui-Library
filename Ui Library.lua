@@ -1610,7 +1610,6 @@ function Library:CreateWindow(titleText, subtitleText)
     -- ========================================================
     -- [[ 5g. PERMANENT CONFIG MANAGER TAB ]]
     -- ========================================================
-    -- Emoji gear (⚙) telah dihapus dari judul tab "Config" sesuai instruksi Anda
     local ConfigTab = Window:CreateTab("Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150")
     
     ConfigTab:CreateParagraph("Configuration Profiles", "Select a profile, save your modifications, or enable auto-load to restore states upon loading.")
@@ -1702,6 +1701,8 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     end)
 
     local controller = {}
+    controller.Instance = ExtBtn -- Expose instance agar loader dapat mengakses button secara langsung untuk penskalaan (SetSize)
+    
     function controller:SetVisible(state)
         ExtBtn.Visible = state
     end
