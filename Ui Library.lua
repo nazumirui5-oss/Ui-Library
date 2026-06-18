@@ -17,8 +17,42 @@ Library.LoadedConfigCache = {} -- Sistem Cache untuk menghindari race condition
 -- Menggunakan ID Unik Map (PlaceId) agar konfigurasi antar-game tidak saling menimpa
 local PlaceId = game.PlaceId
 local SettingsFileName = "LouisHub_UI_Settings_" .. tostring(PlaceId) .. ".json"
-local CurrentProfile = "Profile 1"
+local CurrentProfile = "Default"
 local AutoLoadEnabled = false
+
+-- Fungsi utilitas untuk mendeteksi profil yang tersedia di folder workspace secara dinamis
+local function GetAvailableProfiles()
+    local profiles = {"Default"}
+    if listfiles then
+        local success, files = pcall(listfiles, "")
+        if success and type(files) == "table" then
+            local temp = {}
+            local foundAny = false
+            for _, filepath in ipairs(files) do
+                local filename = filepath:gsub("^.*[/\\]", "")
+                local pattern = "^LouisHub_UI_Config_" .. tostring(PlaceId) .. "_(.-)%.json$"
+                local match = filename:match(pattern)
+                if match then
+                    table.insert(temp, match)
+                    foundAny = true
+                end
+            end
+            if foundAny then
+                profiles = temp
+            end
+        end
+    end
+    
+    -- Memastikan profil "Default" selalu ada di dalam list
+    local hasDefault = false
+    for _, p in ipairs(profiles) do
+        if p == "Default" then hasDefault = true; break end
+    end
+    if not hasDefault then
+        table.insert(profiles, 1, "Default")
+    end
+    return profiles
+end
 
 -- Fungsi Pra-Muat: Membaca data langsung saat script pertama kali dieksekusi khusus untuk PlaceId ini
 local function PreloadConfiguration()
@@ -1602,39 +1636,169 @@ function Library:CreateWindow(titleText, subtitleText)
             DescLabel.TextSize = 9
             DescLabel.TextWrapped = true
             DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+            -- Menambahkan interface pengontrol agar isi teks Paragraph dapat diubah secara dinamis
+            local paragraphController = {}
+            function paragraphController:SetTitle(newTitle)
+                TitleLabel.Text = tostring(newTitle)
+            end
+            function paragraphController:SetText(newDesc)
+                DescLabel.Text = tostring(newDesc)
+            end
+            return paragraphController
         end
 
         return Tab
     end
 
     -- ========================================================
-    -- [[ 5g. PERMANENT CONFIG MANAGER TAB ]]
+    -- [[ 5g. PERMANENT CONFIG MANAGER TAB (REBUILT PROFESSIONAL) ]]
     -- ========================================================
     local ConfigTab = Window:CreateTab("Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150")
     
-    ConfigTab:CreateParagraph("Configuration Profiles", "Select a profile, save your modifications, or enable auto-load to restore states upon loading.")
+    -- Panel Status Profil Aktif (Menggunakan binding dinamis)
+    local StatusHUD = ConfigTab:CreateParagraph("Status & Metadata", "Active Profile: " .. CurrentProfile .. "\nAuto-Load: " .. (AutoLoadEnabled and "Enabled" or "Disabled"))
 
-    -- Selector Profil (Diperbaiki agar langsung memuat paksa konfigurasi visual baru ketika berganti profil)
-    ConfigTab:CreateDropdown("Selected Profile", {"Profile 1", "Profile 2", "Profile 3", "Profile 4", "Profile 5"}, CurrentProfile, "__MetaProfile", function(selected)
+    local function UpdateHUD()
+        StatusHUD:SetText("Active Profile: " .. CurrentProfile .. "\nAuto-Load: " .. (AutoLoadEnabled and "Enabled" or "Disabled"))
+    end
+
+    -- Input Profil Kustom Baru
+    local customProfileName = ""
+    ConfigTab:CreateTextBox("Custom Profile Name", "Enter name...", function(text)
+        customProfileName = text:gsub("[%s%p]+", "") -- Sanitasi untuk nama file yang valid [1]
+    end)
+
+    local profileDropdown
+
+    local function RefreshProfiles()
+        if profileDropdown then
+            local updatedList = GetAvailableProfiles()
+            profileDropdown:Refresh(updatedList)
+        end
+    end
+
+    -- Pemilih Profil Dinamis
+    profileDropdown = ConfigTab:CreateDropdown("Selected Profile", GetAvailableProfiles(), CurrentProfile, "__MetaProfile", function(selected)
         CurrentProfile = selected
         Library:SaveSettings()
-        Library:LoadConfig(true) -- Memuat paksa profil baru yang dipilih
+        Library:LoadConfig(true)
+        UpdateHUD()
     end)
 
     -- Toggle Pemuatan Otomatis
     ConfigTab:CreateToggle("Auto Load Config", AutoLoadEnabled, "__MetaAutoLoad", function(state)
         AutoLoadEnabled = state
         Library:SaveSettings()
+        UpdateHUD()
     end)
 
-    -- Tombol Simpan Konfigurasi (Manual: Menampilkan notifikasi)
-    ConfigTab:CreateButton("Save Current Config", function()
+    -- Simpan Profil
+    ConfigTab:CreateButton("Save Profile File", function()
+        if customProfileName ~= "" then
+            CurrentProfile = customProfileName
+            Library:SaveSettings()
+            RefreshProfiles()
+            profileDropdown:Set(CurrentProfile, true)
+        end
         Library:SaveConfig(false)
+        UpdateHUD()
     end)
 
-    -- Tombol Muat Konfigurasi Manual
-    ConfigTab:CreateButton("Load Selected Config", function()
-        Library:LoadConfig(true)
+    -- Hapus Profil
+    ConfigTab:CreateButton("Delete Selected Profile", function()
+        if CurrentProfile == "Default" then
+            Library:Notify("Config Error", "You cannot delete the 'Default' profile.", 3)
+            return
+        end
+        
+        local fileName = "LouisHub_UI_Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+        if isfile and isfile(fileName) then
+            local success, err = pcall(delfile, fileName)
+            if success then
+                Library:Notify("Config System", "Deleted profile: " .. CurrentProfile, 3)
+                CurrentProfile = "Default"
+                Library:SaveSettings()
+                RefreshProfiles()
+                profileDropdown:Set("Default", false)
+                Library:LoadConfig(true)
+                UpdateHUD()
+            else
+                warn("LouisHub UI: Gagal menghapus file. Error: " .. tostring(err))
+            end
+        else
+            Library:Notify("Config Error", "No file found for " .. CurrentProfile, 3)
+        end
+    end)
+
+    -- Reset UI ke Pengaturan Default
+    ConfigTab:CreateButton("Reset Current UI Settings", function()
+        for k in pairs(Library.Flags) do
+            if not k:find("^__Meta") then
+                Library.Flags[k] = nil
+            end
+        end
+        for flag, element in pairs(Library.Elements) do
+            if not flag:find("^__Meta") and element.DefaultValue ~= nil then
+                element:Set(element.DefaultValue, true)
+            end
+        end
+        for id, btnData in pairs(Library.ExternalButtons) do
+            if btnData.Instance and btnData.DefaultPosition then
+                btnData.Instance.Position = btnData.DefaultPosition
+            end
+        end
+        Library:Notify("Config System", "UI reset to original values.", 3)
+    end)
+
+    -- Bagian Berbagi Kode Konfigurasi (Clipboard Share)
+    ConfigTab:CreateParagraph("Configuration Sharing", "Export your configuration string to copy/share, or paste a setup string below.")
+
+    ConfigTab:CreateButton("Export Config to Clipboard", function()
+        if setclipboard then
+            local filteredFlags = {}
+            for k, v in pairs(Library.Flags) do
+                if not k:find("^__Meta") then
+                    filteredFlags[k] = v
+                end
+            end
+            local success, encoded = pcall(HttpService.JSONEncode, HttpService, filteredFlags)
+            if success then
+                setclipboard(encoded)
+                Library:Notify("Config System", "Configuration copied to clipboard!", 3)
+            else
+                Library:Notify("Config System", "Failed to encode settings.", 3)
+            end
+        else
+            Library:Notify("Config System", "Your software lacks clipboard access.", 3)
+        end
+    end)
+
+    local pastedConfigString = ""
+    ConfigTab:CreateTextBox("Import Config String", "Paste string here...", function(text)
+        pastedConfigString = text
+    end)
+
+    ConfigTab:CreateButton("Import Pasted Config", function()
+        if pastedConfigString == "" then
+            Library:Notify("Config Error", "Please paste a config string first.", 3)
+            return
+        end
+        local success, decoded = pcall(HttpService.JSONDecode, HttpService, pastedConfigString)
+        if success and type(decoded) == "table" then
+            for flag, val in pairs(decoded) do
+                if not flag:find("^__Meta") then
+                    Library.Flags[flag] = val
+                    if Library.Elements[flag] then
+                        Library.Elements[flag]:Set(val, true)
+                    end
+                end
+            end
+            Library:Notify("Config System", "Configuration imported successfully!", 3)
+            Library:SaveConfig(true)
+        else
+            Library:Notify("Config Error", "Invalid configuration string format.", 3)
+        end
     end)
 
     return Window
@@ -1695,151 +1859,30 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         DefaultPosition = defaultPos or UDim2.new(0, 20, 0.5, 0)
     }
 
-    -- Mengatasi script yang terpotong di file asli Anda
     ExtBtn.MouseButton1Click:Connect(function()
         if callback then task.spawn(callback) end
     end)
 
     local controller = {}
-    controller.Instance = ExtBtn -- Expose instance agar loader dapat mengakses button secara langsung untuk penskalaan (SetSize)
+    controller.Instance = ExtBtn -- Menyediakan instance agar loader dapat mengakses button secara langsung untuk penskalaan
     
     function controller:SetVisible(state)
         ExtBtn.Visible = state
     end
+    
     function controller:SetText(val)
         ExtBtn.Text = tostring(val)
     end
+    
     function controller:SetDragLock(locked)
         ExtBtn:SetAttribute("DragLocked", locked)
     end
+    
     function controller:SetSize(size)
-        if typeof(size) == "UDim2" then
-            ExtBtn.Size = size
-        elseif type(size) == "number" then
-            ExtBtn.Size = UDim2.new(0, size, 0, size)
-        end
+        ExtBtn.Size = size
     end
-
+    
     return controller
 end
-
--- ========================================================
--- [[ 7. REAL-TIME STATS HUD (FPS & PING) ]]
--- ========================================================
-function Library:CreateStatsHUD()
-    local ScreenGui = GetMainGui()
-    
-    local HudFrame = Instance.new("Frame")
-    HudFrame.Name = "Louis_StatsHUD"
-    HudFrame.Size = UDim2.new(0, 150, 0, 28)
-    
-    -- Memuat letak koordinat HUD langsung dari memori cache jika sudah ada
-    local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["StatsHUDPos"]
-    if savedPos and type(savedPos) == "table" then
-        HudFrame.Position = UDim2.new(
-            savedPos.X_Scale or 0, 
-            savedPos.X_Offset or 0, 
-            savedPos.Y_Scale or 0, 
-            savedPos.Y_Offset or 0
-        )
-    else
-        HudFrame.Position = UDim2.new(1, -20, 0, 50) -- Kanan atas, sedikit ke bawah
-    end
-
-    HudFrame.AnchorPoint = Vector2.new(1, 0)
-    HudFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-    HudFrame.BorderSizePixel = 0
-    HudFrame.Parent = ScreenGui
-    HudFrame.Visible = true -- Langsung aktif secara default
-
-    local HudCorner = Instance.new("UICorner", HudFrame)
-    HudCorner.CornerRadius = UDim.new(0, 6)
-
-    local HudStroke = Instance.new("UIStroke", HudFrame)
-    HudStroke.Thickness = 1
-    RegisterRGB(HudStroke, "Color")
-
-    local StatLabel = Instance.new("TextLabel", HudFrame)
-    StatLabel.Size = UDim2.new(1, 0, 1, 0)
-    StatLabel.BackgroundTransparency = 1
-    StatLabel.Font = Enum.Font.MontserratBold
-    StatLabel.TextSize = 10
-    StatLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-    StatLabel.RichText = true
-    StatLabel.Text = "FPS: ...  •  PING: ... MS"
-
-    -- Posisi HUD disimpan secara otomatis jika digeser
-    EnableDrag(HudFrame, HudFrame, function()
-        Library.Flags["StatsHUDPos"] = {
-            X_Scale = HudFrame.Position.X.Scale,
-            X_Offset = HudFrame.Position.X.Offset,
-            Y_Scale = HudFrame.Position.Y.Scale,
-            Y_Offset = HudFrame.Position.Y.Offset
-        }
-        Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
-    end)
-
-    local fpsHistory = {}
-    local maxHistory = 30
-    local lastTextUpdate = 0
-    local textUpdateInterval = 0.1
-
-    local connection
-    connection = RunService.RenderStepped:Connect(function(dt)
-        if not HudFrame or not HudFrame.Parent then
-            connection:Disconnect()
-            return
-        end
-        
-        table.insert(fpsHistory, dt)
-        if #fpsHistory > maxHistory then
-            table.remove(fpsHistory, 1)
-        end
-        
-        local now = os.clock()
-        if now - lastTextUpdate >= textUpdateInterval then
-            lastTextUpdate = now
-            
-            local totalTime = 0
-            for _, t in ipairs(fpsHistory) do
-                totalTime = totalTime + t
-            end
-            local currentFps = #fpsHistory > 0 and math.round(#fpsHistory / totalTime) or 60
-            
-            local currentPing = 0
-            if LocalPlayer then
-                local success, rawPing = pcall(function()
-                    return LocalPlayer:GetNetworkPing()
-                end)
-                if success and rawPing and rawPing > 0 then
-                    currentPing = math.round(rawPing * 1000)
-                end
-            end
-            
-            StatLabel.Text = string.format("FPS: <font color='rgb(0, 255, 120)'>%d</font>  •  PING: <font color='rgb(0, 180, 255)'>%d MS</font>", currentFps, currentPing)
-        end
-    end)
-
-    local hudController = {}
-    function hudController:SetVisible(state)
-        HudFrame.Visible = state
-    end
-    
-    return hudController
-end
-
--- ========================================================
--- [[ AUTO-INITIALIZATION ON LIBRARY LOAD ]]
--- ========================================================
-task.spawn(function()
-    -- Langsung membuat HUD FPS & Ping tanpa menunggu Window dibuat
-    local statsHUD = Library:CreateStatsHUD()
-    statsHUD:SetVisible(true)
-    
-    -- Memuat konfigurasi posisi HUD jika ada
-    pcall(function()
-        Library:LoadConfig()
-    end)
-end)
 
 return Library
