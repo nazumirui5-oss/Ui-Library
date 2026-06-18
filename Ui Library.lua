@@ -1716,4 +1716,123 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     return controller
 end
 
+-- ========================================================
+-- [[ 7. REAL-TIME STATS HUD (FPS & PING) ]]
+-- ========================================================
+function Library:CreateStatsHUD()
+    local ScreenGui = GetMainGui()
+    
+    local HudFrame = Instance.new("Frame")
+    HudFrame.Name = "Louis_StatsHUD"
+    HudFrame.Size = UDim2.new(0, 150, 0, 28)
+    
+    -- Memuat letak koordinat HUD langsung dari memori cache jika sudah ada
+    local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["StatsHUDPos"]
+    if savedPos and type(savedPos) == "table" then
+        HudFrame.Position = UDim2.new(
+            savedPos.X_Scale or 0, 
+            savedPos.X_Offset or 0, 
+            savedPos.Y_Scale or 0, 
+            savedPos.Y_Offset or 0
+        )
+    else
+        HudFrame.Position = UDim2.new(1, -20, 0, 50) -- Kanan atas, sedikit ke bawah
+    end
+
+    HudFrame.AnchorPoint = Vector2.new(1, 0)
+    HudFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    HudFrame.BorderSizePixel = 0
+    HudFrame.Parent = ScreenGui
+    HudFrame.Visible = true -- Langsung aktif secara default
+
+    local HudCorner = Instance.new("UICorner", HudFrame)
+    HudCorner.CornerRadius = UDim.new(0, 6)
+
+    local HudStroke = Instance.new("UIStroke", HudFrame)
+    HudStroke.Thickness = 1
+    RegisterRGB(HudStroke, "Color")
+
+    local StatLabel = Instance.new("TextLabel", HudFrame)
+    StatLabel.Size = UDim2.new(1, 0, 1, 0)
+    StatLabel.BackgroundTransparency = 1
+    StatLabel.Font = Enum.Font.MontserratBold
+    StatLabel.TextSize = 10
+    StatLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    StatLabel.RichText = true
+    StatLabel.Text = "FPS: ...  •  PING: ... MS"
+
+    -- Posisi HUD disimpan secara otomatis jika digeser
+    EnableDrag(HudFrame, HudFrame, function()
+        Library.Flags["StatsHUDPos"] = {
+            X_Scale = HudFrame.Position.X.Scale,
+            X_Offset = HudFrame.Position.X.Offset,
+            Y_Scale = HudFrame.Position.Y.Scale,
+            Y_Offset = HudFrame.Position.Y.Offset
+        }
+        Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+    end)
+
+    local fpsHistory = {}
+    local maxHistory = 30
+    local lastTextUpdate = 0
+    local textUpdateInterval = 0.1
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function(dt)
+        if not HudFrame or not HudFrame.Parent then
+            connection:Disconnect()
+            return
+        end
+        
+        table.insert(fpsHistory, dt)
+        if #fpsHistory > maxHistory then
+            table.remove(fpsHistory, 1)
+        end
+        
+        local now = os.clock()
+        if now - lastTextUpdate >= textUpdateInterval then
+            lastTextUpdate = now
+            
+            local totalTime = 0
+            for _, t in ipairs(fpsHistory) do
+                totalTime = totalTime + t
+            end
+            local currentFps = #fpsHistory > 0 and math.round(#fpsHistory / totalTime) or 60
+            
+            local currentPing = 0
+            if LocalPlayer then
+                local success, rawPing = pcall(function()
+                    return LocalPlayer:GetNetworkPing()
+                end)
+                if success and rawPing and rawPing > 0 then
+                    currentPing = math.round(rawPing * 1000)
+                end
+            end
+            
+            StatLabel.Text = string.format("FPS: <font color='rgb(0, 255, 120)'>%d</font>  •  PING: <font color='rgb(0, 180, 255)'>%d MS</font>", currentFps, currentPing)
+        end
+    end)
+
+    local hudController = {}
+    function hudController:SetVisible(state)
+        HudFrame.Visible = state
+    end
+    
+    return hudController
+end
+
+-- ========================================================
+-- [[ AUTO-INITIALIZATION ON LIBRARY LOAD ]]
+-- ========================================================
+task.spawn(function()
+    -- Langsung membuat HUD FPS & Ping tanpa menunggu Window dibuat
+    local statsHUD = Library:CreateStatsHUD()
+    statsHUD:SetVisible(true)
+    
+    -- Memuat konfigurasi posisi HUD jika ada
+    pcall(function()
+        Library:LoadConfig()
+    end)
+end)
+
 return Library
