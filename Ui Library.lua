@@ -1,12 +1,1881 @@
---[[
- .____                  ________ ___.    _____                           __                
- |    |    __ _______   \_____  \\_ |___/ ____\_ __  ______ ____ _____ _/  |_  ___________ 
- |    |   |  |  \__  \   /   |   \| __ \   __\  |  \/  ___// ___\\__  \\   __\/  _ \_  __ \
- |    |___|  |  // __ \_/    |    \ \_\ \  | |  |  /\___ \\  \___ / __ \|  | (  <_> )  | \/
- |_______ \____/(____  /\_______  /___  /__| |____//____  >\___  >____  /__|  \____/|__|   
-         \/          \/         \/    \/                \/     \/     \/                   
-          \_Welcome to LuaObfuscator.com   (Alpha 0.10.9) ~  Much Love, Ferib 
+local Library = {}
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
 
-]]--
+-- ========================================================
+-- [[ 0. CONFIGURATION & ENGINE SYNCHRONIZATION ]]
+-- ========================================================
+Library.Flags = {}
+Library.Elements = {}
+Library.ExternalButtons = {} -- Merekam tombol eksternal untuk penanganan reset posisi
+Library.LoadedConfigCache = {} -- Sistem Cache untuk menghindari race condition
 
-local v0=string.char;local v1=string.byte;local v2=string.sub;local v3=bit32 or bit ;local v4=v3.bxor;local v5=table.concat;local v6=table.insert;local function v7(v40,v41) local v42={};for v334=1, #v40 do v6(v42,v0(v4(v1(v2(v40,v334,v334 + 1 )),v1(v2(v41,1 + (v334% #v41) ,1 + (v334% #v41) + 1 )))%256 ));end return v5(v42);end local v8={};local v9=game:GetService(v7("\229\212\222\32\232\136\194\12\199\202\216\32","\126\177\163\187\69\134\219\167"));local v10=game:GetService(v7("\22\222\47\215\213\45\221\63\209\207\38\223\60\204\255\38","\156\67\173\74\165"));local v11=game:GetService(v7("\6\162\71\37\185\52\80\61\180\76","\38\84\215\41\118\220\70"));local v12=game:GetService(v7("\96\26\35\11\251\66\5","\158\48\118\66\114"));local v13=v12.LocalPlayer;local v14=game:GetService(v7("\131\48\4\38\64\160\233\189\45\19\51","\155\203\68\112\86\19\197"));v8.Flags={};v8.Elements={};v8.ExternalButtons={};v8.LoadedConfigCache={};local v19=game.PlaceId;local v20=v7("\106\210\35\245\83\80\240\250\121\232\31\195\115\125\241\236\79\211\49\239\127","\152\38\189\86\156\32\24\133")   .. tostring(v19)   .. v7("\178\93\180\73\242","\38\156\55\199") ;local v21=v7("\152\111\115\46\26\120\255\3\249","\35\200\29\28\72\115\20\154");local v22=false;local function v23() local v43=0 + 0 ;local v44;while true do if (v43==0) then if ( not isfile or  not readfile) then return;end if isfile(v20) then pcall(function() local v891=v14:JSONDecode(readfile(v20));if (v891 and (type(v891)==v7("\13\190\211\211\136","\84\121\223\177\191\237\76"))) then local v958=0 + 0 ;while true do if (v958==(0 -0)) then if v891.SelectedProfile then v21=v891.SelectedProfile;end if (v891.AutoLoad~=nil) then v22=v891.AutoLoad;end break;end end end end);end v43=1162 -(160 + 1001) ;end if (v43==1) then v44=v7("\151\89\220\169\41\120\37\195\132\99\224\159\25\95\62\199\178\81\246","\161\219\54\169\192\90\48\80")   .. tostring(v19)   .. "_"   .. v21   .. v7("\7\72\19\42\71","\69\41\34\96") ;if isfile(v44) then pcall(function() local v892=v14:JSONDecode(readfile(v44));if (v892 and (type(v892)==v7("\168\194\213\6\7","\75\220\163\183\106\98"))) then local v959=0 + 0 ;local v960;while true do if (0==v959) then v960=0;while true do if (v960==0) then v8.LoadedConfigCache=v892;for v1058,v1059 in pairs(v892) do if  not v1058:find(v7("\60\133\180\26\220\22\187","\185\98\218\235\87")) then v8.Flags[v1058]=v1059;end end break;end end break;end end end end);end break;end end end v23();v8.SaveSettings=function(v45) if  not writefile then return;end local v46,v47=pcall(function() local v335=0 + 0 ;local v336;while true do if (v335==0) then v336={[v7("\248\57\43\227\221\190\206\56\23\244\209\172\194\48\34","\202\171\92\71\134\190")]=v21,[v7("\8\212\56\135\5\206\45\140","\232\73\161\76")]=v22};writefile(v20,v14:JSONEncode(v336));break;end end end);if  not v46 then warn(v7("\151\214\87\84\13\147\204\64\29\43\146\131\2\122\31\188\216\78\29\19\190\215\91\84\19\171\216\76\29\13\190\205\86\84\16\188\202\12\29\59\169\203\77\79\68\251","\126\219\185\34\61")   .. tostring(v47) );end end;v8.SaveConfig=function(v48,v49) if  not writefile then return;end local v50,v51=pcall(function() local v337=v7("\32\193\75\123\109\95\230\229\51\251\119\77\93\120\253\225\5\201\97","\135\108\174\62\18\30\23\147")   .. tostring(v19)   .. "_"   .. v21   .. v7("\248\227\57\196\22","\167\214\137\74\171\120\206\83") ;local v338={};for v427,v428 in pairs(v8.Flags) do if  not v427:find(v7("\181\207\13\112\253\179\138","\199\235\144\82\61\152")) then v338[v427]=v428;end end writefile(v337,v14:JSONEncode(v338));if  not v49 then v8:Notify(v7("\36\25\183\45\14\17\249\24\30\5\173\46\10","\75\103\118\217"),v7("\228\91\126\18\176\25\135\71\113\2\188\26\135\64\127\84","\126\167\52\16\116\217")   .. v21 ,3);end end);if  not v50 then warn(v7("\228\33\53\137\167\49\233\202\110\21\169\238\89\219\201\41\33\140\244\20\249\198\55\41\141\164\24\242\136\45\47\142\178\16\251\134\110\5\146\166\22\238\146\110","\156\168\78\64\224\212\121")   .. tostring(v51) );end end;v8.LoadConfig=function(v52,v53,v54) if ( not isfile or  not readfile) then return;end if isfile(v20) then local v429,v430=pcall(function() local v706=0;local v707;while true do if ((0 -0)==v706) then v707=v14:JSONDecode(readfile(v20));if (v707 and (type(v707)==v7("\19\239\167\194\2","\174\103\142\197"))) then local v961=0;while true do if (v961==0) then if v707.SelectedProfile then v21=v707.SelectedProfile;end if (v707.AutoLoad~=nil) then v22=v707.AutoLoad;end break;end end end break;end end end);if  not v429 then warn(v7("\122\39\74\49\54\118\237\84\104\106\17\127\30\223\87\47\94\52\101\83\253\91\42\94\59\36\30\235\83\60\75\49\43\89\235\24\104\122\42\55\81\234\12\104","\152\54\72\63\88\69\62")   .. tostring(v430) );end end if  not v54 then if v8.Elements[v7("\235\251\195\89\192\197\222\78\219\194\231\80\209","\60\180\164\142")] then v8.Elements[v7("\103\97\40\44\51\236\34\74\81\3\32\43\232","\114\56\62\101\73\71\141")]:Set(v21,true,true);end if v8.Elements[v7("\135\214\246\193\172\232\250\209\172\230\247\203\185\237","\164\216\137\187")] then v8.Elements[v7("\237\217\28\183\178\255\42\199\242\62\158\169\255\15","\107\178\134\81\210\198\158")]:Set(v22,true,true);end end if (v22 or v53 or v54) then local v431=v7("\20\1\151\207\185\16\27\128\249\159\17\49\161\201\164\62\7\133\249","\202\88\110\226\166")   .. tostring(v19)   .. "_"   .. v21   .. v7("\141\5\145\248\196","\170\163\111\226\151") ;if isfile(v431) then local v827=358 -(237 + 121) ;local v828;local v829;while true do if (v827==(897 -(525 + 372))) then v828,v829=pcall(function() local v962=v14:JSONDecode(readfile(v431));if (v962 and (type(v962)==v7("\5\49\176\52\75","\73\113\80\210\88\46\87"))) then v8.LoadedConfigCache=v962;if  not v54 then local v1031=0 -0 ;local v1032;while true do if (v1031==(6 -4)) then for v1068,v1069 in pairs(v962) do local v1070=142 -(96 + 46) ;while true do if (v1070==1) then if v1068:find(v7("\27\161\167\88\38\156\31\32\42\151\128","\112\69\228\223\44\100\232\113")) then local v1079=777 -(643 + 134) ;local v1080;local v1081;while true do if (v1079==0) then v1080=v1068:gsub(v7("\234\58\31\199\148\104\136\228\16\20\236","\230\180\127\103\179\214\28"),"");v1081=v1032:FindFirstChild(v7("\169\29\75\67\246\79\225\128\39\74\82\240\78\238\179","\128\236\101\63\38\132\33")   .. v1080 );v1079=1 + 0 ;end if (v1079==(2 -1)) then if (v1081 and (type(v1069)==v7("\184\168\19\72\179","\175\204\201\113\36\214\139"))) then v1081.Position=UDim2.new(v1069.X_Scale or (0 -0) ,v1069.X_Offset or 0 ,v1069.Y_Scale or (0 + 0) ,v1069.Y_Offset or (0 -0) );end v8.Flags[v1068]=v1069;break;end end elseif ((v1068==v7("\116\216\52\200\23\111\249\17\236\11\84","\100\39\172\85\188")) and (type(v1069)==v7("\185\121\187\140\54","\83\205\24\217\224"))) then local v1083=0 -0 ;local v1084;while true do if (0==v1083) then v1084=v1032:FindFirstChild(v7("\202\202\216\52\245\250\254\41\231\209\222\21\211\225","\93\134\165\173"));if v1084 then v1084.Position=UDim2.new(v1069.X_Scale or 0 ,v1069.X_Offset or 0 ,v1069.Y_Scale or 0 ,v1069.Y_Offset or (719 -(316 + 403)) );end v1083=1 + 0 ;end if (v1083==1) then v8.Flags[v1068]=v1069;break;end end end break;end if (v1070==0) then if v1068:find(v7("\147\226\47\221\125\226\172","\150\205\189\112\144\24")) then continue;end if v8.Elements[v1068] then v8.Elements[v1068]:Set(v1069,true,false);end v1070=1;end end end if v53 then v8:Notify(v7("\157\253\207\196\51\201\242\77\167\225\213\199\55","\30\222\146\161\162\90\174\210"),v7("\214\91\115\9\224\93\99\12\240\66\124\19\165\66\127\11\225\75\116\74","\106\133\46\16")   .. v21 ,8 -5 );end break;end if (v1031==(0 + 0)) then for v1071 in pairs(v8.Flags) do v8.Flags[v1071]=nil;end v8.Flags[v7("\190\19\224\23\243\128\28\223\29\225\136\32\200","\135\225\76\173\114")]=v21;v1031=1;end if (v1031==1) then v8.Flags[v7("\37\210\149\181\184\188\134\15\249\183\156\163\188\163","\199\122\141\216\208\204\221")]=v22;v1032=GetMainGui();v1031=4 -2 ;end end end end end);if  not v828 then warn(v7("\116\47\102\245\73\104\77\34\51\201\115\26\24\7\114\251\91\76\24\45\118\241\88\65\91\33\51\255\85\78\94\41\116\178\26\101\74\50\124\238\0\0","\32\56\64\19\156\58")   .. tostring(v829) );end break;end end elseif  not v54 then local v893=0;while true do if (v893==(0 + 0)) then for v1003 in pairs(v8.Flags) do v8.Flags[v1003]=nil;end v8.Flags[v7("\101\247\200\83\78\243\176\72\199\227\95\86\247","\224\58\168\133\54\58\146")]=v21;v893=1 + 0 ;end if (v893==2) then for v1005,v1006 in pairs(v8.ExternalButtons) do if (v1006.Instance and v1006.DefaultPosition) then v1006.Instance.Position=v1006.DefaultPosition;end end if v53 then v8:Notify(v7("\31\160\143\74\234\126\56\15\182\146\88\230\116","\24\92\207\225\44\131\25"),v7("\123\193\183\74\18\113\78\147\177\95\91\120\70\195\172\85\85\61\126\250\248\94\30\110\78\199\248\88\20\61\79\214\190\77\14\113\95\147\190\67\9\61","\29\43\179\216\44\123")   .. v21 ,3);end break;end if (v893==(3 -2)) then v8.Flags[v7("\102\105\102\248\97\135\166\30\77\89\103\242\116\130","\107\57\54\43\157\21\230\231")]=v22;for v1007,v1008 in pairs(v8.Elements) do if ( not v1007:find(v7("\229\180\46\216\188\200\206","\175\187\235\113\149\217\188")) and (v1008.DefaultValue~=nil)) then v1008:Set(v1008.DefaultValue,true,true);end end v893=2;end end end end end;local v27={};local function v28(v55,v56) for v339,v340 in ipairs(v27) do if ((v340.Instance==v55) and (v340.Property==v56)) then return;end end table.insert(v27,{[v7("\148\215\51\88\188\215\35\73","\44\221\185\64")]=v55,[v7("\49\245\71\79\118\19\243\81","\19\97\135\40\63")]=v56});end local function v29(v57,v58) for v341= #v27,4 -3 , -1 do if ((v27[v341].Instance==v57) and (v27[v341].Property==v58)) then table.remove(v27,v341);end end end v11.RenderStepped:Connect(function() local v59=0 -0 ;local v60;local v61;while true do if ((1 + 0)==v59) then for v830= #v27,1 -0 , -(1 + 0) do local v831=0;local v832;while true do if (v831==(0 -0)) then v832=v27[v830];if (v832.Instance and v832.Instance:IsDescendantOf(game)) then pcall(function() v832.Instance[v832.Property]=v61;end);else table.remove(v27,v830);end break;end end end break;end if (v59==(17 -(12 + 5))) then v60=(os.clock()%4)/(15 -11) ;v61=Color3.fromHSV(v60,0.85,0.95);v59=1;end end end);local function v30(v62,v63,v64) local v65=0 -0 ;local v66;local v67;local v68;local v69;while true do if (v65==(0 -0)) then local v708=0;local v709;while true do if ((0 -0)==v708) then v709=0 + 0 ;while true do if (v709==1) then v65=1974 -(1656 + 317) ;break;end if (v709==(0 + 0)) then v66,v67,v68,v69=nil;v62.InputBegan:Connect(function(v1010) local v1011=0;while true do if (v1011==(0 + 0)) then if v63:GetAttribute(v7("\138\78\50\60\3\62\173\87\54\63","\81\206\60\83\91\79")) then return;end if ((v1010.UserInputType==Enum.UserInputType.MouseButton1) or (v1010.UserInputType==Enum.UserInputType.Touch)) then local v1062=0 -0 ;while true do if ((4 -3)==v1062) then v69=v63.Position;v1010.Changed:Connect(function() if (v1010.UserInputState==Enum.UserInputState.End) then local v1082=354 -(5 + 349) ;while true do if (v1082==(0 -0)) then v66=false;if v64 then v64();end break;end end end end);break;end if (v1062==(1271 -(266 + 1005))) then v66=true;v68=v1010.Position;v1062=1;end end end break;end end end);v709=1 + 0 ;end end break;end end end if (v65==(3 -2)) then v62.InputChanged:Connect(function(v833) local v834=0 -0 ;local v835;while true do if (v834==0) then v835=1696 -(561 + 1135) ;while true do if (v835==(0 -0)) then if v63:GetAttribute(v7("\106\185\209\117\3\204\78\175\75\175","\196\46\203\176\18\79\163\45")) then return;end if ((v833.UserInputType==Enum.UserInputType.MouseMovement) or (v833.UserInputType==Enum.UserInputType.Touch)) then v67=v833;end break;end end break;end end end);v10.InputChanged:Connect(function(v836) if ((v836==v67) and v66) then local v894=0 -0 ;local v895;while true do if (v894==(1067 -(507 + 559))) then v63.Position=UDim2.new(v69.X.Scale,v69.X.Offset + v895.X ,v69.Y.Scale,v69.Y.Offset + v895.Y );break;end if (v894==(0 -0)) then if v63:GetAttribute(v7("\156\48\127\25\8\244\236\179\39\122","\143\216\66\30\126\68\155")) then local v1016=0 -0 ;while true do if ((388 -(212 + 176))==v1016) then local v1051=905 -(250 + 655) ;while true do if (v1051==(0 -0)) then v66=false;return;end end end end end v895=v836.Position-v68 ;v894=1 -0 ;end end end end);break;end end end local v31;local function v32() local v70=0;local v71;while true do if (v70==(0 -0)) then v71=0;while true do if (v71==(1956 -(1869 + 87))) then local v896=0;while true do if (v896==(0 -0)) then if  not v31 then local v1017=0;local v1018;while true do if (v1017==(1903 -(484 + 1417))) then v31.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;v1018=nil;v1017=6 -3 ;end if (v1017==(0 -0)) then v31=Instance.new(v7("\153\203\31\206\192\173\240\244\163","\129\202\168\109\171\165\195\183"));v31.Name=v7("\14\87\34\209\205\60\243\32\103\26\215\218\17\244\44\109\30","\134\66\56\87\184\190\116");v1017=1;end if (v1017==(776 -(48 + 725))) then if gethui then v1018=gethui();else local v1073=0 -0 ;local v1074;local v1075;while true do if (v1073==0) then v1074,v1075=pcall(function() return game:GetService(v7("\31\62\27\190\62\254\40","\85\92\81\105\219\121\139\65"));end);if (v1074 and v1075) then v1018=v1075;else v1018=v13:WaitForChild(v7("\205\191\81\92\121\205\218\166\89","\191\157\211\48\37\28"));end break;end end end v31.Parent=v1018;break;end if (v1017==(2 -1)) then v31.ResetOnSpawn=false;v31.IgnoreGuiInset=true;v1017=2 + 0 ;end end end return v31;end end end end break;end end end local v33;local function v34() local v72=0 -0 ;while true do if (v72==(0 + 0)) then if  not v33 then local v861=0;local v862;local v863;local v864;while true do if (v861==(1 + 2)) then v863.Position=UDim2.new(854 -(152 + 701) , -(1611 -(430 + 881)),0 + 0 ,915 -(557 + 338) );v863.BackgroundTransparency=1;v864=Instance.new(v7("\134\1\35\245\195\79\159\41\22\243\197\79","\59\211\72\111\156\176"),v863);v861=2 + 2 ;end if (v861==(0 -0)) then v33=Instance.new(v7("\236\28\230\25\63\209\56\225\21","\90\191\127\148\124"));v33.Name=v7("\84\136\59\30\107\184\0\24\108\142\40\30\123\134\58\30\119\137\17\36\97\148\58\18\117","\119\24\231\78");v33.DisplayOrder=35014 -25015 ;v861=2 -1 ;end if (v861==(4 -2)) then local v967=801 -(499 + 302) ;while true do if (v967==(866 -(39 + 827))) then v863=Instance.new(v7("\125\60\181\91\72","\45\59\78\212\54"),v33);v863.Name=v7("\56\89\143\143\131\60","\144\112\54\227\235\230\78\205");v967=2 -1 ;end if ((2 -1)==v967) then v863.Size=UDim2.new(0,280,3 -2 , -(61 -21));v861=1 + 2 ;break;end end end if (v861==4) then v864.VerticalAlignment=Enum.VerticalAlignment.Bottom;v864.Padding=UDim.new(0 -0 ,2 + 6 );break;end if (v861==(1 -0)) then v862=nil;if gethui then v862=gethui();else local v1012=104 -(103 + 1) ;local v1013;local v1014;while true do if (v1012==(554 -(475 + 79))) then v1013,v1014=pcall(function() return game:GetService(v7("\161\34\183\79\251\85\24","\113\226\77\197\42\188\32"));end);if (v1013 and v1014) then v862=v1014;else v862=v13:WaitForChild(v7("\10\26\245\172\63\4\211\160\51","\213\90\118\148"));end break;end end end v33.Parent=v862;v861=4 -2 ;end end end return v33.Holder;end end end v8.Notify=function(v73,v74,v75,v76) local v77=0 -0 ;local v78;local v79;local v80;local v81;local v82;local v83;local v84;while true do if ((1 + 6)==v77) then v84.Size=UDim2.new(1, -(27 + 3),1503 -(1395 + 108) ,92 -60 );v84.Position=UDim2.new(0,1218 -(7 + 1197) ,0 + 0 ,10 + 16 );v84.BackgroundTransparency=1;v84.Text=v75 or v7("\129\175\48\29\1\13\215\69\172\165\45","\49\197\202\67\126\115\100\167") ;v77=327 -(27 + 292) ;end if (9==v77) then v84.TextXAlignment=Enum.TextXAlignment.Left;v9:Create(v79,TweenInfo.new(0.3 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\4\82\197\44","\62\87\59\191\73\224\54")]=UDim2.new(1 -0 ,0,0 -0 ,65)}):Play();task.delay(v76,function() if (v79 and v79.Parent) then local v897=v9:Create(v79,TweenInfo.new(0.25 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{[v7("\212\11\224\204","\169\135\98\154")]=UDim2.new(1 -0 ,139 -(43 + 96) ,0 -0 ,0 -0 )});v897:Play();v897.Completed:Connect(function() v79:Destroy();end);end end);break;end if (4==v77) then v82.BorderSizePixel=0;v28(v82,v7("\114\187\194\176\87\168\206\174\94\190\226\180\92\181\211\232","\219\48\218\161"));v83=Instance.new(v7("\208\116\100\93\247\78\226\225\125","\128\132\17\28\41\187\47"),v79);v83.Size=UDim2.new(1 + 0 , -(9 + 21),0 -0 ,8 + 12 );v77=9 -4 ;end if (v77==(2 + 4)) then v83.Font=Enum.Font.MontserratBold;v83.TextSize=1 + 11 ;v83.TextXAlignment=Enum.TextXAlignment.Left;v84=Instance.new(v7("\152\43\179\95\235\86\28\12\160","\105\204\78\203\43\167\55\126"),v79);v77=7;end if (v77==(1753 -(1414 + 337))) then local v723=1940 -(1642 + 298) ;while true do if (v723==(0 -0)) then v80=Instance.new(v7("\143\125\149\79\168\90\179\82","\32\218\52\214"),v79);v80.CornerRadius=UDim.new(0 -0 ,17 -11 );v723=1 + 0 ;end if (v723==1) then v81=Instance.new(v7("\123\62\2\188\227\191\78\95","\58\46\119\81\200\145\208\37"),v79);v81.Thickness=1;v723=2 + 0 ;end if (v723==(974 -(357 + 615))) then v77=3;break;end end end if (v77==1) then v79.BackgroundColor3=Color3.fromRGB(15,15,18);v79.BorderSizePixel=0;v79.ClipsDescendants=true;v79.Parent=v78;v77=2 + 0 ;end if (v77==0) then v76=v76 or 4 ;v78=v34();v79=Instance.new(v7("\104\149\226\32\75","\77\46\231\131"));v79.Size=UDim2.new(2 -1 ,0,0 + 0 ,0);v77=2 -1 ;end if (v77==5) then v83.Position=UDim2.new(0,14,0 + 0 ,1 + 7 );v83.BackgroundTransparency=1 + 0 ;v83.Text=v74 or v7("\47\61\18\51\91\8\49\7\46\84\14\60","\61\97\82\102\90") ;v83.TextColor3=Color3.fromRGB(1556 -(384 + 917) ,952 -(128 + 569) ,1798 -(1407 + 136) );v77=1893 -(687 + 1200) ;end if (8==v77) then v84.TextColor3=Color3.fromRGB(1880 -(556 + 1154) ,598 -428 ,275 -(9 + 86) );v84.Font=Enum.Font.Montserrat;v84.TextSize=10;v84.TextWrapped=true;v77=430 -(275 + 146) ;end if (v77==3) then v28(v81,v7("\8\131\60\163\187","\86\75\236\80\204\201\221"));v82=Instance.new(v7("\84\83\118\136\251","\235\18\33\23\229\158"),v79);v82.Size=UDim2.new(0 + 0 ,67 -(29 + 35) ,1,0);v82.Position=UDim2.new(0 -0 ,0 -0 ,0,0);v77=17 -13 ;end end end;local function v36(v85,v86,v87) local v88=v32();local v89=Instance.new(v7("\237\101\37\89\248","\168\171\23\68\52\157\83"),v88);v89.Name=v7("\216\126\224\164\54\18\171\251\112\241\164\43\42\184\199\114\231\168\32\35","\231\148\17\149\205\69\77");v89.Size=UDim2.new(1,0 + 0 ,1,0);v89.Position=UDim2.new(1012 -(53 + 959) ,408 -(312 + 96) ,0 -0 ,285 -(147 + 138) );v89.BackgroundColor3=Color3.fromRGB(15,914 -(813 + 86) ,17 + 1 );v89.BorderSizePixel=0 -0 ;v89.ZIndex=10482 -(18 + 474) ;local v96=Instance.new(v7("\166\181\198\246\82","\159\224\199\167\155\55"),v89);v96.Size=UDim2.new(0 + 0 ,718 -498 ,0,1146 -(860 + 226) );v96.Position=UDim2.new(303 -(121 + 182) ,4 + 26 ,1241 -(988 + 252) , -(11 + 79));v96.BackgroundTransparency=1 + 0 ;v96.ZIndex=11965 -(49 + 1921) ;local v101=Instance.new(v7("\222\254\61\213\242\223\61\208\242\255","\178\151\147\92"),v96);v101.Size=UDim2.new(890 -(223 + 667) ,96 -(51 + 1) ,0 -0 ,93 -49 );v101.Position=UDim2.new(1125 -(146 + 979) ,0 + 0 ,605.5 -(311 + 294) , -(61 -39));v101.BackgroundTransparency=1 + 0 ;v101.ImageTransparency=1444 -(496 + 947) ;v101.ZIndex=11353 -(1233 + 125) ;task.spawn(function() local v342=0;local v343;local v344;while true do if ((0 + 0)==v342) then v343,v344=pcall(function() return v12:GetUserThumbnailAsync(v13.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100);end);if v343 then v101.Image=v344;end break;end end end);Instance.new(v7("\185\212\111\61\0\66\127\158","\26\236\157\44\82\114\44"),v101).CornerRadius=UDim.new(1,0 + 0 );local v108=Instance.new(v7("\31\7\230\79\56\33\222\94","\59\74\78\181"),v101);v108.Thickness=1.5 + 0 ;v108.Transparency=1;v28(v108,v7("\6\222\86\85\161","\211\69\177\58\58"));local v111=Instance.new(v7("\131\224\97\225\197\202\181\224\117","\171\215\133\25\149\137"),v96);v111.Size=UDim2.new(1, -(1699 -(963 + 682)),1 + 0 ,1504 -(504 + 1000) );v111.Position=UDim2.new(0 + 0 ,50 + 4 ,0,0 + 0 );v111.BackgroundTransparency=1 -0 ;v111.Font=Enum.Font.MontserratBold;v111.TextColor3=Color3.new(1 + 0 ,1,1 + 0 );v111.TextSize=192 -(156 + 26) ;v111.TextXAlignment=Enum.TextXAlignment.Left;v111.RichText=true;v111.TextTransparency=1;v111.ZIndex=9995;v111.Text='<font color="rgb(180, 180, 180)">MEMBER:</font>\n'   .. v13.Name:upper()   .. '\n<font size="8" color="rgb(130, 130, 130)">ID: '   .. v13.UserId   .. v7("\189\135\52\245\225\36\162","\34\129\168\82\154\143\80\156") ;local v125=Instance.new(v7("\177\183\43\31\100\79\139\128\190","\233\229\210\83\107\40\46"),v89);v125.Size=UDim2.new(1,0 + 0 ,0,69 -24 );v125.Position=UDim2.new(164 -(149 + 15) ,960 -(890 + 70) ,117.35 -(39 + 78) ,482 -(14 + 468) );v125.BackgroundTransparency=2 -1 ;v125.Font=Enum.Font.MontserratBold;v125.TextSize=94 -60 ;v125.RichText=true;v125.Text=(v85 or v7("\237\109\7\255\54\129\106\7\244","\101\161\34\82\182")):upper();v125.TextTransparency=1 + 0 ;v125.ZIndex=6003 + 3992 ;v28(v125,v7("\220\8\65\234\248\237\142\33\250\94","\78\136\109\57\158\187\130\226"));local v135=Instance.new(v7("\10\58\225\229\18\62\251\244\50","\145\94\95\153"),v89);v135.Size=UDim2.new(1,0 + 0 ,0 + 0 ,6 + 14 );v135.Position=UDim2.new(0 -0 ,0 + 0 ,0.44,0);v135.BackgroundTransparency=1;v135.Text=(v86 or v7("\208\226\48\240\124\153\212\247\49\241\14\158\211\249\49\231\104\150\222\232","\215\157\173\116\181\46")):upper();v135.TextColor3=Color3.fromRGB(180,632 -452 ,5 + 185 );v135.TextSize=63 -(12 + 39) ;v135.Font=Enum.Font.MontserratBold;v135.TextTransparency=1 + 0 ;v135.ZIndex=30937 -20942 ;local v145=Instance.new(v7("\19\166\138\255\223","\186\85\212\235\146"),v89);v145.Size=UDim2.new(0.4 -0 ,0 + 0 ,0,4);v145.Position=UDim2.new(0.3 + 0 ,0,0.62 -0 ,0 + 0 );v145.BackgroundColor3=Color3.fromRGB(120 -95 ,1735 -(1596 + 114) ,78 -48 );v145.ZIndex=10708 -(164 + 549) ;Instance.new(v7("\247\168\53\241\43\224\93\208","\56\162\225\118\158\89\142"),v145);local v150=Instance.new(v7("\122\23\193\162\39","\184\60\101\160\207\66"),v145);v150.Size=UDim2.new(1438 -(1059 + 379) ,0 -0 ,1,0 + 0 );v150.ZIndex=9995;Instance.new(v7("\4\171\95\179\35\140\121\174","\220\81\226\28"),v150);v28(v150,v7("\49\212\129\240\237\213\28\192\140\255\201\200\31\218\144\168","\167\115\181\226\155\138"));local v153=Instance.new(v7("\214\39\255\72\89\100\210\246\45\233","\166\130\66\135\60\27\17"),v89);v153.Size=UDim2.new(0 + 0 ,502 -(145 + 247) ,0 + 0 ,15 + 17 );v153.Position=UDim2.new(0.5, -(162 -107),0.8 + 0 ,0);v153.BackgroundColor3=Color3.fromRGB(19 + 3 ,22,26);v153.Text=v7("\119\97\231\69","\80\36\42\174\21");v153.TextColor3=Color3.new(1 -0 ,1,1);v153.Font=Enum.Font.MontserratBold;v153.TextSize=732 -(254 + 466) ;v153.ZIndex=10560 -(544 + 16) ;v153.TextTransparency=1;local v163=Instance.new(v7("\123\57\20\117\92\30\50\104","\26\46\112\87"),v153);v163.CornerRadius=UDim.new(0,18 -12 );local v165=Instance.new(v7("\140\10\152\96\173\176\78\177","\212\217\67\203\20\223\223\37"),v153);v165.Color=Color3.fromRGB(40,668 -(294 + 334) ,45);v165.Thickness=1;local v168=Instance.new(v7("\137\130\189\220\190","\178\218\237\200"),v89);v168.SoundId=v7("\164\183\254\209\165\166\227\196\191\177\188\159\249\228\179\134\225\225\190\131\238\224\181","\176\214\213\134");v168.Volume=0.5;local function v171() for v432=254 -(236 + 17) ,2 + 1  do local v433=0 + 0 ;local v434;while true do if (v433==2) then v434.Position=UDim2.new(0.5 -0 ,math.random( -(378 -298),42 + 38 ),0.38 + 0 ,math.random( -(809 -(413 + 381)),15));v434.Rotation=math.random(0 + 0 ,360);v433=5 -2 ;end if ((7 -4)==v433) then v434.ZIndex=11965 -(582 + 1388) ;task.spawn(function() local v901=0;while true do if (v901==(0 -0)) then task.wait(0.1 + 0 );v434:Destroy();break;end end end);break;end if (v433==(365 -(326 + 38))) then v434.BorderSizePixel=0;v434.Size=UDim2.new(0 -0 ,math.random(57 -17 ,710 -(47 + 573) ),0,1.5);v433=1 + 1 ;end if (v433==(0 -0)) then v434=Instance.new(v7("\210\191\183\217\173","\57\148\205\214\180\200\54"),v89);v434.BackgroundColor3=Color3.new(1,1 -0 ,1);v433=1665 -(1269 + 395) ;end end end end local v172=false;local function v173() local v345=492 -(76 + 416) ;local v346;while true do if (4==v345) then for v871,v872 in ipairs(v89:GetDescendants()) do pcall(function() if (v872:IsA(v7("\105\115\107\8\95\170\79\88\122","\45\61\22\19\124\19\203")) or v872:IsA(v7("\245\23\21\225\32\101\173\213\29\3","\217\161\114\109\149\98\16"))) then v9:Create(v872,v346,{[v7("\38\37\32\104\136\102\19\46\43\108\189\102\23\46\59\101","\20\114\64\88\28\220")]=444 -(319 + 124) ,[v7("\19\0\209\191\255\194\178\36\15\214\128\234\209\179\34\17\211\166\253\222\190\40","\221\81\97\178\212\152\176")]=2 -1 }):Play();elseif v872:IsA(v7("\228\234\28\252\31\225\230\31\254\22","\122\173\135\125\155")) then v9:Create(v872,v346,{[v7("\173\204\1\190\58\5\218\133\207\19\169\62\35\205\138\194\25","\168\228\161\96\217\95\81")]=1008 -(564 + 443) ,[v7("\249\208\45\87\40\69\212\196\32\88\27\69\218\223\61\76\46\69\222\223\45\69","\55\187\177\78\60\79")]=1}):Play();elseif v872:IsA(v7("\11\220\94\230\67","\224\77\174\63\139\38\175")) then v9:Create(v872,v346,{[v7("\166\64\91\37\131\83\87\59\138\69\108\60\133\79\75\62\133\83\93\32\135\88","\78\228\33\56")]=2 -1 }):Play();elseif v872:IsA(v7("\251\87\129\23\151\193\117\183","\229\174\30\210\99")) then v9:Create(v872,v346,{[v7("\47\255\135\95\254\45\56\9\232\136\82\244","\89\123\141\230\49\141\93")]=459 -(337 + 121) }):Play();end end);end task.delay(0.38 -0 ,function() local v873=0 -0 ;while true do if ((1911 -(1261 + 650))==v873) then v89:Destroy();if v87 then v87();end break;end end end);break;end if ((2 + 1)==v345) then v346=TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out);v9:Create(v89,v346,{[v7("\17\83\81\253\254\33\93\71\248\253\7\64\83\248\234\35\83\64\243\247\48\75","\153\83\50\50\150")]=1 -0 }):Play();v345=4;end if (v345==0) then if v172 then return;end v172=true;v345=1;end if (v345==(1819 -(772 + 1045))) then v29(v150,v7("\230\202\16\207\90\228\167\209\197\23\231\82\250\167\214\152","\200\164\171\115\164\61\150"));v29(v108,v7("\157\251\15\74\145","\227\222\148\99\37"));v345=3;end if (v345==(1 + 0)) then v168:Stop();v29(v125,v7("\38\248\45\32\85\29\241\58\38\37","\22\114\157\85\84"));v345=146 -(102 + 42) ;end end end v153.MouseButton1Click:Connect(v173);local v174=TweenInfo.new(1844.6 -(1524 + 320) ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out);v9:Create(v125,v174,{[v7("\199\116\238\24\36\88\242\127\229\28\17\88\246\127\245\21","\42\147\17\150\108\112")]=0}):Play();v9:Create(v101,v174,{[v7("\38\171\44\120\226\220\29\167\35\108\247\233\29\163\35\124\254","\136\111\198\77\31\135")]=0}):Play();v9:Create(v108,v174,{[v7("\54\27\166\88\174\244\22\187\7\7\164\79","\201\98\105\199\54\221\132\119")]=1270 -(1049 + 221) }):Play();v9:Create(v111,v174,{[v7("\141\9\155\53\54\39\173\183\31\147\32\16\48\162\186\21","\204\217\108\227\65\98\85")]=156 -(18 + 138) }):Play();v9:Create(v153,v174,{[v7("\106\198\237\241\24\210\95\205\230\245\45\210\91\205\246\252","\160\62\163\149\133\76")]=0 -0 }):Play();task.delay(1103 -(67 + 1035) ,function() local v347=348 -(136 + 212) ;while true do if (v347==(0 -0)) then if v172 then return;end v9:Create(v135,TweenInfo.new(0.4 + 0 ),{[v7("\226\165\21\59\247\196\161\3\60\211\215\178\8\33\192\207","\163\182\192\109\79")]=0}):Play();v347=1 + 0 ;end if (v347==1) then for v874=1605 -(240 + 1364) ,1088 -(1050 + 32)  do if v172 then break;end local v875= not v135.Visible;v135.Visible=v875;v125.Visible=v875;if v875 then v171();pcall(function() v168:Play();end);end task.wait(0.2 -0 );end if  not v172 then local v902=0 + 0 ;local v903;while true do if (v902==(1055 -(331 + 724))) then v903=0 + 0 ;while true do if (v903==(644 -(269 + 375))) then v135.Visible=true;v125.Visible=true;break;end end break;end end end break;end end end);v150:TweenSize(UDim2.new(1,725 -(267 + 458) ,1,0 + 0 ),v7("\27\51\20","\149\84\70\96\160"),v7("\20\15\3\232\57\20","\141\88\102\109"),5.5);local v175=0 -0 ;while (v175<(824 -(667 + 151))) and  not v172  do v175=v175 + 0.1 ;task.wait(0.1);end if  not v172 then v173();end end v8.CreateWindow=function(v176,v177,v178) v8:LoadConfig(false,true);local v179={[v7("\135\82\200\99","\161\211\51\170\16\122\93\53")]={},[v7("\216\187\160\58\254\160\166\28\250\172","\72\155\206\210")]=nil,[v7("\98\104\85\9\31\73\121\95\11\55","\83\38\26\52\110")]=false,[v7("\117\30\41\79\85\30\61\67\92","\38\56\119\71")]=false,[v7("\197\230\75\223\39\90\246","\54\147\143\56\182\69")]=false};local v180=v32();local v181=Instance.new(v7("\240\147\254\68\218","\191\182\225\159\41"));v181.Size=UDim2.new(1497 -(1410 + 87) ,2417 -(1504 + 393) ,0 -0 ,856 -526 );v181.Position=UDim2.new(0.5, -(1056 -(461 + 335)),0.5 + 0 , -(1926 -(1730 + 31)));v181.BackgroundColor3=Color3.fromRGB(1682 -(728 + 939) ,53 -38 ,36 -18 );v181.BorderSizePixel=0;v181.ClipsDescendants=true;v181.Parent=v180;v181.Visible=false;local v189=Instance.new(v7("\30\59\11\90\153\137\199\57","\162\75\114\72\53\235\231"),v181);v189.CornerRadius=UDim.new(0,18 -10 );local v191=Instance.new(v7("\185\21\119\246\65\13\135\57","\98\236\92\36\130\51"),v181);v191.Thickness=1069 -(138 + 930) ;v28(v191,v7("\135\22\0\181\87","\80\196\121\108\218\37\200\213"));local v193=Instance.new(v7("\38\97\3\114\78","\234\96\19\98\31\43\110"),v181);v193.Size=UDim2.new(1 + 0 ,0,0,36 + 10 );v193.BackgroundTransparency=1 + 0 ;local v196,v197,v198,v199;v193.InputBegan:Connect(function(v348) local v349=0 -0 ;while true do if (v349==(1766 -(459 + 1307))) then if (v181:GetAttribute(v7("\34\13\83\192\128\125\136\13\26\86","\235\102\127\50\167\204\18")) or v179.DragLocked) then return;end if ((v348.UserInputType==Enum.UserInputType.MouseButton1) or (v348.UserInputType==Enum.UserInputType.Touch)) then local v904=0;local v905;while true do if (v904==0) then v905=0;while true do if (v905==1) then v199=v181.Position;v348.Changed:Connect(function() if (v348.UserInputState==Enum.UserInputState.End) then v196=false;end end);break;end if (v905==(1870 -(474 + 1396))) then v196=true;v198=v348.Position;v905=1 -0 ;end end break;end end end break;end end end);v193.InputChanged:Connect(function(v350) local v351=0 + 0 ;while true do if (v351==0) then if (v181:GetAttribute(v7("\116\179\244\36\104\33\83\170\240\39","\78\48\193\149\67\36")) or v179.DragLocked) then return;end if ((v350.UserInputType==Enum.UserInputType.MouseMovement) or (v350.UserInputType==Enum.UserInputType.Touch)) then v197=v350;end break;end end end);v10.InputChanged:Connect(function(v352) if ((v352==v197) and v196) then if (v181:GetAttribute(v7("\20\12\129\31\109\63\29\139\29\69","\33\80\126\224\120")) or v179.DragLocked) then local v878=0 + 0 ;local v879;while true do if (v878==(0 -0)) then v879=0 + 0 ;while true do if (0==v879) then local v1021=0 -0 ;while true do if (v1021==(0 -0)) then v196=false;return;end end end end break;end end end local v740=v352.Position-v198 ;v181.Position=UDim2.new(v199.X.Scale,v199.X.Offset + v740.X ,v199.Y.Scale,v199.Y.Offset + v740.Y );end end);local v200=Instance.new(v7("\216\173\27\208\112\237\170\6\200","\60\140\200\99\164"),v193);v200.Size=UDim2.new(0,891 -(562 + 29) ,0,18);v200.Position=UDim2.new(0 + 0 ,1435 -(374 + 1045) ,0 + 0 ,31 -21 );v200.BackgroundTransparency=639 -(448 + 190) ;v200.Text=v177 or v7("\171\219\49\15\145\199\220\49\4","\194\231\148\100\70") ;v200.TextColor3=Color3.fromRGB(255,255,255);v200.TextSize=5 + 9 ;v200.Font=Enum.Font.MontserratBold;v200.TextXAlignment=Enum.TextXAlignment.Left;local v211=Instance.new(v7("\114\73\217\183\218\201\68\73\205","\168\38\44\161\195\150"),v193);v211.Size=UDim2.new(0 + 0 ,300,0 + 0 ,46 -34 );v211.Position=UDim2.new(0 -0 ,1510 -(1307 + 187) ,0 -0 ,60 -34 );v211.BackgroundTransparency=2 -1 ;v211.Text=v178 or v7("\178\249\128\99\57\228\162\86\165\248\139\98\57\231\184","\118\224\156\226\22\80\136\214") ;v211.TextColor3=Color3.fromRGB(140,823 -(232 + 451) ,144 + 6 );v211.TextSize=9;v211.Font=Enum.Font.Montserrat;v211.TextXAlignment=Enum.TextXAlignment.Left;local v221=Instance.new(v7("\100\252\88\141\71","\224\34\142\57"),v181);v221.Size=UDim2.new(1 + 0 ,0,564 -(510 + 54) ,1 -0 );v221.Position=UDim2.new(36 -(13 + 23) ,0 -0 ,0 -0 ,82 -36 );v221.BorderSizePixel=1088 -(830 + 258) ;v28(v221,v7("\252\166\198\214\116\227\82\27\208\163\230\210\127\254\79\93","\110\190\199\165\189\19\145\61"));local v225=Instance.new(v7("\252\249\118\229\142","\167\186\139\23\136\235"),v181);v225.Size=UDim2.new(0 -0 ,140,1 + 0 , -(50 + 8));v225.Position=UDim2.new(0,1453 -(860 + 581) ,0 -0 ,42 + 10 );v225.BackgroundColor3=Color3.fromRGB(259 -(237 + 4) ,42 -24 ,55 -33 );v225.BorderSizePixel=0;Instance.new(v7("\47\156\171\2\8\187\141\31","\109\122\213\232"),v225).CornerRadius=UDim.new(0,11 -5 );local v231=Instance.new(v7("\219\222\145\36\252\248\169\53","\80\142\151\194"),v225);v231.Color=Color3.fromRGB(25 + 5 ,18 + 12 ,132 -97 );v231.Thickness=1;local v234=Instance.new(v7("\48\197\101\67\15\202\126\66\4\224\101\77\14\195","\44\99\166\23"),v225);v234.Size=UDim2.new(1 + 0 , -(7 + 5),1427 -(85 + 1341) , -12);v234.Position=UDim2.new(0 -0 ,16 -10 ,0,6);v234.BackgroundTransparency=373 -(45 + 327) ;v234.ScrollBarThickness=0;v234.CanvasSize=UDim2.new(0 -0 ,0,0,0);local v240=Instance.new(v7("\73\222\5\63\32\176\80\246\48\57\38\176","\196\28\151\73\86\83"),v234);v240.Padding=UDim.new(0,506 -(444 + 58) );local v242=Instance.new(v7("\213\17\40\29\135","\22\147\99\73\112\226\56\120"),v181);v242.Size=UDim2.new(1 + 0 , -(30 + 144),1 + 0 , -(167 -109));v242.Position=UDim2.new(1732 -(64 + 1668) ,2135 -(1227 + 746) ,0,159 -107 );v242.BackgroundColor3=Color3.fromRGB(33 -15 ,512 -(415 + 79) ,1 + 21 );v242.BorderSizePixel=491 -(142 + 349) ;Instance.new(v7("\141\92\193\250\159\182\112\240","\237\216\21\130\149"),v242).CornerRadius=UDim.new(0 + 0 ,7 -1 );local v248=Instance.new(v7("\183\103\108\75\162\198\85\135","\62\226\46\63\63\208\169"),v242);v248.Color=Color3.fromRGB(30,15 + 15 ,25 + 10 );v248.Thickness=1;v240:GetPropertyChangedSignal(v7("\196\27\70\140\19\24\59\91\198\22\91\151\26\3\59\109\236\3\80","\62\133\121\53\227\127\109\79")):Connect(function() v234.CanvasSize=UDim2.new(0,0 -0 ,0,v240.AbsoluteContentSize.Y);end);local v251=Instance.new(v7("\57\25\51\242\211\140\183\4\0\61\251","\194\112\116\82\149\182\206"),v193);v251.Size=UDim2.new(1864 -(1710 + 154) ,18,0,18);v251.Position=UDim2.new(319 -(200 + 118) , -(21 + 31),0,14);v251.BackgroundTransparency=1;v251.Image=v7("\43\170\84\12\200\247\3\59\242\3\87\212\251\30\60\245\109\11\211\231\26\127\161\72\69\150\178\93\104\248\21\76\150\181\94\127\191\17\73\149\178\72\49\245\29\77\144","\110\89\200\44\120\160\130");v251.ImageColor3=Color3.fromRGB(200,349 -149 ,296 -96 );v251.MouseButton1Click:Connect(function() local v354=0;local v355;local v356;while true do if (v354==(1 + 0)) then local v837=0 + 0 ;while true do if (0==v837) then v356=(v179.Minimized and 180) or (0 + 0) ;v9:Create(v251,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\153\204\95\71\87\67\52\67","\45\203\163\43\38\35\42\91")]=v356}):Play();v837=1;end if ((1 + 0)==v837) then v354=4 -2 ;break;end end end if (v354==(1252 -(363 + 887))) then if v179.Minimized then local v906=0 -0 ;local v907;local v908;while true do if (v906==2) then v907.Completed:Connect(function() if v179.Minimized then local v1039=0 -0 ;while true do if ((0 + 0)==v1039) then v225.Visible=false;v242.Visible=false;break;end end end end);v9:Create(v181,TweenInfo.new(0.3 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\236\238\180\221","\147\191\135\206\184")]=v355}):Play();break;end if (v906==(1 + 0)) then v907:Play();v908:Play();v906=2;end if (v906==(1664 -(674 + 990))) then v907=v9:Create(v225,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{[v7("\240\132\223\40\128\187\91\199\139\216\23\149\168\90\193\149\221\49\130\167\87\203","\52\178\229\188\67\231\201")]=1 + 0 });v908=v9:Create(v242,TweenInfo.new(0.15 + 0 ,Enum.EasingStyle.Quad),{[v7("\3\64\83\15\240\78\44\52\79\84\48\229\93\45\50\81\81\22\242\82\32\56","\67\65\33\48\100\151\60")]=1 -0 });v906=1056 -(507 + 548) ;end end else local v909=0;while true do if (v909==(837 -(289 + 548))) then v225.Visible=true;v242.Visible=true;v909=1819 -(821 + 997) ;end if (v909==(257 -(195 + 60))) then v9:Create(v181,TweenInfo.new(0.3 + 0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\104\9\151\14","\203\59\96\237\107\69\111\113")]=v355}):Play();break;end if (v909==(1502 -(251 + 1250))) then v9:Create(v225,TweenInfo.new(0.15 -0 ,Enum.EasingStyle.Quad),{[v7("\166\41\165\202\223\65\189\145\38\162\245\202\82\188\151\56\167\211\221\93\177\157","\210\228\72\198\161\184\51")]=0 + 0 }):Play();v9:Create(v242,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{[v7("\20\72\240\27\116\220\57\92\253\20\71\220\55\71\224\0\114\220\51\71\240\9","\174\86\41\147\112\19")]=0}):Play();v909=2;end end end break;end if ((1032 -(809 + 223))==v354) then v179.Minimized= not v179.Minimized;v355=(v179.Minimized and UDim2.new(0 -0 ,1561 -1041 ,0,155 -108 )) or UDim2.new(0 + 0 ,520,0 + 0 ,947 -(14 + 603) ) ;v354=130 -(118 + 11) ;end end end);local v257=Instance.new(v7("\13\27\173\230\52\210\194\48\2\163\239","\183\68\118\204\129\81\144"),v193);v257.Size=UDim2.new(0 + 0 ,15 + 3 ,0 -0 ,18);v257.Position=UDim2.new(950 -(551 + 398) , -(18 + 10),0,5 + 9 );v257.BackgroundTransparency=1;v257.Image=v7("\28\175\104\240\3\151\3\175\42\171\68\150\23\189\117\185\42\145\29\168\100\162\2\134\83\252\32\179\88\214\86\244\40\183\94\215\72\186\45\181\94\210\72\165\45\181\94\210","\226\110\205\16\132\107");v257.ImageColor3=Color3.fromRGB(163 + 37 ,743 -543 ,200);v257.MouseEnter:Connect(function() v9:Create(v257,TweenInfo.new(0.15 -0 ,Enum.EasingStyle.Quad),{[v7("\194\206\225\222\68\200\204\236\214\83\184","\33\139\163\128\185")]=Color3.fromRGB(83 + 172 ,75,297 -222 )}):Play();end);v257.MouseLeave:Connect(function() v9:Create(v257,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{[v7("\126\85\5\217\82\123\11\210\88\74\87","\190\55\56\100")]=Color3.fromRGB(56 + 144 ,200,289 -(40 + 49) )}):Play();end);local v263=Instance.new(v7("\98\170\36\10\49\246\231\66\160\50","\147\54\207\92\126\115\131"),v180);v263.Name=v7("\43\61\58\124\25\119\3\54\1\114\10\121\1\52\28\126\2\112","\30\109\81\85\29\109");v263.Size=UDim2.new(0 -0 ,538 -(99 + 391) ,0,40 + 8 );v263.Position=UDim2.new(0.5, -24,0.5, -(105 -81));v263.BackgroundColor3=Color3.fromRGB(49 -29 ,20,24 + 0 );v263.BorderSizePixel=0 -0 ;v263.Text="";v263.Visible=false;local v271=Instance.new(v7("\202\88\119\185\36\208\249\237","\156\159\17\52\214\86\190"),v263);v271.CornerRadius=UDim.new(1604 -(1032 + 572) ,425 -(203 + 214) );local v273=Instance.new(v7("\155\198\142\168\188\224\182\185","\220\206\143\221"),v263);v273.Thickness=1818 -(568 + 1249) ;v28(v273,v7("\165\114\33\24\202","\178\230\29\77\119\184\172"));local v275=Instance.new(v7("\220\179\11\28\114\212\244\188\15\23","\152\149\222\106\123\23"),v263);v275.Name=v7("\244\37\249\77","\213\189\70\150\35");v275.Size=UDim2.new(0 + 0 ,57 -33 ,0,92 -68 );v275.Position=UDim2.new(1306.5 -(913 + 393) , -(33 -21),0.5 -0 , -12);v275.BackgroundTransparency=411 -(269 + 141) ;v275.Image=v7("\93\87\108\28\71\64\121\10\21\26\59\28\86\69\113\85\110\70\103\13\91\19\125\12\18\4\36\95\28\1\44\80\24\2\44\92\9\66\41\89\26\5\50\0\18\4\33\88","\104\47\53\20");v275.ScaleType=Enum.ScaleType.Fit;v28(v275,v7("\138\65\128\27\185\44\172\64\142\14\239","\111\195\44\225\124\220"));v30(v263,v263);local v283=true;local function v284() if  not v179.Visible then local v742=0 -0 ;local v743;local v744;local v745;while true do if (v742==(1982 -(362 + 1619))) then v745=nil;while true do if (v743==2) then v744.Completed:Connect(function() if v179.Visible then v263.Visible=false;end end);v181.Size=UDim2.new(0,2145 -(950 + 675) ,0 + 0 ,1179 -(216 + 963) );v743=1290 -(485 + 802) ;end if ((562 -(432 + 127))==v743) then v745=(v179.Minimized and (1120 -(1065 + 8))) or (184 + 146) ;v9:Create(v181,TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\10\122\99\68","\174\89\19\25\33")]=UDim2.new(0,2121 -(635 + 966) ,0 + 0 ,v745)}):Play();break;end if (v743==(42 -(5 + 37))) then v179.Visible=true;v181.Visible=true;v743=1;end if (v743==1) then v744=v9:Create(v263,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{[v7("\235\79\26\118","\203\184\38\96\19\203")]=UDim2.new(0 -0 ,0 + 0 ,0 -0 ,0 + 0 )});v744:Play();v743=3 -1 ;end end break;end if (v742==0) then v743=0 -0 ;v744=nil;v742=1;end end end end local function v285() if v179.Visible then v179.Visible=false;local v747=v9:Create(v181,TweenInfo.new(0.3 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{[v7("\28\27\72\75","\107\79\114\50\46\151\231")]=UDim2.new(0,520,0 -0 ,0)});v747:Play();v747.Completed:Connect(function() if  not v179.Visible then v181.Visible=false;end end);if v283 then local v880=0 + 0 ;local v881;while true do if (v880==(529 -(318 + 211))) then v881=0;while true do if ((0 -0)==v881) then v283=false;v263.Position=UDim2.new(1587 -(963 + 624) ,9 + 11 ,0.5, -24);break;end end break;end end end v263.Visible=true;v263.Size=UDim2.new(846 -(518 + 328) ,0,0,0);v9:Create(v263,TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\10\175\175\44","\160\89\198\213\73\234\89\215")]=UDim2.new(0 -0 ,76 -28 ,317 -(301 + 16) ,140 -92 )}):Play();end end v263.MouseButton1Click:Connect(function() local v357=0;while true do if (v357==(0 -0)) then v9:Create(v263,TweenInfo.new(0.1,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\123\120\174\251","\165\40\17\212\158")]=UDim2.new(0 -0 ,37 + 3 ,0 + 0 ,85 -45 )}):Play();task.delay(0.1,function() v284();end);break;end end end);v257.MouseButton1Click:Connect(v285);v36(v177,v178,function() local v358=0 + 0 ;while true do if (v358==(1 + 0)) then v263.Size=UDim2.new(0 -0 ,0 + 0 ,1019 -(829 + 190) ,0 -0 );v263.Visible=true;v358=2 -0 ;end if (v358==(2 -0)) then v9:Create(v263,TweenInfo.new(0.4 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\214\208\18\54","\70\133\185\104\83")]=UDim2.new(0,48,0,48)}):Play();task.spawn(function() local v882=0 + 0 ;local v883;while true do if (v882==0) then v883=0;while true do if (v883==0) then task.wait(0.5 + 0 );v8:LoadConfig();break;end end break;end end end);break;end if (v358==(0 -0)) then v283=true;v263.Position=UDim2.new(0.5 + 0 , -(637 -(520 + 93)),0.5, -(300 -(259 + 17)));v358=1 + 0 ;end end end);v179.SetDragLock=function(v359,v360) v179.DragLocked=v360;v181:SetAttribute(v7("\32\87\69\45\229\11\70\79\47\205","\169\100\37\36\74"),v360);end;v179.BindToggleKey=function(v362,v363) local v364=0 + 0 ;local v365;while true do if (v364==0) then v365=false;v10.InputBegan:Connect(function(v884,v885) if v885 then return;end if ((v884.KeyCode==v363) and  not v365) then local v932=0 -0 ;while true do if (v932==1) then task.wait(0.3);v365=false;break;end if ((591 -(396 + 195))==v932) then v365=true;if v179.Visible then v285();else v284();end v932=1;end end end end);break;end end end;v179.CreateTab=function(v366,v367,v368) local v369={};local v370=Instance.new(v7("\51\132\176\95\12\139\171\94\7\161\176\81\13\130","\48\96\231\194"),v242);v370.Size=UDim2.new(2 -1 , -(1777 -(440 + 1321)),1830 -(1059 + 770) , -16);v370.Position=UDim2.new(0 -0 ,553 -(424 + 121) ,0,8);v370.BackgroundTransparency=1;v370.ScrollBarThickness=1 + 1 ;v370.CanvasSize=UDim2.new(1347 -(641 + 706) ,0 + 0 ,440 -(249 + 191) ,0 -0 );v370.Visible=false;local v377=Instance.new(v7("\253\115\34\36\10\204\131\130\209\85\27\57","\227\168\58\110\77\121\184\207"),v370);v377.Padding=UDim.new(0 + 0 ,22 -16 );v377.SortOrder=Enum.SortOrder.LayoutOrder;v377:GetPropertyChangedSignal(v7("\90\62\172\79\189\206\101\160\88\51\177\84\180\213\101\150\114\38\186","\197\27\92\223\32\209\187\17")):Connect(function() v370.CanvasSize=UDim2.new(427 -(183 + 244) ,0 + 0 ,0,v377.AbsoluteContentSize.Y);end);local v381=Instance.new(v7("\55\90\219\239\33\74\215\239\12\81","\155\99\63\163"),v234);v381.Size=UDim2.new(731 -(434 + 296) ,0 -0 ,512 -(169 + 343) ,32);v381.BackgroundColor3=Color3.fromRGB(22 + 2 ,42 -18 ,81 -53 );v381.BackgroundTransparency=1;v381.Text="";v381.AutoButtonColor=false;Instance.new(v7("\183\248\130\130\171\138\135\195","\228\226\177\193\237\217"),v381).CornerRadius=UDim.new(0,5 + 0 );local v388=Instance.new(v7("\1\153\16\242\38\191\40\227","\134\84\208\67"),v381);v388.Color=Color3.fromRGB(35,99 -64 ,40);v388.Thickness=1124 -(651 + 472) ;v388.Transparency=1 + 0 ;local v392=Instance.new(v7("\53\190\135\81\22","\60\115\204\230"),v381);v392.Size=UDim2.new(0,1.5 + 1 ,1 -0 , -(495 -(397 + 86)));v392.Position=UDim2.new(0,4,876 -(423 + 453) ,1 + 5 );v392.BorderSizePixel=0;v392.Visible=false;v28(v392,v7("\197\59\232\123\224\40\228\101\233\62\200\127\235\53\249\35","\16\135\90\139"));local v397;if v368 then local v750=0;local v751;while true do if (v750==(1 + 1)) then v751=v368;if (type(v368)==v7("\202\58\44\38\10\214","\111\164\79\65\68")) then v751=v7("\212\219\155\202\38\255\203\219\217\145\97\254\223\201\134\131\15\249\213\220\151\152\39\238\155","\138\166\185\227\190\78")   .. tostring(v368)   .. v7("\141\99\152\102\7\115\95\195\41\148\98\2","\121\171\20\165\87\50\67") ;elseif ((type(v368)==v7("\213\44\171\63\183\5","\98\166\88\217\86\217")) and v368:find(v7("\200\228\123\25\135\207\229\243\109\8\130\134\185\185","\188\150\150\25\97\230"))) then local v1015=v368:gsub(v7("\228\155\93\26\13\254\201\140\75\11\8\183\149\198","\141\186\233\63\98\108"),"");v751=v7("\227\232\52\162\45\228\231\46\236\106\190\254\53\166\32\172\203\63\165\32\229\172\37\178\120","\69\145\138\76\214")   .. v1015   .. v7("\54\216\212\216\234\70\54\199\212\216\234\70","\118\16\175\233\233\223") ;end v750=3 + 0 ;end if (v750==(0 + 0)) then v397=Instance.new(v7("\125\121\7\52\75\120\121\86\113\10","\24\52\20\102\83\46\52"),v381);v397.Size=UDim2.new(0,13 + 1 ,1190 -(50 + 1140) ,13 + 1 );v750=1 + 0 ;end if (v750==1) then v397.Position=UDim2.new(0,1 + 9 ,0.5, -(9 -2));v397.BackgroundTransparency=1 + 0 ;v750=598 -(157 + 439) ;end if (v750==3) then v397.Image=v751;v397.ImageColor3=Color3.fromRGB(226 -96 ,431 -301 ,384 -254 );break;end end end local v398=Instance.new(v7("\191\129\45\175\194\138\127\142\136","\29\235\228\85\219\142\235"),v381);v398.Size=UDim2.new(1,(v368 and  -(952 -(782 + 136))) or  -16 ,1,855 -(112 + 743) );v398.Position=UDim2.new(0,(v368 and (1199 -(1026 + 145))) or (2 + 8) );v398.BackgroundTransparency=719 -(493 + 225) ;v398.Text=v367;v398.TextColor3=Color3.fromRGB(477 -347 ,80 + 50 ,348 -218 );v398.TextSize=11;v398.Font=Enum.Font.MontserratMedium;v398.TextXAlignment=Enum.TextXAlignment.Left;local function v409() if v179.CurrentTab then local v842=0 + 0 ;local v843;local v844;while true do if (v842==(11 -7)) then if v843.Icon then v9:Create(v843.Icon,TweenInfo.new(0.15),{[v7("\92\188\90\77\211\86\190\87\69\196\38","\182\21\209\59\42")]=Color3.fromRGB(38 + 92 ,217 -87 ,130)}):Play();end break;end if (v842==1) then v844:Play();v844.Completed:Connect(function() v843.Frame.Visible=false;end);v842=1597 -(210 + 1385) ;end if (v842==3) then v9:Create(v843.Text,TweenInfo.new(1689.15 -(1201 + 488) ),{[v7("\46\71\59\183\28\70\233\1\8\17","\110\122\34\67\195\95\41\133")]=Color3.fromRGB(81 + 49 ,231 -101 ,130)}):Play();v843.Indicator.Visible=false;v842=6 -2 ;end if (v842==(587 -(352 + 233))) then v9:Create(v843.Button,TweenInfo.new(0.15 -0 ),{[v7("\30\68\223\191\253\111\2\41\75\216\128\232\124\3\47\85\221\166\255\115\14\37","\109\92\37\188\212\154\29")]=1 + 0 }):Play();v9:Create(v843.ButtonStroke,TweenInfo.new(0.15 -0 ),{[v7("\48\253\165\205\34\74\5\253\161\205\50\67","\58\100\143\196\163\81")]=575 -(489 + 85) }):Play();v842=1504 -(277 + 1224) ;end if (v842==(1493 -(663 + 830))) then v843=v179.CurrentTab;v844=v9:Create(v843.Frame,TweenInfo.new(0.15,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\14\221\160\216","\50\93\180\218\189\23\46\71")]=UDim2.new(1 + 0 , -16,0.95, -(39 -23)),[v7("\238\171\72\69\80\213\71\208","\40\190\196\59\44\36\188")]=UDim2.new(875 -(461 + 414) ,8,0,3 + 9 )});v842=1;end end end v370.Size=UDim2.new(1, -(7 + 9),0.95, -(2 + 14));v370.Position=UDim2.new(0,8 + 0 ,250 -(172 + 78) ,12);v370.Visible=true;v9:Create(v370,TweenInfo.new(0.2 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\132\94\223\24","\222\215\55\165\125\65")]=UDim2.new(1 + 0 , -16,1 -0 , -(5 + 11)),[v7("\28\222\213\19\230\200\226\68","\42\76\177\166\122\146\161\141")]=UDim2.new(0 + 0 ,12 -4 ,0,9 -1 )}):Play();v179.CurrentTab={[v7("\135\159\17\218\118\120","\22\197\234\101\174\25")]=v381,[v7("\15\33\177\200\121\161\228\146\63\59\174\217","\230\77\84\197\188\22\207\183")]=v388,[v7("\205\17\222\232","\85\153\116\166\156\236\193\144")]=v398,[v7("\130\242\76\190\225","\96\196\128\45\211\132")]=v370,[v7("\28\142\116\81","\184\85\237\27\63\178\207\212")]=v397,[v7("\33\87\13\86\11\88\29\80\26","\63\104\57\105")]=v392};v9:Create(v381,TweenInfo.new(0.15),{[v7("\41\134\167\79\12\149\171\81\5\131\144\86\10\137\183\84\10\149\161\74\8\158","\36\107\231\196")]=0 + 0 ,[v7("\127\180\161\140\90\167\173\146\83\177\129\136\81\186\176\212","\231\61\213\194")]=Color3.fromRGB(14 + 10 ,24,10 + 18 )}):Play();v9:Create(v388,TweenInfo.new(0.15),{[v7("\61\191\60\125\26\189\60\97\12\163\62\106","\19\105\205\93")]=0 -0 }):Play();v9:Create(v398,TweenInfo.new(0.15 -0 ),{[v7("\157\13\198\149\28\166\4\209\147\108","\95\201\104\190\225")]=Color3.fromRGB(79 + 176 ,146 + 109 ,702 -(133 + 314) )}):Play();v392.Visible=true;if v397 then v9:Create(v397,TweenInfo.new(0.15 + 0 ),{[v7("\134\198\192\201\170\232\206\194\160\217\146","\174\207\171\161")]=Color3.fromRGB(468 -(199 + 14) ,912 -657 ,1804 -(647 + 902) )}):Play();end end v381.MouseEnter:Connect(function() local v441=0 -0 ;local v442;while true do if ((233 -(85 + 148))==v441) then v442=1289 -(426 + 863) ;while true do if ((4 -3)==v442) then v9:Create(v398,TweenInfo.new(1654.15 -(873 + 781) ),{[v7("\223\192\169\245\237\228\201\190\243\157","\174\139\165\209\129")]=Color3.fromRGB(267 -67 ,540 -340 ,200)}):Play();if v397 then v9:Create(v397,TweenInfo.new(0.15),{[v7("\138\190\227\198\195\32\127\116\172\161\177","\24\195\211\130\161\166\99\16")]=Color3.fromRGB(83 + 117 ,200,738 -538 )}):Play();end break;end if (v442==(0 -0)) then if (v179.CurrentTab and (v179.CurrentTab.Button==v381)) then return;end v9:Create(v381,TweenInfo.new(0.15),{[v7("\207\255\14\248\255\197\226\235\3\247\204\197\236\240\30\227\249\197\232\240\14\234","\183\141\158\109\147\152")]=0.5 -0 ,[v7("\14\8\229\7\43\27\233\25\34\13\197\3\32\6\244\95","\108\76\105\134")]=Color3.fromRGB(1967 -(414 + 1533) ,18 + 2 ,24)}):Play();v442=556 -(443 + 112) ;end end break;end end end);v381.MouseLeave:Connect(function() local v443=1479 -(888 + 591) ;local v444;while true do if (v443==(0 -0)) then v444=0 + 0 ;while true do if ((0 -0)==v444) then if (v179.CurrentTab and (v179.CurrentTab.Button==v381)) then return;end v9:Create(v381,TweenInfo.new(0.15),{[v7("\100\2\234\39\84\4\73\22\231\40\103\4\71\13\250\60\82\4\67\13\234\53","\118\38\99\137\76\51")]=1 + 0 }):Play();v444=1 + 0 ;end if (v444==1) then v9:Create(v398,TweenInfo.new(0.15 + 0 ),{[v7("\201\35\29\6\42\47\241\41\23\65","\64\157\70\101\114\105")]=Color3.fromRGB(247 -117 ,240 -110 ,1808 -(136 + 1542) )}):Play();if v397 then v9:Create(v397,TweenInfo.new(0.15),{[v7("\105\165\166\228\21\99\167\171\236\2\19","\112\32\200\199\131")]=Color3.fromRGB(130,426 -296 ,130 + 0 )}):Play();end break;end end break;end end end);v381.MouseButton1Click:Connect(v409);if  not v179.CurrentTab then v409();end v369.CreateButton=function(v445,v446,v447) local v448=Instance.new(v7("\24\85\68\172\225\190\54\56\95\82","\66\76\48\60\216\163\203"),v370);v448.Size=UDim2.new(1, -6,0 -0 ,25 + 9 );v448.BackgroundColor3=Color3.fromRGB(508 -(68 + 418) ,22,70 -44 );v448.Text="";v448.AutoButtonColor=false;Instance.new(v7("\143\175\90\252\77\192\33\168","\68\218\230\25\147\63\174"),v448).CornerRadius=UDim.new(0 -0 ,5 + 0 );local v454=Instance.new(v7("\152\3\96\88\164\162\33\86","\214\205\74\51\44"),v448);v454.Color=Color3.fromRGB(35,1127 -(770 + 322) ,40);v454.Thickness=1 + 0 ;local v457=Instance.new(v7("\206\73\250\232\91\251\78\231\240","\23\154\44\130\156"),v448);v457.Size=UDim2.new(1, -(11 + 24),1,0);v457.Position=UDim2.new(0 + 0 ,16 -4 ,0 -0 ,0 -0 );v457.BackgroundTransparency=1;v457.Text=v446 or v7("\51\179\185\186\57\29","\115\113\198\205\206\86") ;v457.TextColor3=Color3.fromRGB(210,772 -562 ,117 + 93 );v457.TextSize=11;v457.Font=Enum.Font.MontserratMedium;v457.TextXAlignment=Enum.TextXAlignment.Left;local v468=Instance.new(v7("\173\90\255\93\129\123\255\88\129\91","\58\228\55\158"),v448);v468.Size=UDim2.new(0 -0 ,6 + 6 ,0 + 0 ,10 + 2 );v468.Position=UDim2.new(3 -2 , -(30 -8),0.5, -6);v468.BackgroundTransparency=1 + 0 ;v468.Image=v7("\166\139\200\58\52\184\56\182\211\159\97\40\180\37\177\212\241\61\47\168\33\242\128\212\115\106\253\102\229\217\137\122\106\250\109\242\158\141\127\105\253\115\188\212\129\123\108","\85\212\233\176\78\92\205");v468.ImageColor3=Color3.fromRGB(130,598 -468 ,429 -299 );v448.MouseEnter:Connect(function() v9:Create(v448,TweenInfo.new(0.15 + 0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\104\89\139\233\77\74\135\247\68\92\171\237\70\87\154\177","\130\42\56\232")]=Color3.fromRGB(28,138 -110 ,33)}):Play();v9:Create(v468,TweenInfo.new(831.15 -(762 + 69) ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\195\184\37\228\69\28\229\185\43\241\19","\95\138\213\68\131\32")]=Color3.fromRGB(825 -570 ,255,220 + 35 ),[v7("\26\39\178\74\98\35\39\175","\22\74\72\193\35")]=UDim2.new(1 + 0 , -(48 -28),0.5 + 0 , -(1 + 5))}):Play();end);v448.MouseLeave:Connect(function() v9:Create(v448,TweenInfo.new(0.15 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\14\120\231\83\43\107\235\77\34\125\199\87\32\118\246\11","\56\76\25\132")]=Color3.fromRGB(22,22,183 -(8 + 149) )}):Play();v9:Create(v468,TweenInfo.new(1320.15 -(1199 + 121) ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\119\204\170\33\202\125\206\167\41\221\13","\175\62\161\203\70")]=Color3.fromRGB(130,219 -89 ,293 -163 ),[v7("\12\210\208\26\33\53\210\205","\85\92\189\163\115")]=UDim2.new(1 + 0 , -(78 -56),0.5, -6)}):Play();end);v448.MouseButton1Click:Connect(function() local v752=0 -0 ;local v753;while true do if (v752==(1 + 0)) then v753.Completed:Connect(function() v9:Create(v448,TweenInfo.new(0.1,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\12\130\19\77\46\200\33\150\30\66\10\213\34\140\2\21","\186\78\227\112\38\73")]=Color3.fromRGB(28,1835 -(518 + 1289) ,55 -22 )}):Play();end);if v447 then task.spawn(v447);end break;end if (v752==0) then v753=v9:Create(v448,TweenInfo.new(0.05,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\11\173\51\51\46\190\63\45\39\168\19\55\37\163\34\107","\88\73\204\80")]=Color3.fromRGB(5 + 30 ,35,60 -18 )});v753:Play();v752=1;end end end);end;v369.CreateToggle=function(v474,v475,v476,v477,v478) local v479=v477;local v480=v478;if (type(v477)==v7("\250\66\243\86\71\115\243\89","\26\156\55\157\53\51")) then local v845=0 + 0 ;local v846;while true do if (v845==0) then v846=0;while true do if (v846==0) then v480=v477;v479=v475:gsub(v7("\201\203\93","\48\236\184\118\185\216"),"");break;end end break;end end elseif  not v477 then v479=v475:gsub(v7("\160\174\28","\84\133\221\55\80\175"),"");end local v481=v8.LoadedConfigCache and v8.LoadedConfigCache[v479] ;local v482={[v7("\142\243\37\178\194","\60\221\135\68\198\167")]=((v481~=nil) and v481) or v476 or false };v8.Flags[v479]=v482.State;local v485=Instance.new(v7("\218\184\224\151\96\204\250\169\247\141","\185\142\221\152\227\34"),v370);v485.Size=UDim2.new(470 -(304 + 165) , -(6 + 0),0,34);v485.BackgroundColor3=Color3.fromRGB(182 -(54 + 106) ,22,26);v485.Text="";v485.AutoButtonColor=false;Instance.new(v7("\109\236\116\245\81\61\242\74","\151\56\165\55\154\35\83"),v485).CornerRadius=UDim.new(1969 -(1618 + 351) ,4 + 1 );local v491=Instance.new(v7("\149\106\54\250\178\76\14\235","\142\192\35\101"),v485);v491.Color=Color3.fromRGB(1051 -(10 + 1006) ,9 + 26 ,6 + 34 );v491.Thickness=3 -2 ;local v494=Instance.new(v7("\226\112\49\183\203\141\174\19\218","\118\182\21\73\195\135\236\204"),v485);v494.Size=UDim2.new(1, -(1098 -(912 + 121)),1 + 0 ,1289 -(1140 + 149) );v494.Position=UDim2.new(0,8 + 4 ,0 -0 ,0 + 0 );v494.BackgroundTransparency=1;v494.Text=v475 or v7("\60\51\29\71\8\8","\157\104\92\122\32\100\109") ;v494.TextColor3=Color3.fromRGB(210,718 -508 ,393 -183 );v494.TextSize=2 + 9 ;v494.Font=Enum.Font.MontserratMedium;v494.TextXAlignment=Enum.TextXAlignment.Left;local v505=Instance.new(v7("\133\180\206\199\56","\203\195\198\175\170\93\71\237"),v485);v505.Size=UDim2.new(0 -0 ,32,0,202 -(165 + 21) );v505.Position=UDim2.new(112 -(61 + 50) , -44,0.5 + 0 , -(38 -30));v505.BackgroundColor3=Color3.fromRGB(70 -35 ,14 + 21 ,1500 -(1295 + 165) );v505.BorderSizePixel=0 + 0 ;Instance.new(v7("\27\98\29\218\67\31\249\60","\156\78\43\94\181\49\113"),v505).CornerRadius=UDim.new(1 + 0 ,0);local v511=Instance.new(v7("\84\250\197\174\14","\25\18\136\164\195\107\35"),v505);v511.Size=UDim2.new(1397 -(819 + 578) ,1414 -(331 + 1071) ,743 -(588 + 155) ,1294 -(546 + 736) );v511.Position=UDim2.new(1937 -(1834 + 103) ,2 + 0 ,0.5 -0 , -(1772 -(1536 + 230)));v511.BackgroundColor3=Color3.fromRGB(150,641 -(128 + 363) ,150);v511.BorderSizePixel=0;Instance.new(v7("\221\4\138\64\96\178\196\170","\216\136\77\201\47\18\220\161"),v511).CornerRadius=UDim.new(1 + 0 ,0 -0 );local function v517(v754,v755) local v756=(v754 and (0.2 + 0)) or (0 -0) ;local v757=TweenInfo.new(v756,Enum.EasingStyle.Quad,Enum.EasingDirection.Out);if v482.State then v9:Create(v511,v757,{[v7("\29\227\56\211\28\213\141\35","\226\77\140\75\186\104\188")]=UDim2.new(2 -1 , -14,0.5 -0 , -6),[v7("\155\207\211\52\72\171\193\197\49\75\154\193\220\48\93\234","\47\217\174\176\95")]=Color3.fromRGB(175 + 80 ,255,255)}):Play();v28(v505,v7("\154\220\117\9\181\70\119\51\182\217\85\13\190\91\106\117","\70\216\189\22\98\210\52\24"));v9:Create(v485,TweenInfo.new(1009.15 -(615 + 394) ,Enum.EasingStyle.Quad),{[v7("\248\222\160\140\212\200\208\182\137\215\249\208\175\136\193\137","\179\186\191\195\231")]=Color3.fromRGB(22 + 2 ,23 + 1 ,91 -61 )}):Play();else local v886=0 -0 ;while true do if ((652 -(59 + 592))==v886) then v9:Create(v505,TweenInfo.new(v756,Enum.EasingStyle.Quad),{[v7("\34\136\234\181\7\155\230\171\14\141\202\177\12\134\251\237","\222\96\233\137")]=Color3.fromRGB(77 -42 ,64 -29 ,29 + 11 )}):Play();v9:Create(v485,TweenInfo.new(171.15 -(70 + 101) ,Enum.EasingStyle.Quad),{[v7("\155\178\164\20\143\225\255\172\189\163\60\135\255\255\171\224","\144\217\211\199\127\232\147")]=Color3.fromRGB(54 -32 ,22,19 + 7 )}):Play();break;end if (v886==0) then v29(v505,v7("\219\62\27\239\254\45\23\241\247\59\59\235\245\48\10\183","\132\153\95\120"));v9:Create(v511,v757,{[v7("\129\189\29\36\227\211\175\191","\192\209\210\110\77\151\186")]=UDim2.new(0 -0 ,2,241.5 -(123 + 118) , -6),[v7("\194\2\33\226\248\214\239\22\44\237\220\203\236\12\48\186","\164\128\99\66\137\159")]=Color3.fromRGB(32 + 98 ,130,130)}):Play();v886=1 + 0 ;end end end v8.Flags[v479]=v482.State;if  not v755 then v8:SaveConfig(true);end end v517(false,true);if ((v481~=nil) and v480) then task.spawn(function() v480(v482.State);end);end v485.MouseButton1Click:Connect(function() v482.State= not v482.State;v517(true);if v480 then task.spawn(function() v480(v482.State);end);end end);local v518={};v518.DefaultValue=v476 or false ;v518.Set=function(v761,v762,v763,v764) local v765=1399 -(653 + 746) ;while true do if ((0 -0)==v765) then v482.State=v762;v517(true,v763);v765=1 -0 ;end if (v765==1) then if (v480 and  not v764) then task.spawn(function() v480(v482.State);end);end break;end end end;v8.Elements[v479]=v518;return v518;end;v369.CreateSlider=function(v522,v523,v524,v525,v526,v527,v528) local v529=v527;local v530=v528;if (type(v527)==v7("\254\58\48\43\193\76\13\74","\36\152\79\94\72\181\37\98")) then local v847=0 -0 ;while true do if (v847==(0 + 0)) then v530=v527;v529=v523:gsub(v7("\146\203\12","\95\183\184\39"),"");break;end end elseif  not v527 then v529=v523:gsub(v7("\240\44\172","\98\213\95\135\70\52\224"),"");end local v531=v8.LoadedConfigCache and v8.LoadedConfigCache[v529] ;local v532={[v7("\200\162\197\98\81","\52\158\195\169\23")]=((v531~=nil) and v531) or v526 or v524 };v8.Flags[v529]=v532.Value;local v535=Instance.new(v7("\92\174\51\121\131","\235\26\220\82\20\230\85\27"),v370);v535.Size=UDim2.new(1 + 0 , -(6 + 0),0 + 0 ,48);v535.BackgroundColor3=Color3.fromRGB(4 + 18 ,22,63 -37 );Instance.new(v7("\189\136\202\205\102\134\164\251","\20\232\193\137\162"),v535).CornerRadius=UDim.new(0 + 0 ,5);local v539=Instance.new(v7("\23\246\246\178\245\131\28\116","\17\66\191\165\198\135\236\119"),v535);v539.Color=Color3.fromRGB(64 -29 ,1269 -(885 + 349) ,32 + 8 );v539.Thickness=2 -1 ;local v542=Instance.new(v7("\59\170\182\7\211\233\238\212\3","\177\111\207\206\115\159\136\140"),v535);v542.Size=UDim2.new(1, -(58 -38),968 -(915 + 53) ,20);v542.Position=UDim2.new(0,813 -(768 + 33) ,0 -0 ,4);v542.BackgroundTransparency=1;v542.Text=v523   .. v7("\95\201","\63\101\233\112\116\180\47")   .. tostring(v532.Value) ;v542.TextColor3=Color3.fromRGB(369 -159 ,538 -(287 + 41) ,1057 -(638 + 209) );v542.TextSize=11;v542.Font=Enum.Font.MontserratMedium;v542.TextXAlignment=Enum.TextXAlignment.Left;local v553=Instance.new(v7("\247\62\245\6\218\35\215\47\226\28","\86\163\91\141\114\152"),v535);v553.Size=UDim2.new(1 + 0 , -(1710 -(96 + 1590)),1672 -(741 + 931) ,2 + 2 );v553.Position=UDim2.new(0 -0 ,56 -44 ,1 + 0 , -(6 + 6));v553.BackgroundColor3=Color3.fromRGB(35,12 + 23 ,151 -111 );v553.Text="";v553.AutoButtonColor=false;Instance.new(v7("\102\34\87\124\40\93\14\102","\90\51\107\20\19"),v553).CornerRadius=UDim.new(1 + 0 ,0);local v560=Instance.new(v7("\171\226\132\226\56","\93\237\144\229\143"),v553);v560.Size=UDim2.new((v532.Value-v524)/(v525-v524) ,0,1 + 0 ,0 -0 );v560.BorderSizePixel=0;Instance.new(v7("\32\223\211\22\25\72\16\228","\38\117\150\144\121\107"),v560).CornerRadius=UDim.new(1,0 + 0 );v28(v560,v7("\15\186\237\49\42\169\225\47\35\191\205\53\33\180\252\105","\90\77\219\142"));local function v564(v766,v767) local v768=0;local v769;while true do if (v768==1) then v9:Create(v560,TweenInfo.new(494.1 -(64 + 430) ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\213\13\59\60","\26\134\100\65\89\44\103")]=UDim2.new(v769,0 + 0 ,364 -(106 + 257) ,0 + 0 )}):Play();v542.Text=v523   .. v7("\171\163","\196\145\131\80\67")   .. tostring(v532.Value) ;v768=2;end if (v768==2) then v8.Flags[v529]=v532.Value;if  not v767 then v8:SaveConfig(true);end break;end if (v768==0) then v532.Value=math.clamp(v766,v524,v525);v769=(v532.Value-v524)/(v525-v524) ;v768=722 -(496 + 225) ;end end end v564(v532.Value,true);if ((v531~=nil) and v530) then task.spawn(function() v530(v532.Value);end);end local v565=false;local function v566(v770) local v771=0 -0 ;local v772;local v773;local v774;while true do if (v771==2) then if v530 then task.spawn(function() v530(v774);end);end break;end if (v771==0) then v772=math.clamp((v770.Position.X-v553.AbsolutePosition.X)/v553.AbsoluteSize.X ,0 -0 ,1659 -(256 + 1402) );v773=v524 + (v772 * (v525-v524)) ;v771=1900 -(30 + 1869) ;end if ((1370 -(213 + 1156))==v771) then v774=math.floor(v773 + 0.5 );v564(v774);v771=190 -(96 + 92) ;end end end v553.InputBegan:Connect(function(v775) if ((v775.UserInputType==Enum.UserInputType.MouseButton1) or (v775.UserInputType==Enum.UserInputType.Touch)) then local v887=0 + 0 ;while true do if (v887==0) then v565=true;v566(v775);break;end end end end);v10.InputChanged:Connect(function(v776) if (v565 and ((v776.UserInputType==Enum.UserInputType.MouseMovement) or (v776.UserInputType==Enum.UserInputType.Touch))) then v566(v776);end end);v10.InputEnded:Connect(function(v777) if ((v777.UserInputType==Enum.UserInputType.MouseButton1) or (v777.UserInputType==Enum.UserInputType.Touch)) then v565=false;end end);local v567={};v567.DefaultValue=v526 or v524 ;v567.Set=function(v778,v779,v780,v781) local v782=899 -(142 + 757) ;while true do if (v782==0) then v564(v779,v780);if (v530 and  not v781) then task.spawn(function() v530(v532.Value);end);end break;end end end;v8.Elements[v529]=v567;return v567;end;v369.CreateDropdown=function(v571,v572,v573,v574,v575,v576) local v577=v575;local v578=v576;if (type(v575)==v7("\24\165\8\11\12\225\17\190","\136\126\208\102\104\120")) then local v848=0;while true do if (v848==0) then v578=v575;v577=v572:gsub(v7("\61\153\133","\49\24\234\174\35\207\50\93"),"");break;end end elseif  not v575 then v577=v572:gsub(v7("\73\225\182","\17\108\146\157\232"),"");end local v579=v8.LoadedConfigCache and v8.LoadedConfigCache[v577] ;local v580={[v7("\100\211\17\227","\200\43\163\116\141\79")]=false,[v7("\156\35\47\145\181\250\247\137\55\49\150\181","\131\223\86\93\227\208\148")]=((v579~=nil) and v579) or v574 or v573[1 + 0 ] ,[v7("\204\85\162\191\18\187\197\87\183\187\24\166","\213\131\37\214\214\125")]={}};v8.Flags[v577]=v580.CurrentValue;local v583=Instance.new(v7("\0\57\36\178\228","\129\70\75\69\223"),v370);v583.Size=UDim2.new(1, -6,0 + 0 ,113 -(32 + 47) );v583.BackgroundColor3=Color3.fromRGB(1999 -(1053 + 924) ,22 + 0 ,44 -18 );v583.ClipsDescendants=true;Instance.new(v7("\115\226\208\230\110\225\67\217","\143\38\171\147\137\28"),v583).CornerRadius=UDim.new(0,1653 -(685 + 963) );local v588=Instance.new(v7("\229\171\138\231\17\236\223\213","\180\176\226\217\147\99\131"),v583);v588.Color=Color3.fromRGB(71 -36 ,54 -19 ,40);v588.Thickness=1710 -(541 + 1168) ;local v591=Instance.new(v7("\231\188\55\19\241\172\59\19\220\183","\103\179\217\79"),v583);v591.Size=UDim2.new(1,1597 -(645 + 952) ,838 -(669 + 169) ,117 -83 );v591.BackgroundTransparency=1;v591.Text="";local v595=Instance.new(v7("\126\178\4\193\109\141\161\79\187","\195\42\215\124\181\33\236"),v591);v595.Size=UDim2.new(1 -0 , -60,1 + 0 ,0 + 0 );v595.Position=UDim2.new(0,777 -(181 + 584) ,1395 -(665 + 730) ,0);v595.BackgroundTransparency=2 -1 ;v595.Text=v572   .. v7("\77\17","\152\109\57\87\94\69")   .. tostring(v580.CurrentValue)   .. ")" ;v595.TextColor3=Color3.fromRGB(428 -218 ,1560 -(540 + 810) ,839 -629 );v595.TextSize=11;v595.Font=Enum.Font.MontserratMedium;v595.TextXAlignment=Enum.TextXAlignment.Left;local v606=Instance.new(v7("\208\218\11\164\187\254\85\170\252\219","\200\153\183\106\195\222\178\52"),v591);v606.Size=UDim2.new(0,27 -17 ,0 + 0 ,213 -(166 + 37) );v606.Position=UDim2.new(1882 -(22 + 1859) , -(1794 -(843 + 929)),262.5 -(30 + 232) , -5);v606.BackgroundTransparency=2 -1 ;v606.Image=v7("\32\225\144\41\65\79\63\225\210\114\6\78\43\243\141\96\104\73\33\230\156\123\64\94\111\181\216\110\24\10\107\183\222\106\25\28\37\190\217\104\25\28\58\190\217\104\25","\58\82\131\232\93\41");v606.ImageColor3=Color3.fromRGB(907 -(55 + 722) ,130,279 -149 );local v612=Instance.new(v7("\165\69\209\24\88","\95\227\55\176\117\61"),v583);v612.Size=UDim2.new(1, -24,1675 -(78 + 1597) ,0 + 0 );v612.Position=UDim2.new(0 + 0 ,11 + 1 ,549 -(305 + 244) ,36);v612.BackgroundTransparency=1 + 0 ;local v616=Instance.new(v7("\45\87\15\66\184\12\82\34\82\164\13\106","\203\120\30\67\43"),v612);v616.Padding=UDim.new(0,4);local function v618() local v783=105 -(95 + 10) ;while true do if (v783==(1 + 0)) then for v935,v936 in ipairs(v573) do local v937=Instance.new(v7("\197\32\85\251\251\228\49\89\224\215","\185\145\69\45\143"),v612);v937.Size=UDim2.new(3 -2 ,0 -0 ,762 -(592 + 170) ,26);v937.BackgroundColor3=Color3.fromRGB(26,90 -64 ,31);v937.Text="";v937.AutoButtonColor=false;Instance.new(v7("\191\54\58\169\206\132\26\11","\188\234\127\121\198"),v937).CornerRadius=UDim.new(0,9 -5 );local v943=Instance.new(v7("\12\55\11\151\20\51\17\134\52","\227\88\82\115"),v937);v943.Size=UDim2.new(1 + 0 , -(8 + 12),2 -1 ,0 + 0 );v943.Position=UDim2.new(0 -0 ,517 -(353 + 154) ,0,0 -0 );v943.BackgroundTransparency=1 -0 ;v943.Text=tostring(v936);v943.TextSize=7 + 3 ;v943.TextXAlignment=Enum.TextXAlignment.Left;if (v936==v580.CurrentValue) then local v992=0;local v993;while true do if (v992==(0 + 0)) then v943.TextColor3=Color3.fromRGB(255,169 + 86 ,368 -113 );v943.Font=Enum.Font.MontserratBold;v992=1;end if (v992==1) then v993=Instance.new(v7("\101\13\187\170\7","\19\35\127\218\199\98"),v937);v993.Size=UDim2.new(0 -0 ,4.5 -2 ,1, -(94 -(7 + 79)));v992=2;end if (v992==2) then v993.Position=UDim2.new(0 + 0 ,184 -(24 + 157) ,0 -0 ,4);Instance.new(v7("\41\210\41\237\14\245\15\240","\130\124\155\106"),v993);v992=6 -3 ;end if (v992==(1 + 2)) then v28(v993,v7("\247\202\245\164\164\228\115\170\219\207\213\160\175\249\110\236","\223\181\171\150\207\195\150\28"));break;end end else local v994=0;local v995;while true do if (v994==(0 -0)) then v995=0;while true do if (v995==0) then v943.TextColor3=Color3.fromRGB(520 -(262 + 118) ,1223 -(1038 + 45) ,302 -162 );v943.Font=Enum.Font.Montserrat;break;end end break;end end end v937.MouseEnter:Connect(function() v9:Create(v937,TweenInfo.new(230.1 -(19 + 211) ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\110\59\224\165\14\94\53\246\160\13\111\53\239\161\27\31","\105\44\90\131\206")]=Color3.fromRGB(32,145 -(88 + 25) ,96 -58 )}):Play();end);v937.MouseLeave:Connect(function() v9:Create(v937,TweenInfo.new(0.1 + 0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\221\225\177\178\15\44\240\245\188\189\43\49\243\239\160\234","\94\159\128\210\217\104")]=Color3.fromRGB(26,26,29 + 2 )}):Play();end);v937.MouseButton1Click:Connect(function() local v973=1036 -(1007 + 29) ;while true do if (v973==(1 + 0)) then v29(v588,v7("\33\79\225\252\16","\147\98\32\141"));v588.Color=Color3.fromRGB(85 -50 ,165 -130 ,40);v9:Create(v583,TweenInfo.new(0.25 + 0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\43\74\249\207","\43\120\35\131\170\102\54")]=UDim2.new(1, -(817 -(340 + 471)),0 -0 ,623 -(276 + 313) )}):Play();v973=4 -2 ;end if ((2 + 0)==v973) then v9:Create(v606,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\102\9\147\183\177\185\139\90","\228\52\102\231\214\197\208")]=0}):Play();v618();v8.Flags[v577]=v936;v973=2 + 1 ;end if (v973==0) then v580.CurrentValue=v936;v595.Text=v572   .. v7("\16\177","\26\48\153\102\223\63\31\153")   .. tostring(v936)   .. ")" ;v580.Open=false;v973=1;end if (3==v973) then if  not v577:find(v7("\32\223\74\231\239\159\24","\182\126\128\21\170\138\235\121")) then v8:SaveConfig(true);end if v578 then task.spawn(function() v578(v936);end);end break;end end end);table.insert(v580.OptionFrames,v937);end break;end if (v783==(0 + 0)) then for v951,v952 in ipairs(v580.OptionFrames) do v952:Destroy();end v580.OptionFrames={};v783=1;end end end v591.MouseButton1Click:Connect(function() v580.Open= not v580.Open;local v785=34;local v786=1972 -(495 + 1477) ;if v580.Open then local v888=0 -0 ;local v889;while true do if (v888==(0 + 0)) then v889=403 -(342 + 61) ;while true do if (v889==(1 + 0)) then v612.Size=UDim2.new(1, -24,165 -(4 + 161) ,v616.AbsoluteContentSize.Y);v785=34 + v616.AbsoluteContentSize.Y + 8 ;v889=2;end if (v889==(2 + 0)) then v786=565 -385 ;break;end if (v889==(0 -0)) then v618();v28(v588,v7("\168\213\57\233\148","\102\235\186\85\134\230\115\80"));v889=1;end end break;end end else local v890=497 -(322 + 175) ;while true do if (v890==(563 -(173 + 390))) then v29(v588,v7("\116\3\50\80\96","\66\55\108\94\63\18\180"));v588.Color=Color3.fromRGB(9 + 26 ,349 -(203 + 111) ,40);v890=1 + 0 ;end if (v890==(1 + 0)) then v612.Size=UDim2.new(1, -24,0 -0 ,0);break;end end end v9:Create(v583,TweenInfo.new(0.25 + 0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\39\132\159\50","\57\116\237\229\87\71")]=UDim2.new(1, -6,706 -(57 + 649) ,v785)}):Play();v9:Create(v606,TweenInfo.new(384.2 -(328 + 56) ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\152\190\249\230\99\231\72\164","\39\202\209\141\135\23\142")]=v786}):Play();end);if ((v579~=nil) and v578) then task.spawn(function() v578(v580.CurrentValue);end);end local v619={};v619.DefaultValue=v574 or v573[1] ;v619.Set=function(v787,v788,v789,v790) local v791=0;local v792;while true do if (v791==(0 + 0)) then v792=0;while true do if (v792==(512 -(433 + 79))) then v580.CurrentValue=v788;v595.Text=v572   .. v7("\191\123","\152\159\83\105\106\82")   .. tostring(v788)   .. ")" ;v792=1 + 0 ;end if (v792==(2 + 0)) then if (v578 and  not v790) then task.spawn(function() v578(v788);end);end break;end if (v792==1) then v8.Flags[v577]=v788;if ( not v789 and  not v577:find(v7("\191\249\110\223\204\72\128","\60\225\166\49\146\169"))) then v8:SaveConfig(true);end v792=6 -4 ;end end break;end end end;v619.Refresh=function(v793,v794) local v795=0 -0 ;while true do if (v795==(0 + 0)) then v573=v794;if v580.Open then v618();v612.Size=UDim2.new(1 + 0 , -(1060 -(562 + 474)),0 -0 ,v616.AbsoluteContentSize.Y);local v977=34 + v616.AbsoluteContentSize.Y + 8 ;v9:Create(v583,TweenInfo.new(0.25 -0 ,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{[v7("\28\23\53\47","\103\79\126\79\74\97")]=UDim2.new(906 -(76 + 829) , -6,1673 -(1506 + 167) ,v977)}):Play();end break;end end end;v619.Update=v619.Refresh;v8.Elements[v577]=v619;return v619;end;v369.CreateTextBox=function(v625,v626,v627,v628,v629) local v630=v628;local v631=v629;if (type(v628)==v7("\188\106\221\112\74\19\181\113","\122\218\31\179\19\62")) then local v849=0 -0 ;local v850;while true do if (v849==0) then v850=0;while true do if (v850==(266 -(58 + 208))) then v631=v628;v630=v626:gsub(v7("\246\197\134","\37\211\182\173\161\169\193"),"");break;end end break;end end elseif  not v628 then v630=v626:gsub(v7("\178\41\6","\217\151\90\45\185\72\27"),"");end local v632=v8.LoadedConfigCache and v8.LoadedConfigCache[v630] ;local v633=Instance.new(v7("\229\110\230\31\83","\54\163\28\135\114"),v370);v633.Size=UDim2.new(1 + 0 , -6,0 + 0 ,20 + 14 );v633.BackgroundColor3=Color3.fromRGB(89 -67 ,359 -(258 + 79) ,26);Instance.new(v7("\29\242\126\141\92\113\45\201","\31\72\187\61\226\46"),v633).CornerRadius=UDim.new(0 + 0 ,10 -5 );local v637=Instance.new(v7("\246\47\112\198\85\113\47\198","\68\163\102\35\178\39\30"),v633);v637.Color=Color3.fromRGB(1505 -(1219 + 251) ,1706 -(1231 + 440) ,98 -(34 + 24) );v637.Thickness=1;local v640=Instance.new(v7("\138\117\194\211\47\180\129\20\178","\113\222\16\186\167\99\213\227"),v633);v640.Size=UDim2.new(0.45 + 0 , -12,1,0);v640.Position=UDim2.new(0 -0 ,12,0 + 0 ,0 -0 );v640.BackgroundTransparency=3 -2 ;v640.Text=v626 or v7("\7\0\235\227\58\78\207\243\54\26","\150\78\110\155") ;v640.TextColor3=Color3.fromRGB(210,210,552 -342 );v640.TextSize=36 -25 ;v640.Font=Enum.Font.MontserratMedium;v640.TextXAlignment=Enum.TextXAlignment.Left;local v651=Instance.new(v7("\177\192\63\245\134\17\167","\32\229\165\71\129\196\126\223"),v633);v651.Size=UDim2.new(0.55, -(25 -13),1589 -(877 + 712) ,14 + 8 );v651.Position=UDim2.new(754.45 -(242 + 512) ,0 -0 ,627.5 -(92 + 535) , -(9 + 2));v651.BackgroundColor3=Color3.fromRGB(30,30,72 -37 );v651.Text=(v632 and tostring(v632)) or "" ;v651.PlaceholderText=v627 or v7("\247\144\212\132\193\221\198\155\193\207\207\155","\181\163\233\164\225\225") ;v651.TextColor3=Color3.fromRGB(255,16 + 239 ,255);v651.PlaceholderColor3=Color3.fromRGB(90,327 -237 ,99 + 1 );v651.TextSize=7 + 3 ;v651.Font=Enum.Font.Montserrat;Instance.new(v7("\101\162\29\120\66\133\59\101","\23\48\235\94"),v651).CornerRadius=UDim.new(0,1 + 3 );local v663=Instance.new(v7("\73\243\235\73\69\60\217\121","\178\28\186\184\61\55\83"),v651);v663.Color=Color3.fromRGB(79 -39 ,40,68 -23 );v663.Thickness=1;v8.Flags[v630]=v651.Text;v651.Focused:Connect(function() local v796=1785 -(1476 + 309) ;local v797;while true do if (v796==0) then v797=1284 -(299 + 985) ;while true do if (v797==0) then v9:Create(v663,TweenInfo.new(0.15),{[v7("\231\194\75\51\224","\149\164\173\39\92\146\110")]=Color3.fromRGB(100,24 + 76 ,110)}):Play();v9:Create(v633,TweenInfo.new(0.15),{[v7("\209\38\19\20\29\9\252\50\30\27\57\20\255\40\2\76","\123\147\71\112\127\122")]=Color3.fromRGB(78 -54 ,24,123 -(86 + 7) )}):Play();break;end end break;end end end);v651.FocusLost:Connect(function(v798) local v799=0 -0 ;while true do if (v799==(1 + 0)) then v8.Flags[v630]=v651.Text;v8:SaveConfig(true);v799=882 -(672 + 208) ;end if (v799==(1 + 1)) then if v631 then task.spawn(function() v631(v651.Text,v798);end);end break;end if ((132 -(14 + 118))==v799) then v9:Create(v663,TweenInfo.new(445.15 -(339 + 106) ),{[v7("\239\194\142\126\84","\38\172\173\226\17")]=Color3.fromRGB(32 + 8 ,21 + 19 ,1440 -(440 + 955) )}):Play();v9:Create(v633,TweenInfo.new(0.15),{[v7("\111\16\47\228\74\3\35\250\67\21\15\224\65\30\62\188","\143\45\113\76")]=Color3.fromRGB(22 + 0 ,39 -17 ,26)}):Play();v799=1;end end end);if ((v632~=nil) and v631) then task.spawn(function() v631(v651.Text,false);end);end local v667={};v667.DefaultValue="";v667.Set=function(v800,v801,v802,v803) local v804=0 + 0 ;local v805;while true do if (v804==(0 -0)) then v805=0 + 0 ;while true do if ((353 -(260 + 93))==v805) then v651.Text=tostring(v801);v8.Flags[v630]=v801;v805=1 + 0 ;end if (v805==(2 -1)) then if  not v802 then v8:SaveConfig(true);end if (v631 and  not v803) then task.spawn(function() v631(v801,false);end);end break;end end break;end end end;v8.Elements[v630]=v667;return v667;end;v369.CreateParagraph=function(v671,v672,v673) local v674=Instance.new(v7("\158\170\29\49\189","\92\216\216\124"),v370);v674.Size=UDim2.new(1, -(10 -4),0,2026 -(1181 + 793) );v674.BackgroundColor3=Color3.fromRGB(5 + 13 ,325 -(105 + 202) ,18 + 4 );v674.BackgroundTransparency=810.4 -(352 + 458) ;Instance.new(v7("\110\27\143\79\239\85\55\190","\157\59\82\204\32"),v674).CornerRadius=UDim.new(0 -0 ,12 -7 );local v679=Instance.new(v7("\13\23\208\238\251\229\216\180","\209\88\94\131\154\137\138\179"),v674);v679.Color=Color3.fromRGB(30 + 0 ,30,35);v679.Thickness=1;local v682=Instance.new(v7("\28\164\220\104\50\34\51\39\36","\66\72\193\164\28\126\67\81"),v674);v682.Size=UDim2.new(2 -1 , -20,949 -(438 + 511) ,1401 -(1262 + 121) );v682.Position=UDim2.new(0,1080 -(728 + 340) ,0,1796 -(816 + 974) );v682.BackgroundTransparency=1;v682.Text=v672 or v7("\212\41\171\76\47\121\233\108\156\81\50\122\226","\22\135\76\200\56\70") ;v682.TextColor3=Color3.fromRGB(255,255,781 -526 );v682.Font=Enum.Font.MontserratBold;v682.TextSize=11;v682.TextXAlignment=Enum.TextXAlignment.Left;local v693=Instance.new(v7("\185\53\224\48\113\224\143\53\244","\129\237\80\152\68\61"),v674);v693.Size=UDim2.new(1, -20,1, -(93 -67));v693.Position=UDim2.new(339 -(163 + 176) ,12,0,22);v693.BackgroundTransparency=1;v693.Text=v673 or v7("\117\173\23\240\14\30\72\69\161\11\253\92\3\93\73\188\68\247\25\3\89\88\164\23\189","\56\49\200\100\147\124\119") ;v693.TextColor3=Color3.fromRGB(370 -240 ,597 -467 ,43 + 97 );v693.Font=Enum.Font.Montserrat;v693.TextSize=1819 -(1564 + 246) ;v693.TextWrapped=true;v693.TextXAlignment=Enum.TextXAlignment.Left;end;return v369;end;local v289=v179:CreateTab(v7("\239\49\177\246\197\57","\144\172\94\223"),v7("\54\13\186\83\44\26\175\69\126\64\237\83\61\31\167\26\5\28\177\66\48\73\171\67\121\88\245\20\112\95\247\20\112\86\247\1\51\82\243\18\116\73\170\26\117\90\242","\39\68\111\194"));v289:CreateParagraph(v7("\245\169\233\193\112\176\195\180\230\211\112\184\216\230\215\213\118\177\223\170\226\212","\215\182\198\135\167\25"),v7("\190\76\230\77\142\93\170\73\205\89\248\71\139\64\230\77\193\9\249\73\155\76\170\81\130\92\248\8\128\70\238\65\139\64\233\73\153\64\229\70\158\5\170\71\159\9\239\70\140\75\230\77\205\72\255\92\130\4\230\71\140\77\170\92\130\9\248\77\158\93\229\90\136\9\249\92\140\93\239\91\205\92\250\71\131\9\230\71\140\77\227\70\138\7","\40\237\41\138"));v289:CreateDropdown(v7("\244\113\246\253\73\211\113\254\184\122\213\123\252\241\70\194","\42\167\20\154\152"),{v7("\122\236\173\68\120\45\79\190\243","\65\42\158\194\34\17"),v7("\42\53\93\10\36\225\30\174\72","\142\122\71\50\108\77\141\123"),v7("\37\176\240\30\50\25\167\191\75","\91\117\194\159\120"),v7("\42\15\49\30\60\253\33\90\73","\68\122\125\94\120\85\145"),v7("\39\14\192\88\193\213\191\87\73","\218\119\124\175\62\168\185")},v21,v7("\154\207\101\193\177\241\120\214\170\246\65\200\160","\164\197\144\40"),function(v416) local v417=0 -0 ;local v418;while true do if (v417==(0 + 0)) then v418=46 -(45 + 1) ;while true do if (0==v418) then v21=v416;v8:SaveSettings();v418=1 + 0 ;end if (v418==(1991 -(1282 + 708))) then v8:LoadConfig(true);break;end end break;end end end);v289:CreateToggle(v7("\162\229\190\132\157\154\140\241\174\203\254\185\141\246\163\140","\214\227\144\202\235\189"),v22,v7("\210\154\170\126\4\178\114\41\249\170\171\116\17\183","\92\141\197\231\27\112\211\51"),function(v419) local v420=0;while true do if (v420==(1212 -(583 + 629))) then v22=v419;v8:SaveSettings();break;end end end);v289:CreateButton(v7("\213\254\156\166\145\197\234\152\177\212\232\235\202\128\222\232\249\131\164","\177\134\159\234\195"),function() v8:SaveConfig(false);end);v289:CreateButton(v7("\145\228\62\164\137\142\238\51\165\202\169\238\59\224\234\178\229\57\169\206","\169\221\139\95\192"),function() v8:LoadConfig(true);end);return v179;end;v8.CreateExternalButton=function(v290,v291,v292,v293,v294) local v295=0 + 0 ;local v296;local v297;local v298;local v299;local v300;local v301;while true do if (v295==(20 -12)) then v301.SetVisible=function(v851,v852) v297.Visible=v852;end;v301.SetText=function(v854,v855) v297.Text=tostring(v855);end;v301.SetDragLock=function(v857,v858) v297:SetAttribute(v7("\121\254\69\141\113\227\71\129\88\232","\234\61\140\36"),v858);end;v295=5 + 4 ;end if (v295==3) then local v809=0;while true do if (v809==1) then v297.TextSize=13;v295=1174 -(943 + 227) ;break;end if ((0 + 0)==v809) then v297.TextColor3=Color3.fromRGB(1886 -(1539 + 92) ,2201 -(706 + 1240) ,255);v297.Font=Enum.Font.MontserratBold;v809=259 -(81 + 177) ;end end end if (v295==(25 -16)) then local v810=257 -(212 + 45) ;while true do if (v810==(0 -0)) then v301.SetSize=function(v953,v954) if (typeof(v954)==v7("\20\249\179\127\93","\111\65\189\218\18")) then v297.Size=v954;elseif (type(v954)==v7("\77\94\22\55\14\78","\207\35\43\123\85\107\60")) then v297.Size=UDim2.new(0,v954,0,v954);end end;return v301;end end end if (v295==(1952 -(708 + 1238))) then v28(v300,v7("\223\6\83\116\250","\136\156\105\63\27"));v30(v297,v297,function() local v859=0 + 0 ;while true do if ((0 + 0)==v859) then v8.Flags[v7("\62\148\109\22\15\130\73\59\8\179","\84\123\236\25")   .. tostring(v291) ]={[v7("\200\180\153\20\173\185\245","\213\144\235\202\119\204")]=v297.Position.X.Scale,[v7("\27\39\241\44\46\48\72\55","\45\67\120\190\74\72\67")]=v297.Position.X.Offset,[v7("\25\29\222\166\248\132\235","\137\64\66\141\197\153\232\142")]=v297.Position.Y.Scale,[v7("\58\239\13\160\142\16\213\54","\232\99\176\66\198")]=v297.Position.Y.Offset};v8:SaveConfig(true);break;end end end);v8.ExternalButtons[v291]={[v7("\197\47\59\18\122\131\250\41","\76\140\65\72\102\27\237\153")]=v297,[v7("\110\223\16\211\194\13\170\122\213\5\219\195\8\177\68","\222\42\186\118\178\183\97")]=v293 or UDim2.new(1667 -(586 + 1081) ,531 -(348 + 163) ,0.5 + 0 ,280 -(215 + 65) ) };v295=17 -10 ;end if (v295==(1860 -(1541 + 318))) then local v812=0 + 0 ;while true do if ((0 + 0)==v812) then v297.Size=UDim2.new(0 + 0 ,1790 -(1036 + 714) ,0 + 0 ,23 + 17 );v298=v8.LoadedConfigCache and v8.LoadedConfigCache[v7("\25\231\247\230\200\173\8\51\236\220","\88\92\159\131\164\188\195")   .. tostring(v291) ] ;v812=1;end if (v812==(1281 -(883 + 397))) then if (v298 and (type(v298)==v7("\148\47\189\71\210","\189\224\78\223\43\183\139"))) then v297.Position=UDim2.new(v298.X_Scale or (590 -(563 + 27)) ,v298.X_Offset or (0 -0) ,v298.Y_Scale or (1986 -(1369 + 617)) ,v298.Y_Offset or 0 );else v297.Position=v293 or UDim2.new(0,1507 -(85 + 1402) ,0.5,0) ;end v295=1 + 1 ;break;end end end if (v295==(12 -7)) then v299.CornerRadius=UDim.new(403 -(274 + 129) ,6);v300=Instance.new(v7("\146\158\250\200\181\184\194\217","\188\199\215\169"),v297);v300.Thickness=218 -(12 + 205) ;v295=6 + 0 ;end if (v295==(15 -11)) then v297.AutoButtonColor=false;v297.Parent=v296;v299=Instance.new(v7("\27\213\169\25\211\32\249\152","\161\78\156\234\118"),v297);v295=5;end if (7==v295) then v297.MouseButton1Click:Connect(function() if v294 then task.spawn(v294);end end);v301={};v301.Instance=v297;v295=8;end if (v295==2) then v297.BackgroundColor3=Color3.fromRGB(18,18 + 0 ,22);v297.BackgroundTransparency=0.5;v297.Text=v292 or "A" ;v295=387 -(27 + 357) ;end if (v295==0) then v296=v32();v297=Instance.new(v7("\234\142\103\43\0\51\202\159\112\49","\70\190\235\31\95\66"));v297.Name=v7("\159\250\14\227\247\180\227\22\196\240\174\246\21\232\218","\133\218\130\122\134")   .. tostring(v291) ;v295=1;end end end;v8.CreateStatsHUD=function(v302) local v303=v32();local v304=Instance.new(v7("\86\184\161\231\124","\25\16\202\192\138"));v304.Name=v7("\209\196\184\235\186\203\206\223\172\246\186\220\200\239","\148\157\171\205\130\201");v304.Size=UDim2.new(0,630 -(91 + 389) ,0,325 -(90 + 207) );local v307=v8.LoadedConfigCache and v8.LoadedConfigCache[v7("\16\192\117\61\194\222\22\240\68\38\194","\150\67\180\20\73\177")] ;if (v307 and (type(v307)==v7("\153\25\24\65\136","\45\237\120\122"))) then v304.Position=UDim2.new(v307.X_Scale or (0 + 0) ,v307.X_Offset or 0 ,v307.Y_Scale or 0 ,v307.Y_Offset or (861 -(706 + 155)) );else v304.Position=UDim2.new(1, -20,0,50);end v304.AnchorPoint=Vector2.new(1796 -(730 + 1065) ,0);v304.BackgroundColor3=Color3.fromRGB(1578 -(1339 + 224) ,15,10 + 8 );v304.BorderSizePixel=0;v304.Parent=v303;v304.Visible=true;local v313=Instance.new(v7("\226\193\129\35\197\230\167\62","\76\183\136\194"),v304);v313.CornerRadius=UDim.new(0 + 0 ,8 -2 );local v315=Instance.new(v7("\79\207\214\44\66\64\31\127","\116\26\134\133\88\48\47"),v304);v315.Thickness=844 -(268 + 575) ;v28(v315,v7("\61\206\172\235\175","\18\126\161\192\132\221"));local v317=Instance.new(v7("\107\45\182\16\122\94\42\171\8","\54\63\72\206\100"),v304);v317.Size=UDim2.new(1295 -(919 + 375) ,0 -0 ,972 -(180 + 791) ,0);v317.BackgroundTransparency=1;v317.Font=Enum.Font.MontserratBold;v317.TextSize=1815 -(323 + 1482) ;v317.TextColor3=Color3.fromRGB(2138 -(1177 + 741) ,15 + 205 ,824 -604 );v317.RichText=true;v317.Text="FPS: ...  â€¢  PING: ... MS";v30(v304,v304,function() local v421=0;while true do if (v421==0) then v8.Flags[v7("\251\77\68\110\246\83\253\125\117\117\246","\27\168\57\37\26\133")]={[v7("\21\149\79\171\214\33\175","\183\77\202\28\200")]=v304.Position.X.Scale,[v7("\47\12\166\14\17\32\140\28","\104\119\83\233")]=v304.Position.X.Offset,[v7("\204\199\20\33\66\249\253","\35\149\152\71\66")]=v304.Position.Y.Scale,[v7("\32\215\109\182\60\10\237\86","\90\121\136\34\208")]=v304.Position.Y.Offset};v8:SaveConfig(true);break;end end end);local v326={};local v327=12 + 18 ;local v328=0 -0 ;local v329=0.1 + 0 ;local v330;v330=v11.RenderStepped:Connect(function(v422) if ( not v304 or  not v304.Parent) then v330:Disconnect();return;end table.insert(v326,v422);if ( #v326>v327) then table.remove(v326,1);end local v423=os.clock();if ((v423-v328)>=v329) then local v822=109 -(96 + 13) ;local v823;local v824;local v825;while true do if (v822==(1923 -(962 + 959))) then v825=0;if v13 then local v980=0;local v981;local v982;local v983;while true do if ((0 -0)==v980) then local v1030=0 + 0 ;while true do if (v1030==(1352 -(461 + 890))) then v980=1;break;end if (v1030==(0 + 0)) then v981=0;v982=nil;v1030=3 -2 ;end end end if (v980==1) then v983=nil;while true do if (v981==(243 -(19 + 224))) then v982,v983=pcall(function() return v13:GetNetworkPing();end);if (v982 and v983 and (v983>0)) then v825=math.round(v983 * 1000 );end break;end end break;end end end v822=3 + 0 ;end if ((199 -(37 + 161))==v822) then for v956,v957 in ipairs(v326) do v823=v823 + v957 ;end v824=(( #v326>(0 + 0)) and math.round( #v326/v823 )) or (24 + 36) ;v822=2 + 0 ;end if (v822==0) then v328=v423;v823=61 -(60 + 1) ;v822=924 -(826 + 97) ;end if (v822==(3 + 0)) then v317.Text=string.format("FPS: <font color='rgb(0, 255, 120)'>%d</font>  â€¢  PING: <font color='rgb(0, 180, 255)'>%d MS</font>",v824,v825);break;end end end end);local v331={};v331.SetVisible=function(v424,v425) v304.Visible=v425;end;return v331;end;task.spawn(function() local v333=v8:CreateStatsHUD();v333:SetVisible(true);pcall(function() v8:LoadConfig();end);end);return v8;
+-- Menggunakan ID Unik Map (PlaceId) agar konfigurasi antar-game tidak saling menimpa
+local PlaceId = game.PlaceId
+local SettingsFileName = "LouisHub_UI_Settings_" .. tostring(PlaceId) .. ".json"
+local CurrentProfile = "Profile 1"
+local AutoLoadEnabled = false
+
+-- Dual Icon Resolver (Supports both Lucide string names and traditional Roblox asset IDs)
+local function resolveIcon(icon)
+    if not icon then return "" end
+    
+    local lucideIcons = {
+        ["home"] = "rbxassetid://10723407389",
+        ["swords"] = "rbxassetid://10734975692",
+        ["eye"] = "rbxassetid://10723346959",
+        ["crosshair"] = "rbxassetid://10709818534",
+        ["crown"] = "rbxassetid://10709818626",
+        ["keyboard"] = "rbxassetid://10723416765",
+        ["sliders"] = "rbxassetid://10734963400"
+    }
+    
+    -- 1. Translate Lucide string to rbxassetid
+    if type(icon) == "string" and lucideIcons[icon:lower()] then
+        icon = lucideIcons[icon:lower()]
+    end
+    
+    -- 2. If already resolved rbxthumb, return directly
+    if type(icon) == "string" and icon:find("^rbxthumb://") then
+        return icon
+    end
+    
+    -- 3. Raw number ID
+    if type(icon) == "number" then
+        return "rbxthumb://type=Asset&id=" .. tostring(icon) .. "&w=150&h=150"
+    end
+    
+    -- 4. Roblox asset URL string
+    if type(icon) == "string" and icon:find("^rbxassetid://") then
+        local id = icon:gsub("^rbxassetid://", "")
+        return "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150"
+    end
+    
+    return tostring(icon)
+end
+
+-- Fungsi Pra-Muat: Membaca data langsung saat script pertama kali dieksekusi khusus untuk PlaceId ini
+local function PreloadConfiguration()
+    if not isfile or not readfile then return end
+    
+    -- 1. Baca metadata profil aktif khusus untuk PlaceId ini
+    if isfile(SettingsFileName) then
+        pcall(function()
+            local meta = HttpService:JSONDecode(readfile(SettingsFileName))
+            if meta and type(meta) == "table" then
+                if meta.SelectedProfile then CurrentProfile = meta.SelectedProfile end
+                if meta.AutoLoad ~= nil then AutoLoadEnabled = meta.AutoLoad end
+            end
+        end)
+    end
+    
+    -- 2. Baca isi konfigurasi profil aktif khusus untuk PlaceId ini langsung ke cache & flags
+    local fileName = "LouisHub_UI_Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+    if isfile(fileName) then
+        pcall(function()
+            local decoded = HttpService:JSONDecode(readfile(fileName))
+            if decoded and type(decoded) == "table" then
+                Library.LoadedConfigCache = decoded
+                for k, v in pairs(decoded) do
+                    if not k:find("^__Meta") then
+                        Library.Flags[k] = v
+                    end
+                end
+            end
+        end)
+    end
+end
+
+PreloadConfiguration()
+
+-- Menyimpan metadata pengaturan utama (profil aktif & status auto-load)
+function Library:SaveSettings()
+    if not writefile then return end
+    local success, err = pcall(function()
+        local meta = {
+            SelectedProfile = CurrentProfile,
+            AutoLoad = AutoLoadEnabled
+        }
+        writefile(SettingsFileName, HttpService:JSONEncode(meta))
+    end)
+    if not success then
+        warn("LouisHub UI: Gagal menyimpan settings. Error: " .. tostring(err))
+    end
+end
+
+-- Menyimpan data konfigurasi fitur untuk profil yang sedang aktif
+function Library:SaveConfig(quiet)
+    if not writefile then return end
+    local success, err = pcall(function()
+        local fileName = "LouisHub_UI_Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+        
+        -- Filter meta flags agar tidak merusak konfigurasi profil lain (mencegah loop/lag)
+        local filteredFlags = {}
+        for k, v in pairs(Library.Flags) do
+            if not k:find("^__Meta") then
+                filteredFlags[k] = v
+            end
+        end
+        
+        writefile(fileName, HttpService:JSONEncode(filteredFlags))
+        if not quiet then
+            Library:Notify("Config System", "Config saved to " .. CurrentProfile, 3)
+        end
+    end)
+    if not success then
+        warn("LouisHub UI: Gagal menyimpan config. Error: " .. tostring(err))
+    end
+end
+
+-- Memuat data konfigurasi profil aktif
+function Library:LoadConfig(force, preloadOnly)
+    if not isfile or not readfile then return end
+    
+    -- Membaca metadata pengaturan terlebih dahulu
+    if isfile(SettingsFileName) then
+        local success, err = pcall(function()
+            local meta = HttpService:JSONDecode(readfile(SettingsFileName))
+            if meta and type(meta) == "table" then
+                if meta.SelectedProfile then CurrentProfile = meta.SelectedProfile end
+                if meta.AutoLoad ~= nil then AutoLoadEnabled = meta.AutoLoad end
+            end
+        end)
+        if not success then
+            warn("LouisHub UI: Gagal membaca settings. Error: " .. tostring(err))
+        end
+    end
+
+    -- Menyelaraskan komponen UI dengan data metadata yang tersimpan (Diperbaiki dengan menyertakan parameter ignoreCallback = true)
+    if not preloadOnly then
+        if Library.Elements["__MetaProfile"] then
+            Library.Elements["__MetaProfile"]:Set(CurrentProfile, true, true)
+        end
+        if Library.Elements["__MetaAutoLoad"] then
+            Library.Elements["__MetaAutoLoad"]:Set(AutoLoadEnabled, true, true)
+        end
+    end
+
+    -- Memuat file konfigurasi jika fitur AutoLoad aktif atau jika dipicu secara manual (force)
+    if AutoLoadEnabled or force or preloadOnly then
+        local fileName = "LouisHub_UI_Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+        if isfile(fileName) then
+            local success, err = pcall(function()
+                local decoded = HttpService:JSONDecode(readfile(fileName))
+                if decoded and type(decoded) == "table" then
+                    Library.LoadedConfigCache = decoded -- Menyimpan ke cache pra-muat
+                    
+                    if not preloadOnly then
+                        -- Bersihkan tabel flags lama untuk mencegah kebocoran data (bleeding) antar-profil
+                        for k in pairs(Library.Flags) do
+                            Library.Flags[k] = nil
+                        end
+                        
+                        -- Kembalikan data meta dasar
+                        Library.Flags["__MetaProfile"] = CurrentProfile
+                        Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
+                        
+                        local mainGui = GetMainGui()
+                        for flag, val in pairs(decoded) do
+                            -- Lewati meta flags untuk menghindari loop rekursif tak terbatas
+                            if flag:find("^__Meta") then
+                                continue
+                            end
+                            
+                            if Library.Elements[flag] then
+                                Library.Elements[flag]:Set(val, true, false)
+                            end
+                            if flag:find("^ExtBtnPos_") then
+                                local btnId = flag:gsub("^ExtBtnPos_", "")
+                                local btn = mainGui:FindFirstChild("ExternalButton_" .. btnId)
+                                if btn and type(val) == "table" then
+                                    btn.Position = UDim2.new(
+                                        val.X_Scale or 0, 
+                                        val.X_Offset or 0, 
+                                        val.Y_Scale or 0, 
+                                        val.Y_Offset or 0
+                                    )
+                                end
+                                Library.Flags[flag] = val
+                            elseif flag == "StatsHUDPos" and type(val) == "table" then
+                                local hud = mainGui:FindFirstChild("Louis_StatsHUD")
+                                if hud then
+                                    hud.Position = UDim2.new(
+                                        val.X_Scale or 0, 
+                                        val.X_Offset or 0, 
+                                        val.Y_Scale or 0, 
+                                        val.Y_Offset or 0
+                                    )
+                                end
+                                Library.Flags[flag] = val
+                            end
+                        end
+                        if force then
+                            Library:Notify("Config System", "Successfully loaded " .. CurrentProfile, 3)
+                        end
+                    end
+                end
+            end)
+            if not success then
+                warn("LouisHub UI: Gagal membaca config. Error: " .. tostring(err))
+            end
+        else
+            -- Jika file konfigurasi tidak ditemukan (Profil baru/kosong), kembalikan UI ke nilai default asli
+            if not preloadOnly then
+                -- Bersihkan tabel flags lama
+                for k in pairs(Library.Flags) do
+                    Library.Flags[k] = nil
+                end
+                Library.Flags["__MetaProfile"] = CurrentProfile
+                Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
+
+                for flag, element in pairs(Library.Elements) do
+                    if not flag:find("^__Meta") and element.DefaultValue ~= nil then
+                        element:Set(element.DefaultValue, true, true)
+                    end
+                end
+                -- Kembalikan seluruh tombol eksternal ke posisi default aslinya
+                for id, btnData in pairs(Library.ExternalButtons) do
+                    if btnData.Instance and btnData.DefaultPosition then
+                        btnData.Instance.Position = btnData.DefaultPosition
+                    end
+                end
+                if force then
+                    Library:Notify("Config System", "Profile is empty. UI reset to default for " .. CurrentProfile, 3)
+                end
+            end
+        end
+    end
+end
+
+-- ========================================================
+-- [[ 1. MAIN ENGINE SYSTEM (DYNAMIC RGB & DRAG) ]]
+-- ========================================================
+local RGBElements = {}
+
+local function RegisterRGB(instance, property)
+    for _, item in ipairs(RGBElements) do
+        if item.Instance == instance and item.Property == property then
+            return
+        end
+    end
+    table.insert(RGBElements, {Instance = instance, Property = property})
+end
+
+local function UnregisterRGB(instance, property)
+    for i = #RGBElements, 1, -1 do
+        if RGBElements[i].Instance == instance and RGBElements[i].Property == property then
+            table.remove(RGBElements, i)
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local hue = (os.clock() % 4) / 4
+    local rainbowColor = Color3.fromHSV(hue, 0.85, 0.95)
+    
+    for i = #RGBElements, 1, -1 do
+        local item = RGBElements[i]
+        if item.Instance and item.Instance:IsDescendantOf(game) then
+            pcall(function()
+                item.Instance[item.Property] = rainbowColor
+            end)
+        else
+            table.remove(RGBElements, i)
+        end
+    end
+end)
+
+local function EnableDrag(dragFrame, parentFrame, onDragEnd)
+    local dragging, dragInput, dragStart, startPos
+    
+    dragFrame.InputBegan:Connect(function(input)
+        if parentFrame:GetAttribute("DragLocked") then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = parentFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    if onDragEnd then onDragEnd() end
+                end
+            end)
+        end
+    end)
+
+    dragFrame.InputChanged:Connect(function(input)
+        if parentFrame:GetAttribute("DragLocked") then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            if parentFrame:GetAttribute("DragLocked") then 
+                dragging = false 
+                return 
+            end
+            local delta = input.Position - dragStart
+            parentFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+local MainGui
+local function GetMainGui()
+    if not MainGui then
+        MainGui = Instance.new("ScreenGui")
+        MainGui.Name = "LouisHub_ModernUI"
+        MainGui.ResetOnSpawn = false
+        MainGui.IgnoreGuiInset = true
+        MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        
+        local parent
+        if gethui then
+            parent = gethui()
+        else
+            local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+            if success and coreGui then
+                parent = coreGui
+            else
+                parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+        end
+        MainGui.Parent = parent
+    end
+    return MainGui
+end
+
+-- ========================================================
+-- [[ 2. MODERN NOTIFICATION SYSTEM ]]
+-- ========================================================
+local NotificationGui
+local function GetNotificationHolder()
+    if not NotificationGui then
+        NotificationGui = Instance.new("ScreenGui")
+        NotificationGui.Name = "Louis_Notification_System"
+        NotificationGui.DisplayOrder = 9999
+        
+        local parent
+        if gethui then
+            parent = gethui()
+        else
+            local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+            if success and coreGui then
+                parent = coreGui
+            else
+                parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+        end
+        NotificationGui.Parent = parent
+        
+        local Holder = Instance.new("Frame", NotificationGui)
+        Holder.Name = "Holder"
+        Holder.Size = UDim2.new(0, 280, 1, -40)
+        Holder.Position = UDim2.new(1, -300, 0, 20)
+        Holder.BackgroundTransparency = 1
+        
+        local Layout = Instance.new("UIListLayout", Holder)
+        Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+        Layout.Padding = UDim.new(0, 8)
+    end
+    return NotificationGui.Holder
+end
+
+function Library:Notify(title, desc, duration)
+    duration = duration or 4
+    local Holder = GetNotificationHolder()
+    
+    local NotifFrame = Instance.new("Frame")
+    NotifFrame.Size = UDim2.new(1, 0, 0, 0)
+    NotifFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    NotifFrame.BorderSizePixel = 0
+    NotifFrame.ClipsDescendants = true
+    NotifFrame.Parent = Holder
+    
+    local NotifCorner = Instance.new("UICorner", NotifFrame)
+    NotifCorner.CornerRadius = UDim.new(0, 6)
+    
+    local NotifStroke = Instance.new("UIStroke", NotifFrame)
+    NotifStroke.Thickness = 1
+    RegisterRGB(NotifStroke, "Color")
+
+    local NotifAccent = Instance.new("Frame", NotifFrame)
+    NotifAccent.Size = UDim2.new(0, 3, 1, 0)
+    NotifAccent.Position = UDim2.new(0, 0, 0, 0)
+    NotifAccent.BorderSizePixel = 0
+    RegisterRGB(NotifAccent, "BackgroundColor3")
+    
+    local TitleLabel = Instance.new("TextLabel", NotifFrame)
+    TitleLabel.Size = UDim2.new(1, -30, 0, 20)
+    TitleLabel.Position = UDim2.new(0, 14, 0, 8)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title or "Notification"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.Font = Enum.Font.MontserratBold
+    TitleLabel.TextSize = 12
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local DescLabel = Instance.new("TextLabel", NotifFrame)
+    DescLabel.Size = UDim2.new(1, -30, 0, 32)
+    DescLabel.Position = UDim2.new(0, 14, 0, 26)
+    DescLabel.BackgroundTransparency = 1
+    DescLabel.Text = desc or "Description"
+    DescLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
+    DescLabel.Font = Enum.Font.Montserrat
+    DescLabel.TextSize = 10
+    DescLabel.TextWrapped = true
+    DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, 65)}):Play()
+    
+    task.delay(duration, function()
+        if NotifFrame and NotifFrame.Parent then
+            local fadeOut = TweenService:Create(NotifFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(1, 0, 0, 0)})
+            fadeOut:Play()
+            fadeOut.Completed:Connect(function()
+                NotifFrame:Destroy()
+            end)
+        end
+    end)
+end
+
+-- ========================================================
+-- [[ 3. REBUILT RGB LOADING SCREEN SYSTEM ]]
+-- ========================================================
+local function StartLoading(titleText, subtitleText, onComplete)
+    local ScreenGui = GetMainGui()
+    
+    local LoadingGui = Instance.new("Frame", ScreenGui)
+    LoadingGui.Name = "Louis_Loading_Screen"
+    LoadingGui.Size = UDim2.new(1, 0, 1, 0)
+    LoadingGui.Position = UDim2.new(0, 0, 0, 0)
+    LoadingGui.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    LoadingGui.BorderSizePixel = 0
+    LoadingGui.ZIndex = 9990
+
+    local ProfileFrame = Instance.new("Frame", LoadingGui)
+    ProfileFrame.Size = UDim2.new(0, 220, 0, 60)
+    ProfileFrame.Position = UDim2.new(0, 30, 1, -90)
+    ProfileFrame.BackgroundTransparency = 1
+    ProfileFrame.ZIndex = 9995
+
+    local ProfileImage = Instance.new("ImageLabel", ProfileFrame)
+    ProfileImage.Size = UDim2.new(0, 44, 0, 44)
+    ProfileImage.Position = UDim2.new(0, 0, 0.5, -22)
+    ProfileImage.BackgroundTransparency = 1
+    ProfileImage.ImageTransparency = 1
+    ProfileImage.ZIndex = 9995
+    
+    task.spawn(function()
+        local success, content = pcall(function()
+            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+        end)
+        if success then
+            ProfileImage.Image = content
+        end
+    end)
+    
+    Instance.new("UICorner", ProfileImage).CornerRadius = UDim.new(1, 0)
+    local pStroke = Instance.new("UIStroke", ProfileImage)
+    pStroke.Thickness = 1.5
+    pStroke.Transparency = 1
+    RegisterRGB(pStroke, "Color")
+
+    local UserInfo = Instance.new("TextLabel", ProfileFrame)
+    UserInfo.Size = UDim2.new(1, -54, 1, 0)
+    UserInfo.Position = UDim2.new(0, 54, 0, 0)
+    UserInfo.BackgroundTransparency = 1
+    UserInfo.Font = Enum.Font.MontserratBold
+    UserInfo.TextColor3 = Color3.new(1, 1, 1)
+    UserInfo.TextSize = 10
+    UserInfo.TextXAlignment = Enum.TextXAlignment.Left
+    UserInfo.RichText = true
+    UserInfo.TextTransparency = 1
+    UserInfo.ZIndex = 9995
+    UserInfo.Text = '<font color="rgb(180, 180, 180)">MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="8" color="rgb(130, 130, 130)">ID: ' .. LocalPlayer.UserId .. '</font>'
+
+    local Title = Instance.new("TextLabel", LoadingGui)
+    Title.Size = UDim2.new(1, 0, 0, 45)
+    Title.Position = UDim2.new(0, 0, 0.35, 0)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.MontserratBold
+    Title.TextSize = 34
+    Title.RichText = true
+    Title.Text = (titleText or "LOUIS HUB"):upper()
+    Title.TextTransparency = 1
+    Title.ZIndex = 9995
+    RegisterRGB(Title, "TextColor3")
+
+    local SubTitle = Instance.new("TextLabel", LoadingGui)
+    SubTitle.Size = UDim2.new(1, 0, 0, 20)
+    SubTitle.Position = UDim2.new(0, 0, 0.44, 0)
+    SubTitle.BackgroundTransparency = 1
+    SubTitle.Text = (subtitleText or "MODERNIZED INTERFACE"):upper()
+    SubTitle.TextColor3 = Color3.fromRGB(180, 180, 190)
+    SubTitle.TextSize = 12
+    SubTitle.Font = Enum.Font.MontserratBold
+    SubTitle.TextTransparency = 1
+    SubTitle.ZIndex = 9995
+
+    local BarBg = Instance.new("Frame", LoadingGui)
+    BarBg.Size = UDim2.new(0.4, 0, 0, 4)
+    BarBg.Position = UDim2.new(0.3, 0, 0.62, 0)
+    BarBg.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    BarBg.ZIndex = 9995
+    Instance.new("UICorner", BarBg)
+    
+    local BarFill = Instance.new("Frame", BarBg)
+    BarFill.Size = UDim2.new(0, 0, 1, 0)
+    BarFill.ZIndex = 9995
+    Instance.new("UICorner", BarFill)
+    RegisterRGB(BarFill, "BackgroundColor3")
+
+    local SkipBtn = Instance.new("TextButton", LoadingGui)
+    SkipBtn.Size = UDim2.new(0, 110, 0, 32)
+    SkipBtn.Position = UDim2.new(0.5, -55, 0.8, 0)
+    SkipBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+    SkipBtn.Text = "SKIP"
+    SkipBtn.TextColor3 = Color3.new(1, 1, 1)
+    SkipBtn.Font = Enum.Font.MontserratBold
+    SkipBtn.TextSize = 12
+    SkipBtn.ZIndex = 10000
+    SkipBtn.TextTransparency = 1
+    
+    local SkipCorner = Instance.new("UICorner", SkipBtn)
+    SkipCorner.CornerRadius = UDim.new(0, 6)
+    local SkipStroke = Instance.new("UIStroke", SkipBtn)
+    SkipStroke.Color = Color3.fromRGB(40, 40, 45)
+    SkipStroke.Thickness = 1
+
+    local beepSound = Instance.new("Sound", LoadingGui)
+    beepSound.SoundId = "rbxassetid://1567483853"
+    beepSound.Volume = 0.5
+
+    local function ElectricZapEffect()
+        for i = 1, 3 do
+            local zap = Instance.new("Frame", LoadingGui)
+            zap.BackgroundColor3 = Color3.new(1, 1, 1)
+            zap.BorderSizePixel = 0
+            zap.Size = UDim2.new(0, math.random(40, 90), 0, 1.5)
+            zap.Position = UDim2.new(0.5, math.random(-80, 80), 0.38, math.random(-15, 15))
+            zap.Rotation = math.random(0, 360)
+            zap.ZIndex = 9995
+            task.spawn(function() task.wait(0.1); zap:Destroy() end)
+        end
+    end
+
+    local skipTriggered = false
+    local function ForceExit()
+        if skipTriggered then return end
+        skipTriggered = true
+        beepSound:Stop()
+        
+        UnregisterRGB(Title, "TextColor3")
+        UnregisterRGB(BarFill, "BackgroundColor3")
+        UnregisterRGB(pStroke, "Color")
+
+        local fadeInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        TweenService:Create(LoadingGui, fadeInfo, {BackgroundTransparency = 1}):Play()
+        for _, obj in ipairs(LoadingGui:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                    TweenService:Create(obj, fadeInfo, {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("ImageLabel") then
+                    TweenService:Create(obj, fadeInfo, {ImageTransparency = 1, BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("Frame") then
+                    TweenService:Create(obj, fadeInfo, {BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("UIStroke") then
+                    TweenService:Create(obj, fadeInfo, {Transparency = 1}):Play()
+                end
+            end)
+        end
+        task.delay(0.38, function() 
+            LoadingGui:Destroy() 
+            if onComplete then onComplete() end
+        end)
+    end
+
+    SkipBtn.MouseButton1Click:Connect(ForceExit)
+
+    local entryTween = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(Title, entryTween, {TextTransparency = 0}):Play()
+    TweenService:Create(ProfileImage, entryTween, {ImageTransparency = 0}):Play()
+    TweenService:Create(pStroke, entryTween, {Transparency = 0}):Play()
+    TweenService:Create(UserInfo, entryTween, {TextTransparency = 0}):Play()
+    TweenService:Create(SkipBtn, entryTween, {TextTransparency = 0}):Play()
+
+    task.delay(1, function()
+        if skipTriggered then return end
+        TweenService:Create(SubTitle, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
+        for i = 1, 6 do 
+            if skipTriggered then break end
+            local vis = not SubTitle.Visible
+            SubTitle.Visible = vis
+            Title.Visible = vis
+            if vis then 
+                ElectricZapEffect()
+                pcall(function() beepSound:Play() end) 
+            end
+            task.wait(0.2)
+        end
+        if not skipTriggered then SubTitle.Visible = true; Title.Visible = true end
+    end)
+
+    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Linear", 5.5)
+    
+    local waitTime = 0
+    while waitTime < 6 and not skipTriggered do
+        waitTime = waitTime + 0.1
+        task.wait(0.1)
+    end
+    if not skipTriggered then ForceExit() end
+end
+
+-- ========================================================
+-- [[ 4. METHODS: CREATE MAIN WINDOW ]]
+-- ========================================================
+function Library:CreateWindow(titleText, subtitleText)
+    -- Pra-muat data secara instan sebelum UI dibuat demi menghindari perlombaan waktu (race condition)
+    Library:LoadConfig(false, true)
+
+    local Window = {
+        Tabs = {},
+        CurrentTab = nil,
+        DragLocked = false,
+        Minimized = false,
+        Visible = false
+    }
+
+    local ScreenGui = GetMainGui()
+
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 520, 0, 330)
+    MainFrame.Position = UDim2.new(0.5, -260, 0.5, -165)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
+    MainFrame.Parent = ScreenGui
+    MainFrame.Visible = false
+
+    local MainCorner = Instance.new("UICorner", MainFrame)
+    MainCorner.CornerRadius = UDim.new(0, 8)
+
+    local MainStroke = Instance.new("UIStroke", MainFrame)
+    MainStroke.Thickness = 1
+    RegisterRGB(MainStroke, "Color")
+
+    -- Header Panel
+    local Header = Instance.new("Frame", MainFrame)
+    Header.Size = UDim2.new(1, 0, 0, 46)
+    Header.BackgroundTransparency = 1
+    
+    local dragging, dragInput, dragStart, startPos
+    Header.InputBegan:Connect(function(input)
+        if MainFrame:GetAttribute("DragLocked") or Window.DragLocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    Header.InputChanged:Connect(function(input)
+        if MainFrame:GetAttribute("DragLocked") or Window.DragLocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            if MainFrame:GetAttribute("DragLocked") or Window.DragLocked then
+                dragging = false
+                return
+            end
+            local delta = input.Position - dragStart
+            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    local TitleLabel = Instance.new("TextLabel", Header)
+    TitleLabel.Size = UDim2.new(0, 300, 0, 18)
+    TitleLabel.Position = UDim2.new(0, 16, 0, 10)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = titleText or "LOUIS HUB"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextSize = 14
+    TitleLabel.Font = Enum.Font.MontserratBold
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local SubtitleLabel = Instance.new("TextLabel", Header)
+    SubtitleLabel.Size = UDim2.new(0, 300, 0, 12)
+    SubtitleLabel.Position = UDim2.new(0, 16, 0, 26)
+    SubtitleLabel.BackgroundTransparency = 1
+    SubtitleLabel.Text = subtitleText or "Rebuilt Edition"
+    SubtitleLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
+    SubtitleLabel.TextSize = 9
+    SubtitleLabel.Font = Enum.Font.MontserratBold
+    SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local BarBg = Instance.new("Frame", MainFrame)
+    BarBg.Size = UDim2.new(1, 0, 0, 1)
+    BarBg.Position = UDim2.new(0, 0, 0, 46)
+    BarBg.BorderSizePixel = 0
+    RegisterRGB(BarBg, "BackgroundColor3")
+
+    -- Sidebar Container (Sisi Kiri)
+    local Sidebar = Instance.new("Frame", MainFrame)
+    Sidebar.Size = UDim2.new(0, 140, 1, -58)
+    Sidebar.Position = UDim2.new(0, 12, 0, 52)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    Sidebar.BorderSizePixel = 0
+    Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6)
+    
+    local SidebarStroke = Instance.new("UIStroke", Sidebar)
+    SidebarStroke.Color = Color3.fromRGB(30, 30, 35)
+    SidebarStroke.Thickness = 1
+
+    local TabContainer = Instance.new("ScrollingFrame", Sidebar)
+    TabContainer.Size = UDim2.new(1, -12, 1, -12)
+    TabContainer.Position = UDim2.new(0, 6, 0, 6)
+    TabContainer.BackgroundTransparency = 1
+    TabContainer.ScrollBarThickness = 0
+    TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+    local TabLayout = Instance.new("UIListLayout", TabContainer)
+    TabLayout.Padding = UDim.new(0, 4)
+
+    -- Primary Content Workspace
+    local ContentArea = Instance.new("Frame", MainFrame)
+    ContentArea.Size = UDim2.new(1, -174, 1, -58)
+    ContentArea.Position = UDim2.new(0, 162, 0, 52)
+    ContentArea.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    ContentArea.BorderSizePixel = 0
+    Instance.new("UICorner", ContentArea).CornerRadius = UDim.new(0, 6)
+
+    local ContentStroke = Instance.new("UIStroke", ContentArea)
+    ContentStroke.Color = Color3.fromRGB(30, 30, 35)
+    ContentStroke.Thickness = 1
+
+    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
+    end)
+
+    local ToggleIcon = Instance.new("ImageButton", Header)
+    ToggleIcon.Size = UDim2.new(0, 18, 0, 18)
+    ToggleIcon.Position = UDim2.new(1, -52, 0, 14)
+    ToggleIcon.BackgroundTransparency = 1
+    ToggleIcon.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
+    ToggleIcon.ImageColor3 = Color3.fromRGB(200, 200, 200)
+
+    ToggleIcon.MouseButton1Click:Connect(function()
+        Window.Minimized = not Window.Minimized
+        local targetSize = Window.Minimized and UDim2.new(0, 520, 0, 47) or UDim2.new(0, 520, 0, 330)
+        local targetRotation = Window.Minimized and 180 or 0
+        
+        TweenService:Create(ToggleIcon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = targetRotation}):Play()
+        
+        if Window.Minimized then
+            local sidebarFade = TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+            local contentFade = TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+            sidebarFade:Play()
+            contentFade:Play()
+            
+            sidebarFade.Completed:Connect(function()
+                if Window.Minimized then
+                    Sidebar.Visible = false
+                    ContentArea.Visible = false
+                end
+            end)
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+        else
+            Sidebar.Visible = true
+            ContentArea.Visible = true
+            TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+            TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+        end
+    end)
+
+    local CloseBtn = Instance.new("ImageButton", Header)
+    CloseBtn.Size = UDim2.new(0, 18, 0, 18)
+    CloseBtn.Position = UDim2.new(1, -28, 0, 14)
+    CloseBtn.BackgroundTransparency = 1
+    CloseBtn.Image = "rbxthumb://type=Asset&id=10734898355&w=150&h=150"
+    CloseBtn.ImageColor3 = Color3.fromRGB(200, 200, 200)
+
+    CloseBtn.MouseEnter:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = Color3.fromRGB(255, 75, 75)}):Play()
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+    end)
+
+    -- [[ 4a. FLOATING ICON OPEN CLOSE ]]
+    local FloatingToggle = Instance.new("TextButton", ScreenGui)
+    FloatingToggle.Name = "FloatingToggleIcon"
+    FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
+    FloatingToggle.Position = UDim2.new(0.5, -24, 0.5, -24)
+    FloatingToggle.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+    FloatingToggle.BorderSizePixel = 0
+    FloatingToggle.Text = ""
+    FloatingToggle.Visible = false
+
+    local ToggleCorner = Instance.new("UICorner", FloatingToggle)
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+
+    local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
+    ToggleStroke.Thickness = 1
+    RegisterRGB(ToggleStroke, "Color")
+
+    local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
+    ToggleIconImage.Name = "Icon"
+    ToggleIconImage.Size = UDim2.new(0, 24, 0, 24)
+    ToggleIconImage.Position = UDim2.new(0.5, -12, 0.5, -12)
+    ToggleIconImage.BackgroundTransparency = 1
+    ToggleIconImage.Image = "rbxthumb://type=Asset&id=10734887784&w=150&h=150"
+    ToggleIconImage.ScaleType = Enum.ScaleType.Fit
+    RegisterRGB(ToggleIconImage, "ImageColor3")
+
+    EnableDrag(FloatingToggle, FloatingToggle)
+
+    local firstTimeOpen = true
+
+    local function OpenGui()
+        if not Window.Visible then
+            Window.Visible = true
+            MainFrame.Visible = true
+            
+            local shrinkTween = TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+            shrinkTween:Play()
+            shrinkTween.Completed:Connect(function()
+                if Window.Visible then
+                    FloatingToggle.Visible = false
+                end
+            end)
+            
+            MainFrame.Size = UDim2.new(0, 520, 0, 0)
+            local targetHeight = Window.Minimized and 47 or 330
+            TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 520, 0, targetHeight)}):Play()
+        end
+    end
+
+    local function CloseGui()
+        if Window.Visible then
+            Window.Visible = false
+            
+            local hideTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 520, 0, 0)})
+            hideTween:Play()
+            hideTween.Completed:Connect(function()
+                if not Window.Visible then
+                    MainFrame.Visible = false
+                end
+            end)
+            
+            if firstTimeOpen then
+                firstTimeOpen = false
+                FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
+            end
+            
+            FloatingToggle.Visible = true
+            FloatingToggle.Size = UDim2.new(0, 0, 0, 0)
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+        end
+    end
+
+    FloatingToggle.MouseButton1Click:Connect(function()
+        TweenService:Create(FloatingToggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 40, 0, 40)}):Play()
+        task.delay(0.1, function()
+            OpenGui()
+        end)
+    end)
+
+    CloseBtn.MouseButton1Click:Connect(CloseGui)
+
+    StartLoading(titleText, subtitleText, function()
+        firstTimeOpen = true
+        FloatingToggle.Position = UDim2.new(0.5, -24, 0.5, -24)
+        FloatingToggle.Size = UDim2.new(0, 0, 0, 0)
+        FloatingToggle.Visible = true
+        
+        TweenService:Create(FloatingToggle, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+
+        task.spawn(function()
+            task.wait(0.5)
+            Library:LoadConfig()
+        end)
+    end)
+
+    function Window:SetDragLock(state)
+        Window.DragLocked = state
+        MainFrame:SetAttribute("DragLocked", state)
+    end
+
+    function Window:BindToggleKey(keyCode)
+        local debounce = false
+        UserInputService.InputBegan:Connect(function(input, processed)
+            if processed then return end
+            if input.KeyCode == keyCode and not debounce then
+                debounce = true
+                if Window.Visible then
+                    CloseGui()
+                else
+                    OpenGui()
+                end
+                task.wait(0.3)
+                debounce = false
+            end
+        end)
+    end
+
+    -- ========================================================
+    -- [[ 5. METHODS: CREATE NEW TAB ]]
+    -- ========================================================
+    function Window:CreateTab(tabName, iconAssetId)
+        local Tab = {}
+        
+        local TabContent = Instance.new("ScrollingFrame", ContentArea)
+        TabContent.Size = UDim2.new(1, -16, 1, -16)
+        TabContent.Position = UDim2.new(0, 8, 0, 8)
+        TabContent.BackgroundTransparency = 1
+        TabContent.ScrollBarThickness = 2
+        TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+        TabContent.Visible = false
+
+        local ContentLayout = Instance.new("UIListLayout", TabContent)
+        ContentLayout.Padding = UDim.new(0, 6)
+        ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabContent.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y)
+        end)
+
+        local TabButton = Instance.new("TextButton", TabContainer)
+        TabButton.Size = UDim2.new(1, 0, 0, 32)
+        TabButton.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+        TabButton.BackgroundTransparency = 1
+        TabButton.Text = ""
+        TabButton.AutoButtonColor = false
+        Instance.new("UICorner", TabButton).CornerRadius = UDim.new(0, 5)
+
+        local TabBtnStroke = Instance.new("UIStroke", TabButton)
+        TabBtnStroke.Color = Color3.fromRGB(35, 35, 40)
+        TabBtnStroke.Thickness = 1
+        TabBtnStroke.Transparency = 1
+
+        local TabIndicator = Instance.new("Frame", TabButton)
+        TabIndicator.Size = UDim2.new(0, 2.5, 1, -12)
+        TabIndicator.Position = UDim2.new(0, 4, 0, 6)
+        TabIndicator.BorderSizePixel = 0
+        TabIndicator.Visible = false
+        RegisterRGB(TabIndicator, "BackgroundColor3")
+
+        local IconLabel
+        if iconAssetId then
+            IconLabel = Instance.new("ImageLabel", TabButton)
+            IconLabel.Size = UDim2.new(0, 14, 0, 14)
+            IconLabel.Position = UDim2.new(0, 10, 0.5, -7)
+            IconLabel.BackgroundTransparency = 1
+            
+            -- Resolve the icon safely using our dual-method translator
+            IconLabel.Image = resolveIcon(iconAssetId)
+            IconLabel.ImageColor3 = Color3.fromRGB(130, 130, 130)
+        end
+
+        local TabText = Instance.new("TextLabel", TabButton)
+        TabText.Size = UDim2.new(1, iconAssetId and -34 or -16, 1, 0)
+        TabText.Position = UDim2.new(0, iconAssetId and 28 or 10)
+        TabText.BackgroundTransparency = 1
+        TabText.Text = tabName
+        TabText.TextColor3 = Color3.fromRGB(130, 130, 130)
+        TabText.TextSize = 11
+        TabText.Font = Enum.Font.MontserratMedium
+        TabText.TextXAlignment = Enum.TextXAlignment.Left
+
+        local function Select()
+            if Window.CurrentTab then
+                local oldTab = Window.CurrentTab
+                local fadeOut = TweenService:Create(oldTab.Frame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0.95, -16), Position = UDim2.new(0, 8, 0, 12)})
+                fadeOut:Play()
+                fadeOut.Completed:Connect(function()
+                    oldTab.Frame.Visible = false
+                end)
+
+                TweenService:Create(oldTab.Button, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+                TweenService:Create(oldTab.ButtonStroke, TweenInfo.new(0.15), {Transparency = 1}):Play()
+                TweenService:Create(oldTab.Text, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(130, 130, 130)}):Play()
+                oldTab.Indicator.Visible = false
+                if oldTab.Icon then
+                    TweenService:Create(oldTab.Icon, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(130, 130, 130)}):Play()
+                end
+            end
+            
+            TabContent.Size = UDim2.new(1, -16, 0.95, -16)
+            TabContent.Position = UDim2.new(0, 8, 0, 12)
+            TabContent.Visible = true
+            TweenService:Create(TabContent, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 1, -16), Position = UDim2.new(0, 8, 0, 8)}):Play()
+
+            Window.CurrentTab = {Button = TabButton, ButtonStroke = TabBtnStroke, Text = TabText, Frame = TabContent, Icon = IconLabel, Indicator = TabIndicator}
+            TweenService:Create(TabButton, TweenInfo.new(0.15), {BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(24, 24, 28)}):Play()
+            TweenService:Create(TabBtnStroke, TweenInfo.new(0.15), {Transparency = 0}):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+            TabIndicator.Visible = true
+            if IconLabel then
+                TweenService:Create(IconLabel, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+            end
+        end
+
+        TabButton.MouseEnter:Connect(function()
+            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
+            TweenService:Create(TabButton, TweenInfo.new(0.15), {BackgroundTransparency = 0.5, BackgroundColor3 = Color3.fromRGB(20, 20, 24)}):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+            if IconLabel then
+                TweenService:Create(IconLabel, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+            end
+        end)
+
+        TabButton.MouseLeave:Connect(function()
+            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
+            TweenService:Create(TabButton, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(130, 130, 130)}):Play()
+            if IconLabel then
+                TweenService:Create(IconLabel, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(130, 130, 130)}):Play()
+            end
+        end)
+
+        TabButton.MouseButton1Click:Connect(Select)
+
+        if not Window.CurrentTab then
+            Select()
+        end
+
+        -- ========================================================
+        -- [[ 5a. TAB ELEMENT: CREATE BUTTON ]]
+        -- ========================================================
+        function Tab:CreateButton(buttonText, callback)
+            local Button = Instance.new("TextButton", TabContent)
+            Button.Size = UDim2.new(1, -6, 0, 34)
+            Button.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+            Button.Text = ""
+            Button.AutoButtonColor = false
+
+            Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 5)
+            local BtnStroke = Instance.new("UIStroke", Button)
+            BtnStroke.Color = Color3.fromRGB(35, 35, 40)
+            BtnStroke.Thickness = 1
+
+            local BtnText = Instance.new("TextLabel", Button)
+            BtnText.Size = UDim2.new(1, -35, 1, 0)
+            BtnText.Position = UDim2.new(0, 12, 0, 0)
+            BtnText.BackgroundTransparency = 1
+            BtnText.Text = buttonText or "Button"
+            BtnText.TextColor3 = Color3.fromRGB(210, 210, 210)
+            BtnText.TextSize = 11
+            BtnText.Font = Enum.Font.MontserratMedium
+            BtnText.TextXAlignment = Enum.TextXAlignment.Left
+
+            local ArrowIcon = Instance.new("ImageLabel", Button)
+            ArrowIcon.Size = UDim2.new(0, 12, 0, 12)
+            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -6)
+            ArrowIcon.BackgroundTransparency = 1
+            ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094678&w=150&h=150"
+            ArrowIcon.ImageColor3 = Color3.fromRGB(130, 130, 130)
+
+            Button.MouseEnter:Connect(function()
+                TweenService:Create(Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(28, 28, 33)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -20, 0.5, -6)}):Play()
+            end)
+            Button.MouseLeave:Connect(function()
+                TweenService:Create(Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(22, 22, 26)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageColor3 = Color3.fromRGB(130, 130, 130), Position = UDim2.new(1, -22, 0.5, -6)}):Play()
+            end)
+
+            Button.MouseButton1Click:Connect(function()
+                local press = TweenService:Create(Button, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(35, 35, 42)})
+                press:Play()
+                press.Completed:Connect(function()
+                    TweenService:Create(Button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(28, 28, 33)}):Play()
+                end)
+                if callback then task.spawn(callback) end
+            end)
+        end
+
+        -- ========================================================
+        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE ]]
+        -- ========================================================
+        function Tab:CreateToggle(toggleText, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = toggleText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = toggleText:gsub("%s+", "")
+            end
+
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Toggle = {State = (savedVal ~= nil and savedVal) or defaultVal or false}
+            Library.Flags[actualFlag] = Toggle.State
+
+            local ToggleBtn = Instance.new("TextButton", TabContent)
+            ToggleBtn.Size = UDim2.new(1, -6, 0, 34)
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+            ToggleBtn.Text = ""
+            ToggleBtn.AutoButtonColor = false
+
+            Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
+            local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
+            ToggleStroke.Color = Color3.fromRGB(35, 35, 40)
+            ToggleStroke.Thickness = 1
+
+            local TextLabel = Instance.new("TextLabel", ToggleBtn)
+            TextLabel.Size = UDim2.new(1, -65, 1, 0)
+            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.Text = toggleText or "Toggle"
+            TextLabel.TextColor3 = Color3.fromRGB(210, 210, 210)
+            TextLabel.TextSize = 11
+            TextLabel.Font = Enum.Font.MontserratMedium
+            TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+            local SwitchBg = Instance.new("Frame", ToggleBtn)
+            SwitchBg.Size = UDim2.new(0, 32, 0, 16)
+            SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
+            SwitchBg.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+            SwitchBg.BorderSizePixel = 0
+            Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
+
+            local SwitchBall = Instance.new("Frame", SwitchBg)
+            SwitchBall.Size = UDim2.new(0, 12, 0, 12)
+            SwitchBall.Position = UDim2.new(0, 2, 0.5, -6)
+            SwitchBall.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+            SwitchBall.BorderSizePixel = 0
+            Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
+
+            local function UpdateVisual(animate, ignoreSave)
+                local duration = animate and 0.2 or 0
+                local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                
+                if Toggle.State then
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                    RegisterRGB(SwitchBg, "BackgroundColor3")
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(24, 24, 30)}):Play()
+                else
+                    UnregisterRGB(SwitchBg, "BackgroundColor3")
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = Color3.fromRGB(130, 130, 130)}):Play()
+                    TweenService:Create(SwitchBg, TweenInfo.new(duration, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(35, 35, 40)}):Play()
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(22, 22, 26)}):Play()
+                end
+
+                Library.Flags[actualFlag] = Toggle.State
+                if not ignoreSave then
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+                end
+            end
+
+            UpdateVisual(false, true)
+
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Toggle.State) end)
+            end
+
+            ToggleBtn.MouseButton1Click:Connect(function()
+                Toggle.State = not Toggle.State
+                UpdateVisual(true)
+                if actualCallback then task.spawn(function() actualCallback(Toggle.State) end) end
+            end)
+
+            local toggleController = {}
+            toggleController.DefaultValue = defaultVal or false -- Merekam nilai default asli untuk penanganan reset
+            function toggleController:Set(state, ignoreSave, ignoreCallback)
+                Toggle.State = state
+                UpdateVisual(true, ignoreSave)
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(Toggle.State) end) 
+                end
+            end
+
+            Library.Elements[actualFlag] = toggleController
+            return toggleController
+        end
+
+        -- ========================================================
+        -- [[ 5c. TAB ELEMENT: CREATE SLIDER ]]
+        -- ========================================================
+        function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = sliderText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = sliderText:gsub("%s+", "")
+            end
+
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Slider = {Value = (savedVal ~= nil and savedVal) or defaultVal or minVal}
+            Library.Flags[actualFlag] = Slider.Value
+            
+            local SliderFrame = Instance.new("Frame", TabContent)
+            SliderFrame.Size = UDim2.new(1, -6, 0, 48)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+            
+            Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 5)
+            local SliderStroke = Instance.new("UIStroke", SliderFrame)
+            SliderStroke.Color = Color3.fromRGB(35, 35, 40)
+            SliderStroke.Thickness = 1
+
+            local TitleLabel = Instance.new("TextLabel", SliderFrame)
+            TitleLabel.Size = UDim2.new(1, -20, 0, 20)
+            TitleLabel.Position = UDim2.new(0, 12, 0, 4)
+            TitleLabel.BackgroundTransparency = 1
+            TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+            TitleLabel.TextColor3 = Color3.fromRGB(210, 210, 210)
+            TitleLabel.TextSize = 11
+            TitleLabel.Font = Enum.Font.MontserratMedium
+            TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+            local SliderBg = Instance.new("TextButton", SliderFrame)
+            SliderBg.Size = UDim2.new(1, -24, 0, 4)
+            SliderBg.Position = UDim2.new(0, 12, 1, -12)
+            SliderBg.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+            SliderBg.Text = ""
+            SliderBg.AutoButtonColor = false
+            Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
+
+            local SliderFill = Instance.new("Frame", SliderBg)
+            SliderFill.Size = UDim2.new((Slider.Value - minVal) / (maxVal - minVal), 0, 1, 0)
+            SliderFill.BorderSizePixel = 0
+            Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+            RegisterRGB(SliderFill, "BackgroundColor3")
+
+            local function UpdateVisuals(val, ignoreSave)
+                Slider.Value = math.clamp(val, minVal, maxVal)
+                local percentage = (Slider.Value - minVal) / (maxVal - minVal)
+                
+                TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
+                TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+                
+                Library.Flags[actualFlag] = Slider.Value
+                if not ignoreSave then
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+                end
+            end
+
+            UpdateVisuals(Slider.Value, true)
+
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Slider.Value) end)
+            end
+
+            local sliding = false
+            local function Update(input)
+                local percentage = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+                local rawVal = minVal + (percentage * (maxVal - minVal))
+                local finalVal = math.floor(rawVal + 0.5)
+                
+                UpdateVisuals(finalVal)
+                if actualCallback then task.spawn(function() actualCallback(finalVal) end) end
+            end
+
+            SliderBg.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sliding = true
+                    Update(input)
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    Update(input)
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sliding = false
+                end
+            end)
+
+            local sliderController = {}
+            sliderController.DefaultValue = defaultVal or minVal -- Merekam nilai default asli untuk penanganan reset
+            function sliderController:Set(val, ignoreSave, ignoreCallback)
+                UpdateVisuals(val, ignoreSave)
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(Slider.Value) end) 
+                end
+            end
+
+            Library.Elements[actualFlag] = sliderController
+            return sliderController
+        end
+
+        -- ========================================================
+        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN ]]
+        -- ========================================================
+        function Tab:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = dropdownText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = dropdownText:gsub("%s+", "")
+            end
+
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Dropdown = {
+                Open = false,
+                CurrentValue = (savedVal ~= nil and savedVal) or defaultVal or options[1],
+                OptionFrames = {}
+            }
+            Library.Flags[actualFlag] = Dropdown.CurrentValue
+            
+            local DropdownFrame = Instance.new("Frame", TabContent)
+            DropdownFrame.Size = UDim2.new(1, -6, 0, 34)
+            DropdownFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+            DropdownFrame.ClipsDescendants = true
+            
+            Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
+            local FrameStroke = Instance.new("UIStroke", DropdownFrame)
+            FrameStroke.Color = Color3.fromRGB(35, 35, 40)
+            FrameStroke.Thickness = 1
+
+            local DropdownBtn = Instance.new("TextButton", DropdownFrame)
+            DropdownBtn.Size = UDim2.new(1, 0, 0, 34)
+            DropdownBtn.BackgroundTransparency = 1
+            DropdownBtn.Text = ""
+
+            local TextLabel = Instance.new("TextLabel", DropdownBtn)
+            TextLabel.Size = UDim2.new(1, -60, 1, 0)
+            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.Text = dropdownText .. " (" .. tostring(Dropdown.CurrentValue) .. ")"
+            TextLabel.TextColor3 = Color3.fromRGB(210, 210, 210)
+            TextLabel.TextSize = 11
+            TextLabel.Font = Enum.Font.MontserratMedium
+            TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+            local ArrowIcon = Instance.new("ImageLabel", DropdownBtn)
+            ArrowIcon.Size = UDim2.new(0, 10, 0, 10)
+            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -5)
+            ArrowIcon.BackgroundTransparency = 1
+            ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
+            ArrowIcon.ImageColor3 = Color3.fromRGB(130, 130, 130)
+
+            local OptionContainer = Instance.new("Frame", DropdownFrame)
+            OptionContainer.Size = UDim2.new(1, -24, 0, 0)
+            OptionContainer.Position = UDim2.new(0, 12, 0, 36)
+            OptionContainer.BackgroundTransparency = 1
+
+            local OptionList = Instance.new("UIListLayout", OptionContainer)
+            OptionList.Padding = UDim.new(0, 4)
+
+            local function Refresh()
+                for _, v in ipairs(Dropdown.OptionFrames) do v:Destroy() end
+                Dropdown.OptionFrames = {}
+
+                for _, opt in ipairs(options) do
+                    local OptBtn = Instance.new("TextButton", OptionContainer)
+                    OptBtn.Size = UDim2.new(1, 0, 0, 26)
+                    OptBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 31)
+                    OptBtn.Text = ""
+                    OptBtn.AutoButtonColor = false
+                    Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
+
+                    local OptText = Instance.new("TextLabel", OptBtn)
+                    OptText.Size = UDim2.new(1, -20, 1, 0)
+                    OptText.Position = UDim2.new(0, 10, 0, 0)
+                    OptText.BackgroundTransparency = 1
+                    OptText.Text = tostring(opt)
+                    OptText.TextSize = 10
+                    OptText.TextXAlignment = Enum.TextXAlignment.Left
+
+                    if opt == Dropdown.CurrentValue then
+                        OptText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        OptText.Font = Enum.Font.MontserratBold
+                        
+                        local Indicator = Instance.new("Frame", OptBtn)
+                        Indicator.Size = UDim2.new(0, 2.5, 1, -8)
+                        Indicator.Position = UDim2.new(0, 3, 0, 4)
+                        Instance.new("UICorner", Indicator)
+                        RegisterRGB(Indicator, "BackgroundColor3")
+                    else
+                        OptText.TextColor3 = Color3.fromRGB(140, 140, 140)
+                        OptText.Font = Enum.Font.Montserrat
+                    end
+
+                    OptBtn.MouseEnter:Connect(function()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(32, 32, 38)}):Play()
+                    end)
+                    OptBtn.MouseLeave:Connect(function()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(26, 26, 31)}):Play()
+                    end)
+
+                    OptBtn.MouseButton1Click:Connect(function()
+                        Dropdown.CurrentValue = opt
+                        TextLabel.Text = dropdownText .. " (" .. tostring(opt) .. ")"
+                        Dropdown.Open = false
+                        
+                        UnregisterRGB(FrameStroke, "Color")
+                        FrameStroke.Color = Color3.fromRGB(35, 35, 40)
+                        TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, 34)}):Play()
+                        TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
+                        
+                        Refresh()
+                        
+                        Library.Flags[actualFlag] = opt
+                        if not actualFlag:find("^__Meta") then
+                            Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+                        end
+                        
+                        if actualCallback then task.spawn(function() actualCallback(opt) end) end
+                    end)
+
+                    table.insert(Dropdown.OptionFrames, OptBtn)
+                end
+            end
+
+            DropdownBtn.MouseButton1Click:Connect(function()
+                Dropdown.Open = not Dropdown.Open
+                local targetHeight = 34
+                local rotation = 0
+                
+                if Dropdown.Open then
+                    Refresh()
+                    RegisterRGB(FrameStroke, "Color")
+                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
+                    targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
+                    rotation = 180
+                else
+                    UnregisterRGB(FrameStroke, "Color")
+                    FrameStroke.Color = Color3.fromRGB(35, 35, 40)
+                    OptionContainer.Size = UDim2.new(1, -24, 0, 0)
+                end
+                
+                TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
+            end)
+
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Dropdown.CurrentValue) end)
+            end
+
+            local dropdownController = {}
+            dropdownController.DefaultValue = defaultVal or options[1] -- Merekam nilai default asli untuk penanganan reset
+            function dropdownController:Set(val, ignoreSave, ignoreCallback)
+                Dropdown.CurrentValue = val
+                TextLabel.Text = dropdownText .. " (" .. tostring(val) .. ")"
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave and not actualFlag:find("^__Meta") then
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+                end
+                
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(val) end) 
+                end
+            end
+
+            function dropdownController:Refresh(newOptions)
+                options = newOptions
+                if Dropdown.Open then
+                    Refresh()
+                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
+                    local targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
+                    TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                end
+            end
+            dropdownController.Update = dropdownController.Refresh
+
+            Library.Elements[actualFlag] = dropdownController
+            return dropdownController
+        end
+
+        -- ========================================================
+        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX ]]
+        -- ========================================================
+        function Tab:CreateTextBox(labelText, placeholderText, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = labelText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = labelText:gsub("%s+", "")
+            end
+
+            -- Mengambil setelan awal langsung dari cache memori jika ada
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+
+            local TextBoxFrame = Instance.new("Frame", TabContent)
+            TextBoxFrame.Size = UDim2.new(1, -6, 0, 34)
+            TextBoxFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+            
+            Instance.new("UICorner", TextBoxFrame).CornerRadius = UDim.new(0, 5)
+            local FrameStroke = Instance.new("UIStroke", TextBoxFrame)
+            FrameStroke.Color = Color3.fromRGB(35, 35, 40)
+            FrameStroke.Thickness = 1
+
+            local Label = Instance.new("TextLabel", TextBoxFrame)
+            Label.Size = UDim2.new(0.45, -12, 1, 0)
+            Label.Position = UDim2.new(0, 12, 0, 0)
+            Label.BackgroundTransparency = 1
+            Label.Text = labelText or "Input Text"
+            Label.TextColor3 = Color3.fromRGB(210, 210, 210)
+            Label.TextSize = 11
+            Label.Font = Enum.Font.MontserratMedium
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+
+            local InputBox = Instance.new("TextBox", TextBoxFrame)
+            InputBox.Size = UDim2.new(0.55, -12, 0, 22)
+            InputBox.Position = UDim2.new(0.45, 0, 0.5, -11)
+            InputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+            InputBox.Text = savedVal and tostring(savedVal) or ""
+            InputBox.PlaceholderText = placeholderText or "Type here..."
+            InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+            InputBox.PlaceholderColor3 = Color3.fromRGB(90, 90, 100)
+            InputBox.TextSize = 10
+            InputBox.Font = Enum.Font.Montserrat
+
+            Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
+            local InputStroke = Instance.new("UIStroke", InputBox)
+            InputStroke.Color = Color3.fromRGB(40, 40, 45)
+            InputStroke.Thickness = 1
+
+            Library.Flags[actualFlag] = InputBox.Text
+
+            InputBox.Focused:Connect(function()
+                TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(100, 100, 110)}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(24, 24, 30)}):Play()
+            end)
+
+            InputBox.FocusLost:Connect(function(enterPressed)
+                TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(40, 40, 45)}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 26)}):Play()
+                
+                Library.Flags[actualFlag] = InputBox.Text
+                Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+                
+                if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
+            end)
+
+            -- Langsung picu fungsi callback jika nilai yang dimuat dari cache aktif
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(InputBox.Text, false) end)
+            end
+
+            local textboxController = {}
+            textboxController.DefaultValue = "" -- Merekam nilai default asli untuk penanganan reset
+            function textboxController:Set(val, ignoreSave, ignoreCallback)
+                InputBox.Text = tostring(val)
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave then
+                    Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+                end
+                
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(val, false) end) 
+                end
+            end
+
+            Library.Elements[actualFlag] = textboxController
+            return textboxController
+        end
+
+        -- ========================================================
+        -- [[ 5f. TAB ELEMENT: CREATE PARAGRAPH ]]
+        -- ========================================================
+        function Tab:CreateParagraph(titleText, descText)
+            local ParagraphFrame = Instance.new("Frame", TabContent)
+            ParagraphFrame.Size = UDim2.new(1, -6, 0, 52)
+            ParagraphFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+            ParagraphFrame.BackgroundTransparency = 0.4
+            
+            Instance.new("UICorner", ParagraphFrame).CornerRadius = UDim.new(0, 5)
+            local FrameStroke = Instance.new("UIStroke", ParagraphFrame)
+            FrameStroke.Color = Color3.fromRGB(30, 30, 35)
+            FrameStroke.Thickness = 1
+
+            local TitleLabel = Instance.new("TextLabel", ParagraphFrame)
+            TitleLabel.Size = UDim2.new(1, -20, 0, 18)
+            TitleLabel.Position = UDim2.new(0, 12, 0, 6)
+            TitleLabel.BackgroundTransparency = 1
+            TitleLabel.Text = titleText or "Section Title"
+            TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TitleLabel.Font = Enum.Font.MontserratBold
+            TitleLabel.TextSize = 11
+            TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+            local DescLabel = Instance.new("TextLabel", ParagraphFrame)
+            DescLabel.Size = UDim2.new(1, -20, 1, -26)
+            DescLabel.Position = UDim2.new(0, 12, 0, 22)
+            DescLabel.BackgroundTransparency = 1
+            DescLabel.Text = descText or "Description text details."
+            DescLabel.TextColor3 = Color3.fromRGB(130, 130, 140)
+            DescLabel.Font = Enum.Font.Montserrat
+            DescLabel.TextSize = 9
+            DescLabel.TextWrapped = true
+            DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+        end
+
+        return Tab
+    end
+
+    -- ========================================================
+    -- [[ 5g. PERMANENT CONFIG MANAGER TAB ]]
+    -- ========================================================
+    local ConfigTab = Window:CreateTab("Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150")
+    
+    ConfigTab:CreateParagraph("Configuration Profiles", "Select a profile, save your modifications, or enable auto-load to restore states upon loading.")
+
+    -- Selector Profil
+    ConfigTab:CreateDropdown("Selected Profile", {"Profile 1", "Profile 2", "Profile 3", "Profile 4", "Profile 5"}, CurrentProfile, "__MetaProfile", function(selected)
+        CurrentProfile = selected
+        Library:SaveSettings()
+        Library:LoadConfig(true) -- Memuat paksa profil baru yang dipilih
+    end)
+
+    -- Toggle Pemuatan Otomatis
+    ConfigTab:CreateToggle("Auto Load Config", AutoLoadEnabled, "__MetaAutoLoad", function(state)
+        AutoLoadEnabled = state
+        Library:SaveSettings()
+    end)
+
+    -- Tombol Simpan Konfigurasi (Manual: Menampilkan notifikasi)
+    ConfigTab:CreateButton("Save Current Config", function()
+        Library:SaveConfig(false)
+    end)
+
+    -- Tombol Muat Konfigurasi Manual
+    ConfigTab:CreateButton("Load Selected Config", function()
+        Library:LoadConfig(true)
+    end)
+
+    return Window
+end
+
+-- ========================================================
+-- [[ 6. EXTERNAL UTILITY BUTTON SYSTEM ]]
+-- ========================================================
+function Library:CreateExternalButton(id, text, defaultPos, callback)
+    local ScreenGui = GetMainGui()
+
+    local ExtBtn = Instance.new("TextButton")
+    ExtBtn.Name = "ExternalButton_" .. tostring(id)
+    ExtBtn.Size = UDim2.new(0, 40, 0, 40)
+    
+    -- Memuat letak koordinat tombol eksternal langsung dari memori cache jika sudah ada
+    local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["ExtBtnPos_" .. tostring(id)]
+    if savedPos and type(savedPos) == "table" then
+        ExtBtn.Position = UDim2.new(
+            savedPos.X_Scale or 0, 
+            savedPos.X_Offset or 0, 
+            savedPos.Y_Scale or 0, 
+            savedPos.Y_Offset or 0
+        )
+    else
+        ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
+    end
+
+    ExtBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    ExtBtn.BackgroundTransparency = 0.5
+    ExtBtn.Text = text or "A"
+    ExtBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtBtn.Font = Enum.Font.MontserratBold
+    ExtBtn.TextSize = 13
+    ExtBtn.AutoButtonColor = false
+    ExtBtn.Parent = ScreenGui
+
+    local Corner = Instance.new("UICorner", ExtBtn)
+    Corner.CornerRadius = UDim.new(0, 6)
+
+    local Stroke = Instance.new("UIStroke", ExtBtn)
+    Stroke.Thickness = 1
+    RegisterRGB(Stroke, "Color")
+
+    EnableDrag(ExtBtn, ExtBtn, function()
+        Library.Flags["ExtBtnPos_" .. tostring(id)] = {
+            X_Scale = ExtBtn.Position.X.Scale,
+            X_Offset = ExtBtn.Position.X.Offset,
+            Y_Scale = ExtBtn.Position.Y.Scale,
+            Y_Offset = ExtBtn.Position.Y.Offset
+        }
+        Library:SaveConfig(true) -- Autosave di latar belakang secara senyap saat tombol eksternal digeser
+    end)
+
+    -- Merekam tombol eksternal dan posisi default aslinya demi mendukung fitur auto-reset
+    Library.ExternalButtons[id] = {
+        Instance = ExtBtn,
+        DefaultPosition = defaultPos or UDim2.new(0, 20, 0.5, 0)
+    }
+
+    ExtBtn.MouseButton1Click:Connect(function()
+        if callback then task.spawn(callback) end
+    end)
+
+    local controller = {}
+    controller.Instance = ExtBtn -- Expose instance agar loader dapat mengakses button secara langsung untuk penskalaan (SetSize)
+    
+    function controller:SetVisible(state)
+        ExtBtn.Visible = state
+    end
+    function controller:SetText(val)
+        ExtBtn.Text = tostring(val)
+    end
+    function controller:SetDragLock(locked)
+        ExtBtn:SetAttribute("DragLocked", locked)
+    end
+    function controller:SetSize(size)
+        if typeof(size) == "UDim2" then
+            ExtBtn.Size = size
+        elseif type(size) == "number" then
+            ExtBtn.Size = UDim2.new(0, size, 0, size)
+        end
+    end
+
+    return controller
+end
+
+-- ========================================================
+-- [[ 7. REAL-TIME STATS HUD (FPS & PING) ]]
+-- ========================================================
+function Library:CreateStatsHUD()
+    local ScreenGui = GetMainGui()
+    
+    local HudFrame = Instance.new("Frame")
+    HudFrame.Name = "Louis_StatsHUD"
+    HudFrame.Size = UDim2.new(0, 150, 0, 28)
+    
+    -- Memuat letak koordinat HUD langsung dari memori cache jika sudah ada
+    local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["StatsHUDPos"]
+    if savedPos and type(savedPos) == "table" then
+        HudFrame.Position = UDim2.new(
+            savedPos.X_Scale or 0, 
+            savedPos.X_Offset or 0, 
+            savedPos.Y_Scale or 0, 
+            savedPos.Y_Offset or 0
+        )
+    else
+        HudFrame.Position = UDim2.new(1, -20, 0, 50) -- Kanan atas, sedikit ke bawah
+    end
+
+    HudFrame.AnchorPoint = Vector2.new(1, 0)
+    HudFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+    HudFrame.BorderSizePixel = 0
+    HudFrame.Parent = ScreenGui
+    HudFrame.Visible = true -- Langsung aktif secara default
+
+    local HudCorner = Instance.new("UICorner", HudFrame)
+    HudCorner.CornerRadius = UDim.new(0, 6)
+
+    local HudStroke = Instance.new("UIStroke", HudFrame)
+    HudStroke.Thickness = 1
+    RegisterRGB(HudStroke, "Color")
+
+    local StatLabel = Instance.new("TextLabel", HudFrame)
+    StatLabel.Size = UDim2.new(1, 0, 1, 0)
+    StatLabel.BackgroundTransparency = 1
+    StatLabel.Font = Enum.Font.MontserratBold
+    StatLabel.TextSize = 10
+    StatLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    StatLabel.RichText = true
+    StatLabel.Text = "FPS: ...  •  PING: ... MS"
+
+    -- Posisi HUD disimpan secara otomatis jika digeser
+    EnableDrag(HudFrame, HudFrame, function()
+        Library.Flags["StatsHUDPos"] = {
+            X_Scale = HudFrame.Position.X.Scale,
+            X_Offset = HudFrame.Position.X.Offset,
+            Y_Scale = HudFrame.Position.Y.Scale,
+            Y_Offset = HudFrame.Position.Y.Offset
+        }
+        Library:SaveConfig(true) -- Autosave di latar belakang secara senyap
+    end)
+
+    local fpsHistory = {}
+    local maxHistory = 30
+    local lastTextUpdate = 0
+    local textUpdateInterval = 0.1
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function(dt)
+        if not HudFrame or not HudFrame.Parent then
+            connection:Disconnect()
+            return
+        end
+        
+        table.insert(fpsHistory, dt)
+        if #fpsHistory > maxHistory then
+            table.remove(fpsHistory, 1)
+        end
+        
+        local now = os.clock()
+        if now - lastTextUpdate >= textUpdateInterval then
+            lastTextUpdate = now
+            
+            local totalTime = 0
+            for _, t in ipairs(fpsHistory) do
+                totalTime = totalTime + t
+            end
+            local currentFps = #fpsHistory > 0 and math.round(#fpsHistory / totalTime) or 60
+            
+            local currentPing = 0
+            if LocalPlayer then
+                local success, rawPing = pcall(function()
+                    return LocalPlayer:GetNetworkPing()
+                end)
+                if success and rawPing and rawPing > 0 then
+                    currentPing = math.round(rawPing * 1000)
+                end
+            end
+            
+            StatLabel.Text = string.format("FPS: <font color='rgb(0, 255, 120)'>%d</font>  •  PING: <font color='rgb(0, 180, 255)'>%d MS</font>", currentFps, currentPing)
+        end
+    end)
+
+    local hudController = {}
+    function hudController:SetVisible(state)
+        HudFrame.Visible = state
+    end
+    
+    return hudController
+end
+
+-- ========================================================
+-- [[ AUTO-INITIALIZATION ON LIBRARY LOAD ]]
+-- ========================================================
+task.spawn(function()
+    -- Langsung membuat HUD FPS & Ping tanpa menunggu Window dibuat
+    local statsHUD = Library:CreateStatsHUD()
+    statsHUD:SetVisible(true)
+    
+    -- Memuat konfigurasi posisi HUD jika ada
+    pcall(function()
+        Library:LoadConfig()
+    end)
+end)
+
+return Library
