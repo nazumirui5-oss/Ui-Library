@@ -19,7 +19,7 @@ local SettingsFileName = "LouisHub_UI_Settings_" .. tostring(PlaceId) .. ".json"
 local CurrentProfile = "Profile 1"
 local AutoLoadEnabled = false
 
--- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca
+-- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca & Kustomisasi Gambar
 local Themes = {
     ["RGB"] = {
         WindowBg = Color3.fromRGB(15, 15, 18),
@@ -37,7 +37,10 @@ local Themes = {
         TextSecondary = Color3.fromRGB(140, 140, 150),
         TextDark = Color3.fromRGB(130, 130, 130),
         Accent = Color3.fromRGB(255, 255, 255), -- Dinamis oleh loop RGB
-        IsRGB = true
+        IsRGB = true,
+        BgImage = "", -- Kosong untuk tema RGB
+        BgImageTransparency = 1,
+        FloatingIconImage = "rbxthumb://type=Asset&id=10734887784&w=150&h=150"
     },
     ["Cute Pastel"] = {
         WindowBg = Color3.fromRGB(255, 235, 243),      -- Pink pastel
@@ -55,7 +58,10 @@ local Themes = {
         TextSecondary = Color3.fromRGB(115, 120, 140), 
         TextDark = Color3.fromRGB(150, 155, 175),      
         Accent = Color3.fromRGB(255, 130, 170),        
-        IsRGB = false
+        IsRGB = false,
+        BgImage = "rbxthumb://type=Asset&id=118470928936375&w=420&h=420", -- Gambar latar belakang kustom tema pastel
+        BgImageTransparency = 0.85, -- Transparansi pola agar menyatu lembut di latar belakang bodi
+        FloatingIconImage = "rbxthumb://type=Asset&id=103242464029137&w=150&h=150" -- Ikon melayang kustom tema pastel
     }
 }
 
@@ -110,7 +116,12 @@ local function ApplyTheme(themeName)
         for _, item in ipairs(RGBElements) do
             if item.Instance and item.Instance:IsDescendantOf(game) then
                 pcall(function()
-                    item.Instance[item.Property] = theme.Accent
+                    -- Jaga agar ikon melayang tidak tercampur aksen pink agar warna aslinya terlihat
+                    if item.Instance.Name == "Icon" and item.Instance.Parent and item.Instance.Parent.Name == "FloatingToggleIcon" then
+                        item.Instance[item.Property] = Color3.fromRGB(255, 255, 255)
+                    else
+                        item.Instance[item.Property] = theme.Accent
+                    end
                 end)
             end
         end
@@ -778,6 +789,19 @@ function Library:CreateWindow(titleText, subtitleText)
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 8)
 
+    -- Wallpaper/Gambar Pola Latar Belakang Kustom
+    local BackgroundImage = Instance.new("ImageLabel", MainFrame)
+    BackgroundImage.Name = "UIBackgroundPattern"
+    BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
+    BackgroundImage.Position = UDim2.new(0, 0, 0, 0)
+    BackgroundImage.BackgroundTransparency = 1
+    BackgroundImage.ScaleType = Enum.ScaleType.Crop
+    BackgroundImage.ZIndex = -2
+    RegisterThemeable(BackgroundImage, {
+        Image = "BgImage",
+        ImageTransparency = "BgImageTransparency"
+    })
+
     local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Thickness = 1
     RegisterRGB(MainStroke, "Color")
@@ -958,10 +982,12 @@ function Library:CreateWindow(titleText, subtitleText)
     ToggleIconImage.Size = UDim2.new(0, 24, 0, 24)
     ToggleIconImage.Position = UDim2.new(0.5, -12, 0.5, -12)
     ToggleIconImage.BackgroundTransparency = 1
-    ToggleIconImage.Image = "rbxthumb://type=Asset&id=10734887784&w=150&h=150"
     ToggleIconImage.ScaleType = Enum.ScaleType.Fit
     RegisterRGB(ToggleIconImage, "ImageColor3")
-    RegisterThemeable(ToggleIconImage, { ImageColor3 = function(t) return t.IsRGB and ToggleIconImage.ImageColor3 or t.Accent end })
+    RegisterThemeable(ToggleIconImage, {
+        Image = "FloatingIconImage",
+        ImageColor3 = function(t) return t.IsRGB and ToggleIconImage.ImageColor3 or Color3.fromRGB(255, 255, 255) end
+    })
 
     EnableDrag(FloatingToggle, FloatingToggle)
 
@@ -1284,7 +1310,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 actualFlag = toggleText:gsub("%s+", "")
             end
 
-            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local savedVal = Library.LoadedConfigCache && Library.LoadedConfigCache[actualFlag]
             local Toggle = {State = (savedVal ~= nil and savedVal) or defaultVal or false}
             Library.Flags[actualFlag] = Toggle.State
 
@@ -1900,7 +1926,10 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
 
     local ExtBtn = Instance.new("TextButton")
     ExtBtn.Name = "ExternalButton_" .. tostring(id)
-    ExtBtn.Size = UDim2.new(0, 40, 0, 40)
+    
+    -- Penyesuaian Lebar Otomatis Terpadu Berdasarkan Isi Teks
+    ExtBtn.AutomaticSize = Enum.AutomaticSize.X
+    ExtBtn.Size = UDim2.new(0, 0, 0, 40) -- X menyesuaikan otomatis, Y dikunci 40 piksel
     
     local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["ExtBtnPos_" .. tostring(id)]
     if savedPos and type(savedPos) == "table" then
@@ -1927,6 +1956,11 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
 
     local Corner = Instance.new("UICorner", ExtBtn)
     Corner.CornerRadius = UDim.new(0, 6)
+
+    -- Pembatas Tepi Luar (Padding) agar teks tidak menyentuh dinding tombol saat memanjang
+    local Padding = Instance.new("UIPadding", ExtBtn)
+    Padding.PaddingLeft = UDim.new(0, 12)
+    Padding.PaddingRight = UDim.new(0, 12)
 
     local Stroke = Instance.new("UIStroke", ExtBtn)
     Stroke.Thickness = 1
@@ -1965,9 +1999,12 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         ExtBtn:SetAttribute("DragLocked", locked)
     end
     function controller:SetSize(size)
+        -- Batalkan penskalaan otomatis jika ukuran ditimpa secara manual oleh eksternal loader
         if typeof(size) == "UDim2" then
+            ExtBtn.AutomaticSize = Enum.AutomaticSize.None
             ExtBtn.Size = size
         elseif type(size) == "number" then
+            ExtBtn.AutomaticSize = Enum.AutomaticSize.None
             ExtBtn.Size = UDim2.new(0, size, 0, size)
         end
     end
