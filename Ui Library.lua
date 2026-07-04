@@ -19,34 +19,42 @@ local SettingsFileName = "LouisHub_UI_Settings_" .. tostring(PlaceId) .. ".json"
 local CurrentProfile = "Profile 1"
 local AutoLoadEnabled = false
 
--- Definisi Palet Tema Terpadu
+-- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca
 local Themes = {
     ["RGB"] = {
         WindowBg = Color3.fromRGB(15, 15, 18),
-        HeaderBg = Color3.fromRGB(15, 15, 18), -- Transparan (menyatu dengan background)
+        WindowTransparency = 0,
+        HeaderBg = Color3.fromRGB(15, 15, 18),
         HeaderTransparency = 1,
         SidebarBg = Color3.fromRGB(18, 18, 22),
+        SidebarTransparency = 0,
         ContentBg = Color3.fromRGB(18, 18, 22),
+        ContentTransparency = 0,
         ElementBg = Color3.fromRGB(22, 22, 26),
+        ElementTransparency = 0,
         ElementStroke = Color3.fromRGB(35, 35, 40),
         TextPrimary = Color3.fromRGB(255, 255, 255),
         TextSecondary = Color3.fromRGB(140, 140, 150),
         TextDark = Color3.fromRGB(130, 130, 130),
-        Accent = Color3.fromRGB(255, 255, 255), -- Diperbarui dinamis oleh loop RGB
+        Accent = Color3.fromRGB(255, 255, 255), -- Dinamis oleh loop RGB
         IsRGB = true
     },
     ["Cute Pastel"] = {
-        WindowBg = Color3.fromRGB(255, 235, 243),      -- Pink pastel lembut (Bodi utama)
-        HeaderBg = Color3.fromRGB(174, 224, 250),      -- Biru pastel cerah (Header bergaya Windows)
-        HeaderTransparency = 0,                         -- Solid solid block
-        SidebarBg = Color3.fromRGB(255, 215, 230),     -- Lavender-pink pastel (Sidebar)
-        ContentBg = Color3.fromRGB(247, 251, 255),     -- Biru-putih lembut (Kanvas konten)
-        ElementBg = Color3.fromRGB(255, 255, 255),     -- Putih bersih (Modul interaktif / tombol)
-        ElementStroke = Color3.fromRGB(235, 205, 220), -- Garis tepi pink pudar
-        TextPrimary = Color3.fromRGB(80, 75, 90),      -- Charcoal-violet tua (Teks utama)
-        TextSecondary = Color3.fromRGB(115, 120, 140), -- Abu-abu keunguan (Teks pendukung)
-        TextDark = Color3.fromRGB(150, 155, 175),      -- Muted gray (Item tidak aktif)
-        Accent = Color3.fromRGB(255, 130, 170),        -- Pink cerah kontras (Indikator aktif)
+        WindowBg = Color3.fromRGB(255, 235, 243),      -- Pink pastel
+        WindowTransparency = 0.15,                      -- Efek kaca transparan 15%
+        HeaderBg = Color3.fromRGB(174, 224, 250),      -- Biru pastel
+        HeaderTransparency = 0.1,                       -- Transparansi header 10%
+        SidebarBg = Color3.fromRGB(255, 215, 230),     -- Pink-lavender pastel
+        SidebarTransparency = 0.2,                      -- Transparansi sidebar 20%
+        ContentBg = Color3.fromRGB(247, 251, 255),     -- Kanvas putih-biru pudar
+        ContentTransparency = 0.25,                     -- Transparansi konten utama 25%
+        ElementBg = Color3.fromRGB(255, 255, 255),     -- Modul tombol putih bersih
+        ElementTransparency = 0.1,                      -- Transparansi modul 10%
+        ElementStroke = Color3.fromRGB(235, 205, 220), 
+        TextPrimary = Color3.fromRGB(80, 75, 90),      
+        TextSecondary = Color3.fromRGB(115, 120, 140), 
+        TextDark = Color3.fromRGB(150, 155, 175),      
+        Accent = Color3.fromRGB(255, 130, 170),        
         IsRGB = false
     }
 }
@@ -57,7 +65,7 @@ local ThemeRegistry = {}
 local RGBElements = {}
 local ActiveWindowInstance = nil
 
--- Mendaftarkan elemen UI agar dapat merespon pergantian tema secara instan
+-- Mendaftarkan elemen UI agar merespon pergantian warna & transparansi tema secara instan
 local function RegisterThemeable(instance, propertyMap)
     table.insert(ThemeRegistry, {
         Instance = instance,
@@ -81,13 +89,11 @@ local function ApplyTheme(themeName)
     local theme = Themes[themeName] or Themes["RGB"]
     IsThemeRGB = theme.IsRGB
     
-    -- Perbarui elemen statis
+    -- Perbarui elemen statis & transparan
     for _, item in ipairs(ThemeRegistry) do
         local instance = item.Instance
         if instance and instance:IsDescendantOf(game) then
             pcall(function()
-                for property, valSelector in ipairs(item.Properties) do -- fallback jika ipairs digunakan
-                end
                 for property, valSelector in pairs(item.Properties) do
                     if type(valSelector) == "function" then
                         instance[property] = valSelector(theme)
@@ -360,7 +366,7 @@ local function UnregisterRGB(instance, property)
 end
 
 RunService.RenderStepped:Connect(function()
-    if not IsThemeRGB then return end -- Hindari pemrosesan warna jika mode RGB mati (menghemat CPU)
+    if not IsThemeRGB then return end -- Hindari pemrosesan warna jika mode RGB mati
     local hue = (os.clock() % 4) / 4
     local rainbowColor = Color3.fromHSV(hue, 0.85, 0.95)
     
@@ -376,43 +382,45 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Mekanisme Seret Bebas Kebocoran Memori (Optimasi dari turn sebelumnya)
+-- Sistem Drag Baru yang Sangat Akurat Berdasarkan Titik Sentuh Awal (Offset Delta)
 local function EnableDrag(dragFrame, parentFrame, onDragEnd)
-    local dragging, dragStart, startPos
-    local moveConnection, endConnection
+    local dragging = false
+    local dragInput
+    local dragStart = Vector3.new()
+    local startPos = UDim2.new()
     
     dragFrame.InputBegan:Connect(function(input)
         if parentFrame:GetAttribute("DragLocked") then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
+            dragInput = input
             dragStart = input.Position
             startPos = parentFrame.Position
             
-            -- Menghubungkan pendengar pergerakan hanya saat sedang diseret
-            moveConnection = UserInputService.InputChanged:Connect(function(moveInput)
-                if moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch then
-                    if parentFrame:GetAttribute("DragLocked") then 
-                        dragging = false
-                        if moveConnection then moveConnection:Disconnect() end
-                        return 
-                    end
-                    local delta = moveInput.Position - dragStart
-                    parentFrame.Position = UDim2.new(
-                        startPos.X.Scale, startPos.X.Offset + delta.X, 
-                        startPos.Y.Scale, startPos.Y.Offset + delta.Y
-                    )
-                end
-            end)
-            
-            -- Memutus hubungan pendengar setelah dilepaskan
+            local endConnection
             endConnection = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
-                    if moveConnection then moveConnection:Disconnect() end
+                    dragInput = nil
                     if endConnection then endConnection:Disconnect() end
                     if onDragEnd then onDragEnd() end
                 end
             end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            if parentFrame:GetAttribute("DragLocked") then 
+                dragging = false
+                dragInput = nil
+                return 
+            end
+            local delta = input.Position - dragStart
+            parentFrame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
         end
     end)
 end
@@ -486,6 +494,7 @@ function Library:Notify(title, desc, duration)
     local NotifFrame = Instance.new("Frame")
     NotifFrame.Size = UDim2.new(1, 0, 0, 0)
     NotifFrame.BackgroundColor3 = t.WindowBg
+    NotifFrame.BackgroundTransparency = t.WindowTransparency
     NotifFrame.BorderSizePixel = 0
     NotifFrame.ClipsDescendants = true
     NotifFrame.Parent = Holder
@@ -550,6 +559,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     LoadingGui.Name = "Louis_Loading_Screen"
     LoadingGui.Size = UDim2.new(1, 0, 1, 0)
     LoadingGui.BackgroundColor3 = t.IsRGB and Color3.fromRGB(15, 15, 18) or t.WindowBg
+    LoadingGui.BackgroundTransparency = t.IsRGB and 0 or t.WindowTransparency
     LoadingGui.BorderSizePixel = 0
     LoadingGui.ZIndex = 9990
 
@@ -623,6 +633,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     BarBg.Size = UDim2.new(0.4, 0, 0, 4)
     BarBg.Position = UDim2.new(0.3, 0, 0.62, 0)
     BarBg.BackgroundColor3 = t.IsRGB and Color3.fromRGB(25, 25, 30) or t.SidebarBg
+    BarBg.BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
     BarBg.ZIndex = 9995
     Instance.new("UICorner", BarBg)
     
@@ -637,6 +648,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     SkipBtn.Size = UDim2.new(0, 110, 0, 32)
     SkipBtn.Position = UDim2.new(0.5, -55, 0.8, 0)
     SkipBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(22, 22, 26) or t.ElementBg
+    SkipBtn.BackgroundTransparency = t.IsRGB and 0 or t.ElementTransparency
     SkipBtn.Text = "SKIP"
     SkipBtn.TextColor3 = t.TextPrimary
     SkipBtn.Font = Enum.Font.MontserratBold
@@ -758,7 +770,10 @@ function Library:CreateWindow(titleText, subtitleText)
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
     MainFrame.Visible = false
-    RegisterThemeable(MainFrame, { BackgroundColor3 = "WindowBg" })
+    RegisterThemeable(MainFrame, { 
+        BackgroundColor3 = "WindowBg",
+        BackgroundTransparency = "WindowTransparency"
+    })
 
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 8)
@@ -768,7 +783,7 @@ function Library:CreateWindow(titleText, subtitleText)
     RegisterRGB(MainStroke, "Color")
     RegisterThemeable(MainStroke, { Color = function(t) return t.IsRGB and MainStroke.Color or t.ElementStroke end })
 
-    -- Header Panel (Gaya Aplikasi Windows pada Tema Cute)
+    -- Header Panel
     local Header = Instance.new("Frame", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 46)
     Header.BorderSizePixel = 0
@@ -777,11 +792,9 @@ function Library:CreateWindow(titleText, subtitleText)
         BackgroundTransparency = "HeaderTransparency" 
     })
     
-    -- Membuat Header Ter-rounded rapi mengikuti bingkai luar
     local HeaderCorner = Instance.new("UICorner", Header)
     HeaderCorner.CornerRadius = UDim.new(0, 8)
     
-    -- Menutupi sisa lengkungan di dasar header agar lurus sejajar badan konten
     local BottomHeaderMask = Instance.new("Frame", Header)
     BottomHeaderMask.Size = UDim2.new(1, 0, 0.5, 0)
     BottomHeaderMask.Position = UDim2.new(0, 0, 0.5, 0)
@@ -820,7 +833,7 @@ function Library:CreateWindow(titleText, subtitleText)
     BarBg.BorderSizePixel = 0
     RegisterRGB(BarBg, "BackgroundColor3")
     RegisterThemeable(BarBg, { 
-        BackgroundTransparency = function(t) return t.IsRGB and 0 or 1 end -- Sembunyikan garis tajuk di Cute Pastel
+        BackgroundTransparency = function(t) return t.IsRGB and 0 or 1 end
     })
 
     -- Sidebar Container
@@ -829,7 +842,10 @@ function Library:CreateWindow(titleText, subtitleText)
     Sidebar.Position = UDim2.new(0, 12, 0, 52)
     Sidebar.BorderSizePixel = 0
     Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6)
-    RegisterThemeable(Sidebar, { BackgroundColor3 = "SidebarBg" })
+    RegisterThemeable(Sidebar, { 
+        BackgroundColor3 = "SidebarBg",
+        BackgroundTransparency = "SidebarTransparency"
+    })
     
     local SidebarStroke = Instance.new("UIStroke", Sidebar)
     SidebarStroke.Thickness = 1
@@ -851,7 +867,10 @@ function Library:CreateWindow(titleText, subtitleText)
     ContentArea.Position = UDim2.new(0, 162, 0, 52)
     ContentArea.BorderSizePixel = 0
     Instance.new("UICorner", ContentArea).CornerRadius = UDim.new(0, 6)
-    RegisterThemeable(ContentArea, { BackgroundColor3 = "ContentBg" })
+    RegisterThemeable(ContentArea, { 
+        BackgroundColor3 = "ContentBg",
+        BackgroundTransparency = "ContentTransparency"
+    })
 
     local ContentStroke = Instance.new("UIStroke", ContentArea)
     ContentStroke.Thickness = 1
@@ -891,8 +910,9 @@ function Library:CreateWindow(titleText, subtitleText)
         else
             Sidebar.Visible = true
             ContentArea.Visible = true
-            TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
-            TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+            local t = Themes[CurrentThemeName]
+            TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.SidebarTransparency}):Play()
+            TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.ContentTransparency}):Play()
             TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
         end
     end)
@@ -920,7 +940,10 @@ function Library:CreateWindow(titleText, subtitleText)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
     FloatingToggle.Visible = false
-    RegisterThemeable(FloatingToggle, { BackgroundColor3 = "ElementBg" })
+    RegisterThemeable(FloatingToggle, { 
+        BackgroundColor3 = "ElementBg",
+        BackgroundTransparency = "ElementTransparency"
+    })
 
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
     ToggleCorner.CornerRadius = UDim.new(0, 8)
@@ -1032,18 +1055,17 @@ function Library:CreateWindow(titleText, subtitleText)
         end)
     end
 
-    -- Memperbarui Visualisasi Tab Secara Otomatis Saat Tema Diganti
     function Window:UpdateAllTabsVisual()
         local t = Themes[CurrentThemeName]
         for _, tabInfo in ipairs(Window.Tabs) do
             local isSelected = (Window.CurrentTab and Window.CurrentTab.Button == tabInfo.Button)
             
             TweenService:Create(tabInfo.Button, TweenInfo.new(0.15), {
-                BackgroundTransparency = isSelected and 0 or (t.IsRGB and 1 or 0),
+                BackgroundTransparency = isSelected and t.ElementTransparency or (t.IsRGB and 1 or t.SidebarTransparency),
                 BackgroundColor3 = isSelected and t.ElementBg or t.SidebarBg
             }):Play()
             TweenService:Create(tabInfo.ButtonStroke, TweenInfo.new(0.15), {
-                Transparency = isSelected and 0 or (t.IsRGB and 1 or 0),
+                Transparency = isSelected and 0 or (t.IsRGB and 1 or t.SidebarTransparency),
                 Color = t.ElementStroke
             }):Play()
             TweenService:Create(tabInfo.Text, TweenInfo.new(0.15), {
@@ -1115,7 +1137,6 @@ function Library:CreateWindow(titleText, subtitleText)
         TabText.Font = Enum.Font.MontserratMedium
         TabText.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- Mendaftarkan data tab agar bisa direfres secara global
         local tabData = {
             Button = TabButton,
             ButtonStroke = TabBtnStroke,
@@ -1149,7 +1170,7 @@ function Library:CreateWindow(titleText, subtitleText)
             if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
             local t = Themes[CurrentThemeName]
             TweenService:Create(TabButton, TweenInfo.new(0.15), {
-                BackgroundTransparency = t.IsRGB and 0.5 or 0,
+                BackgroundTransparency = t.IsRGB and 0.5 or t.ElementTransparency,
                 BackgroundColor3 = t.IsRGB and Color3.fromRGB(20, 20, 24) or t.ElementBg
             }):Play()
             TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = t.TextPrimary}):Play()
@@ -1162,7 +1183,7 @@ function Library:CreateWindow(titleText, subtitleText)
             if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
             local t = Themes[CurrentThemeName]
             TweenService:Create(TabButton, TweenInfo.new(0.15), {
-                BackgroundTransparency = t.IsRGB and 1 or 0,
+                BackgroundTransparency = t.IsRGB and 1 or t.SidebarTransparency,
                 BackgroundColor3 = t.SidebarBg
             }):Play()
             TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = t.TextDark}):Play()
@@ -1189,7 +1210,10 @@ function Library:CreateWindow(titleText, subtitleText)
             Button.Text = ""
             Button.AutoButtonColor = false
             Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 5)
-            RegisterThemeable(Button, { BackgroundColor3 = "ElementBg" })
+            RegisterThemeable(Button, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
 
             local BtnStroke = Instance.new("UIStroke", Button)
             BtnStroke.Thickness = 1
@@ -1214,21 +1238,33 @@ function Library:CreateWindow(titleText, subtitleText)
 
             Button.MouseEnter:Connect(function()
                 local t = Themes[CurrentThemeName]
-                TweenService:Create(Button, TweenInfo.new(0.15), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                }):Play()
                 TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextPrimary, Position = UDim2.new(1, -20, 0.5, -6)}):Play()
             end)
             Button.MouseLeave:Connect(function()
                 local t = Themes[CurrentThemeName]
-                TweenService:Create(Button, TweenInfo.new(0.15), {BackgroundColor3 = t.ElementBg}):Play()
+                TweenService:Create(Button, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.ElementBg,
+                    BackgroundTransparency = t.ElementTransparency
+                }):Play()
                 TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextSecondary, Position = UDim2.new(1, -22, 0.5, -6)}):Play()
             end)
 
             Button.MouseButton1Click:Connect(function()
                 local t = Themes[CurrentThemeName]
-                local press = TweenService:Create(Button, TweenInfo.new(0.05), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 42) or t.ContentBg})
+                local press = TweenService:Create(Button, TweenInfo.new(0.05), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 42) or t.ContentBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.ContentTransparency
+                })
                 press:Play()
                 press.Completed:Connect(function()
-                    TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg}):Play()
+                    TweenService:Create(Button, TweenInfo.new(0.1), {
+                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
+                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    }):Play()
                 end)
                 if callback then task.spawn(callback) end
             end)
@@ -1257,7 +1293,10 @@ function Library:CreateWindow(titleText, subtitleText)
             ToggleBtn.Text = ""
             ToggleBtn.AutoButtonColor = false
             Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
-            RegisterThemeable(ToggleBtn, { BackgroundColor3 = "ElementBg" })
+            RegisterThemeable(ToggleBtn, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
 
             local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
             ToggleStroke.Thickness = 1
@@ -1301,12 +1340,18 @@ function Library:CreateWindow(titleText, subtitleText)
                         TweenService:Create(SwitchBg, info, {BackgroundColor3 = t.Accent}):Play()
                     end
                     
-                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg}):Play()
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
+                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
+                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    }):Play()
                 else
                     UnregisterRGB(SwitchBg, "BackgroundColor3")
                     TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = t.TextDark}):Play()
                     TweenService:Create(SwitchBg, TweenInfo.new(duration), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 40) or t.ElementStroke}):Play()
-                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = t.ElementBg}):Play()
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
+                        BackgroundColor3 = t.ElementBg,
+                        BackgroundTransparency = t.ElementTransparency
+                    }):Play()
                 end
 
                 Library.Flags[actualFlag] = Toggle.State
@@ -1362,7 +1407,10 @@ function Library:CreateWindow(titleText, subtitleText)
             local SliderFrame = Instance.new("Frame", TabContent)
             SliderFrame.Size = UDim2.new(1, -6, 0, 48)
             Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 5)
-            RegisterThemeable(SliderFrame, { BackgroundColor3 = "ElementBg" })
+            RegisterThemeable(SliderFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
             
             local SliderStroke = Instance.new("UIStroke", SliderFrame)
             SliderStroke.Thickness = 1
@@ -1480,7 +1528,10 @@ function Library:CreateWindow(titleText, subtitleText)
             DropdownFrame.Size = UDim2.new(1, -6, 0, 34)
             DropdownFrame.ClipsDescendants = true
             Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
-            RegisterThemeable(DropdownFrame, { BackgroundColor3 = "ElementBg" })
+            RegisterThemeable(DropdownFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
             
             local FrameStroke = Instance.new("UIStroke", DropdownFrame)
             FrameStroke.Thickness = 1
@@ -1525,6 +1576,7 @@ function Library:CreateWindow(titleText, subtitleText)
                     local OptBtn = Instance.new("TextButton", OptionContainer)
                     OptBtn.Size = UDim2.new(1, 0, 0, 26)
                     OptBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(26, 26, 31) or t.SidebarBg
+                    OptBtn.BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
                     OptBtn.Text = ""
                     OptBtn.AutoButtonColor = false
                     Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
@@ -1554,11 +1606,17 @@ function Library:CreateWindow(titleText, subtitleText)
 
                     OptBtn.MouseEnter:Connect(function()
                         local th = Themes[CurrentThemeName]
-                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundColor3 = th.IsRGB and Color3.fromRGB(32, 32, 38) or th.ElementBg}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
+                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(32, 32, 38) or th.ElementBg,
+                            BackgroundTransparency = th.IsRGB and 0 or th.ElementTransparency
+                        }):Play()
                     end)
                     OptBtn.MouseLeave:Connect(function()
                         local th = Themes[CurrentThemeName]
-                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {BackgroundColor3 = th.IsRGB and Color3.fromRGB(26, 26, 31) or th.SidebarBg}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
+                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(26, 26, 31) or th.SidebarBg,
+                            BackgroundTransparency = th.IsRGB and 0 or th.SidebarTransparency
+                        }):Play()
                     end)
 
                     OptBtn.MouseButton1Click:Connect(function()
@@ -1667,7 +1725,10 @@ function Library:CreateWindow(titleText, subtitleText)
             local TextBoxFrame = Instance.new("Frame", TabContent)
             TextBoxFrame.Size = UDim2.new(1, -6, 0, 34)
             Instance.new("UICorner", TextBoxFrame).CornerRadius = UDim.new(0, 5)
-            RegisterThemeable(TextBoxFrame, { BackgroundColor3 = "ElementBg" })
+            RegisterThemeable(TextBoxFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
             
             local FrameStroke = Instance.new("UIStroke", TextBoxFrame)
             FrameStroke.Thickness = 1
@@ -1694,6 +1755,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
             RegisterThemeable(InputBox, { 
                 BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(30, 30, 35) or t.SidebarBg end,
+                BackgroundTransparency = function(t) return t.IsRGB and 0 or t.SidebarTransparency end,
                 TextColor3 = "TextPrimary"
             })
 
@@ -1706,13 +1768,19 @@ function Library:CreateWindow(titleText, subtitleText)
             InputBox.Focused:Connect(function()
                 local t = Themes[CurrentThemeName]
                 TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.Accent}):Play()
-                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                }):Play()
             end)
 
             InputBox.FocusLost:Connect(function(enterPressed)
                 local t = Themes[CurrentThemeName]
                 TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.ElementStroke}):Play()
-                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {BackgroundColor3 = t.ElementBg}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.ElementBg,
+                    BackgroundTransparency = t.ElementTransparency
+                }):Play()
                 
                 Library.Flags[actualFlag] = InputBox.Text
                 Library:SaveConfig(true)
@@ -1750,7 +1818,10 @@ function Library:CreateWindow(titleText, subtitleText)
             local ParagraphFrame = Instance.new("Frame", TabContent)
             ParagraphFrame.Size = UDim2.new(1, -6, 0, 52)
             Instance.new("UICorner", ParagraphFrame).CornerRadius = UDim.new(0, 5)
-            RegisterThemeable(ParagraphFrame, { BackgroundColor3 = "ElementBg" })
+            RegisterThemeable(ParagraphFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
             
             local FrameStroke = Instance.new("UIStroke", ParagraphFrame)
             FrameStroke.Thickness = 1
@@ -1843,13 +1914,16 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
     end
 
-    ExtBtn.BackgroundTransparency = 0.2
     ExtBtn.Text = text or "A"
     ExtBtn.Font = Enum.Font.MontserratBold
     ExtBtn.TextSize = 13
     ExtBtn.AutoButtonColor = false
     ExtBtn.Parent = ScreenGui
-    RegisterThemeable(ExtBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "TextPrimary" })
+    RegisterThemeable(ExtBtn, { 
+        BackgroundColor3 = "ElementBg",
+        BackgroundTransparency = "ElementTransparency",
+        TextColor3 = "TextPrimary" 
+    })
 
     local Corner = Instance.new("UICorner", ExtBtn)
     Corner.CornerRadius = UDim.new(0, 6)
@@ -1927,7 +2001,10 @@ function Library:CreateStatsHUD()
     HudFrame.BorderSizePixel = 0
     HudFrame.Parent = ScreenGui
     HudFrame.Visible = true
-    RegisterThemeable(HudFrame, { BackgroundColor3 = "WindowBg" })
+    RegisterThemeable(HudFrame, { 
+        BackgroundColor3 = "WindowBg",
+        BackgroundTransparency = "WindowTransparency"
+    })
 
     local HudCorner = Instance.new("UICorner", HudFrame)
     HudCorner.CornerRadius = UDim.new(0, 6)
@@ -1993,10 +2070,9 @@ function Library:CreateStatsHUD()
                 end
             end
             
-            -- Menyesuaikan warna indikator FPS & Ping berdasarkan tema yang sedang aktif
             local isPastel = (CurrentThemeName == "Cute Pastel")
             local colorFps = isPastel and "rgb(50, 160, 100)" or "rgb(0, 255, 120)"
-            local colorPing = isPastel and "rgb(50, 120, 220)" or "rgb(0, 180, 255)"
+            local colorPing = isPastel perks and "rgb(50, 120, 220)" or "rgb(0, 180, 255)"
             
             StatLabel.Text = string.format("FPS: <font color='%s'>%d</font>  •  PING: <font color='%s'>%d MS</font>", colorFps, currentFps, colorPing, currentPing)
         end
