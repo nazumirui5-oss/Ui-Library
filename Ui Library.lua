@@ -43,16 +43,16 @@ local Themes = {
         FloatingIconImage = "rbxthumb://type=Asset&id=10734887784&w=150&h=150"
     },
     ["Cute Pastel"] = {
-        WindowBg = Color3.fromRGB(255, 235, 243),      -- Pink pastel
-        WindowTransparency = 0.15,                      -- Efek kaca transparan 15%
+        WindowBg = Color3.fromRGB(255, 235, 243),      -- Pink pastel sebagai dasar bodi
+        WindowTransparency = 0,                         -- Dikunci 0 agar gambar di atasnya mendapatkan warna latar pink lembut yang solid
         HeaderBg = Color3.fromRGB(174, 224, 250),      -- Biru pastel
         HeaderTransparency = 0.1,                       -- Transparansi header 10%
         SidebarBg = Color3.fromRGB(255, 215, 230),     -- Pink-lavender pastel
-        SidebarTransparency = 0.2,                      -- Transparansi sidebar 20%
+        SidebarTransparency = 0.8,                      -- Diatur 80% transparan agar pola gambar latar belakang di bawahnya terlihat jelas
         ContentBg = Color3.fromRGB(247, 251, 255),     -- Kanvas putih-biru pudar
-        ContentTransparency = 0.25,                     -- Transparansi konten utama 25%
+        ContentTransparency = 0.8,                     -- Diatur 80% transparan agar pola gambar latar belakang di bawahnya terlihat jelas
         ElementBg = Color3.fromRGB(255, 255, 255),     -- Modul tombol putih bersih
-        ElementTransparency = 0.1,                      -- Transparansi modul 10%
+        ElementTransparency = 0.15,                     -- Transparansi modul 15% untuk memberikan kedalaman di atas pola gambar
         ElementStroke = Color3.fromRGB(235, 205, 220), 
         TextPrimary = Color3.fromRGB(80, 75, 90),      
         TextSecondary = Color3.fromRGB(115, 120, 140), 
@@ -60,7 +60,7 @@ local Themes = {
         Accent = Color3.fromRGB(255, 130, 170),        
         IsRGB = false,
         BgImage = "rbxthumb://type=Asset&id=118470928936375&w=420&h=420", -- Gambar latar belakang kustom tema pastel
-        BgImageTransparency = 0.85, -- Transparansi pola agar menyatu lembut di latar belakang bodi
+        BgImageTransparency = 0.8, -- Opasitas disesuaikan agar menyatu indah dan tidak menutupi tulisan
         FloatingIconImage = "rbxthumb://type=Asset&id=103242464029137&w=150&h=150" -- Ikon melayang kustom tema pastel
     }
 }
@@ -975,12 +975,12 @@ function Library:CreateWindow(titleText, subtitleText)
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1
     RegisterRGB(ToggleStroke, "Color")
-    RegisterThemeable(ToggleStroke, { Color = function(t) return t.IsRGBand and ToggleStroke.Color or t.Accent end })
+    RegisterThemeable(ToggleStroke, { Color = function(t) return t.IsRGB and ToggleStroke.Color or t.Accent end })
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Name = "Icon"
-    ToggleIconImage.Size = UDim2.new(0, 24, 0, 24)
-    ToggleIconImage.Position = UDim2.new(0.5, -12, 0.5, -12)
+    ToggleIconImage.Size = UDim2.new(0, 38, 0, 38)
+    ToggleIconImage.Position = UDim2.new(0.5, -19, 0.5, -19)
     ToggleIconImage.BackgroundTransparency = 1
     ToggleIconImage.ScaleType = Enum.ScaleType.Fit
     RegisterRGB(ToggleIconImage, "ImageColor3")
