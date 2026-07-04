@@ -19,7 +19,7 @@ local SettingsFileName = "LouisHub_UI_Settings_" .. tostring(PlaceId) .. ".json"
 local CurrentProfile = "Profile 1"
 local AutoLoadEnabled = false
 
--- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca & Kustomisasi Gambar
+-- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca
 local Themes = {
     ["RGB"] = {
         WindowBg = Color3.fromRGB(15, 15, 18),
@@ -975,7 +975,7 @@ function Library:CreateWindow(titleText, subtitleText)
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1
     RegisterRGB(ToggleStroke, "Color")
-    RegisterThemeable(ToggleStroke, { Color = function(t) return t.IsRGB and ToggleStroke.Color or t.Accent end })
+    RegisterThemeable(ToggleStroke, { Color = function(t) return t.IsRGBand and ToggleStroke.Color or t.Accent end })
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Name = "Icon"
@@ -1310,7 +1310,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 actualFlag = toggleText:gsub("%s+", "")
             end
 
-            local savedVal = Library.LoadedConfigCache && Library.LoadedConfigCache[actualFlag]
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
             local Toggle = {State = (savedVal ~= nil and savedVal) or defaultVal or false}
             Library.Flags[actualFlag] = Toggle.State
 
@@ -1999,7 +1999,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         ExtBtn:SetAttribute("DragLocked", locked)
     end
     function controller:SetSize(size)
-        -- Batalkan penskalaan otomatis jika ukuran ditimpa secara manual oleh eksternal loader
         if typeof(size) == "UDim2" then
             ExtBtn.AutomaticSize = Enum.AutomaticSize.None
             ExtBtn.Size = size
