@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
+local TextService = game:GetService("TextService")
 
 -- ========================================================
 -- [[ 0. CONFIGURATION & THEME SYSTEM ]]
@@ -13,6 +14,7 @@ Library.Flags = {}
 Library.Elements = {}
 Library.ExternalButtons = {} 
 Library.LoadedConfigCache = {} 
+Library.Toggles = {} -- Pelacak sakelar aktif untuk pembaruan tema dinamis
 
 local PlaceId = game.PlaceId
 local SettingsFileName = "LouisHub_UI_Settings_" .. tostring(PlaceId) .. ".json"
@@ -38,30 +40,30 @@ local Themes = {
         TextDark = Color3.fromRGB(130, 130, 130),
         Accent = Color3.fromRGB(255, 255, 255), -- Dinamis oleh loop RGB
         IsRGB = true,
-        BgImage = "", -- Kosong untuk tema RGB
+        BgImage = "", 
         BgImageTransparency = 1,
         FloatingIconImage = "rbxthumb://type=Asset&id=10734887784&w=150&h=150"
     },
     ["Cute Pastel"] = {
-        WindowBg = Color3.fromRGB(255, 235, 243),      -- Pink pastel sebagai dasar bodi
-        WindowTransparency = 0,                         -- Dikunci 0 agar gambar di atasnya mendapatkan warna latar pink lembut yang solid
-        HeaderBg = Color3.fromRGB(174, 224, 250),      -- Biru pastel
-        HeaderTransparency = 0.1,                       -- Transparansi header 10%
-        SidebarBg = Color3.fromRGB(255, 215, 230),     -- Pink-lavender pastel
-        SidebarTransparency = 0.8,                      -- Diatur 80% transparan agar pola gambar latar belakang di bawahnya terlihat jelas
-        ContentBg = Color3.fromRGB(247, 251, 255),     -- Kanvas putih-biru pudar
-        ContentTransparency = 0.8,                     -- Diatur 80% transparan agar pola gambar latar belakang di bawahnya terlihat jelas
-        ElementBg = Color3.fromRGB(255, 255, 255),     -- Modul tombol putih bersih
-        ElementTransparency = 0.15,                     -- Transparansi modul 15% untuk memberikan kedalaman di atas pola gambar
+        WindowBg = Color3.fromRGB(255, 235, 243),      
+        WindowTransparency = 0,                         
+        HeaderBg = Color3.fromRGB(174, 224, 250),      
+        HeaderTransparency = 0.1,                       
+        SidebarBg = Color3.fromRGB(255, 215, 230),     
+        SidebarTransparency = 0.8,                      
+        ContentBg = Color3.fromRGB(247, 251, 255),     
+        ContentTransparency = 0.8,                     
+        ElementBg = Color3.fromRGB(255, 255, 255),     
+        ElementTransparency = 0.15,                     
         ElementStroke = Color3.fromRGB(235, 205, 220), 
         TextPrimary = Color3.fromRGB(80, 75, 90),      
         TextSecondary = Color3.fromRGB(115, 120, 140), 
         TextDark = Color3.fromRGB(150, 155, 175),      
         Accent = Color3.fromRGB(255, 130, 170),        
         IsRGB = false,
-        BgImage = "rbxthumb://type=Asset&id=118470928936375&w=420&h=420", -- Gambar latar belakang kustom tema pastel
-        BgImageTransparency = 0.8, -- Opasitas disesuaikan agar menyatu indah dan tidak menutupi tulisan
-        FloatingIconImage = "rbxthumb://type=Asset&id=103242464029137&w=150&h=150" -- Ikon melayang kustom tema pastel
+        BgImage = "rbxthumb://type=Asset&id=118470928936375&w=420&h=420", 
+        BgImageTransparency = 0.8, 
+        FloatingIconImage = "rbxthumb://type=Asset&id=103242464029137&w=150&h=150" 
     }
 }
 
@@ -70,6 +72,15 @@ local IsThemeRGB = true
 local ThemeRegistry = {}
 local RGBElements = {}
 local ActiveWindowInstance = nil
+
+-- Menghitung ukuran tombol eksternal secara presisi berdasarkan panjang teks
+local function UpdateExtBtnSize(btn, text)
+    local txt = text or "A"
+    local fontSize = btn.TextSize
+    local font = btn.Font
+    local textBound = TextService:GetTextSize(txt, fontSize, font, Vector2.new(1000, 40))
+    btn.Size = UDim2.new(0, textBound.X + 28, 0, 40) -- Padding 14px kiri-kanan
+end
 
 -- Mendaftarkan elemen UI agar merespon pergantian warna & transparansi tema secara instan
 local function RegisterThemeable(instance, propertyMap)
@@ -125,6 +136,13 @@ local function ApplyTheme(themeName)
                 end)
             end
         end
+    end
+
+    -- Regenerasi visual tombol sakelar aktif secara langsung
+    for _, toggle in ipairs(Library.Toggles) do
+        pcall(function()
+            toggle.UpdateVisual(false, true)
+        end)
     end
     
     -- Segarkan tampilan tab aktif
@@ -569,8 +587,8 @@ local function StartLoading(titleText, subtitleText, onComplete)
     local LoadingGui = Instance.new("Frame", ScreenGui)
     LoadingGui.Name = "Louis_Loading_Screen"
     LoadingGui.Size = UDim2.new(1, 0, 1, 0)
-    LoadingGui.BackgroundColor3 = t.IsRGB and Color3.fromRGB(15, 15, 18) or t.WindowBg
-    LoadingGui.BackgroundTransparency = t.IsRGB and 0 or t.WindowTransparency
+    LoadingGui.BackgroundColor3 = Color3.fromRGB(12, 12, 15) -- Selalu solid gelap mewah
+    LoadingGui.BackgroundTransparency = 0 -- Hilangkan transparansi agar background game tidak bocor
     LoadingGui.BorderSizePixel = 0
     LoadingGui.ZIndex = 9990
 
@@ -608,7 +626,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     UserInfo.Position = UDim2.new(0, 54, 0, 0)
     UserInfo.BackgroundTransparency = 1
     UserInfo.Font = Enum.Font.MontserratBold
-    UserInfo.TextColor3 = t.TextPrimary
+    UserInfo.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.TextPrimary
     UserInfo.TextSize = 10
     UserInfo.TextXAlignment = Enum.TextXAlignment.Left
     UserInfo.RichText = true
@@ -634,7 +652,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     SubTitle.Position = UDim2.new(0, 0, 0.44, 0)
     SubTitle.BackgroundTransparency = 1
     SubTitle.Text = (subtitleText or "MODERNIZED INTERFACE"):upper()
-    SubTitle.TextColor3 = t.TextSecondary
+    SubTitle.TextColor3 = t.IsRGB and Color3.fromRGB(180, 180, 190) or t.TextSecondary
     SubTitle.TextSize = 12
     SubTitle.Font = Enum.Font.MontserratBold
     SubTitle.TextTransparency = 1
@@ -643,8 +661,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     local BarBg = Instance.new("Frame", LoadingGui)
     BarBg.Size = UDim2.new(0.4, 0, 0, 4)
     BarBg.Position = UDim2.new(0.3, 0, 0.62, 0)
-    BarBg.BackgroundColor3 = t.IsRGB and Color3.fromRGB(25, 25, 30) or t.SidebarBg
-    BarBg.BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+    BarBg.BackgroundColor3 = t.IsRGB and Color3.fromRGB(25, 25, 30) or Color3.fromRGB(30, 30, 35)
     BarBg.ZIndex = 9995
     Instance.new("UICorner", BarBg)
     
@@ -658,10 +675,9 @@ local function StartLoading(titleText, subtitleText, onComplete)
     local SkipBtn = Instance.new("TextButton", LoadingGui)
     SkipBtn.Size = UDim2.new(0, 110, 0, 32)
     SkipBtn.Position = UDim2.new(0.5, -55, 0.8, 0)
-    SkipBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(22, 22, 26) or t.ElementBg
-    SkipBtn.BackgroundTransparency = t.IsRGB and 0 or t.ElementTransparency
+    SkipBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(22, 22, 26) or Color3.fromRGB(28, 28, 33)
     SkipBtn.Text = "SKIP"
-    SkipBtn.TextColor3 = t.TextPrimary
+    SkipBtn.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.TextPrimary
     SkipBtn.Font = Enum.Font.MontserratBold
     SkipBtn.TextSize = 12
     SkipBtn.ZIndex = 10000
@@ -670,7 +686,7 @@ local function StartLoading(titleText, subtitleText, onComplete)
     local SkipCorner = Instance.new("UICorner", SkipBtn)
     SkipCorner.CornerRadius = UDim.new(0, 6)
     local SkipStroke = Instance.new("UIStroke", SkipBtn)
-    SkipStroke.Color = t.ElementStroke
+    SkipStroke.Color = t.IsRGB and Color3.fromRGB(40, 40, 45) or t.ElementStroke
     SkipStroke.Thickness = 1
 
     local beepSound = Instance.new("Sound", LoadingGui)
@@ -684,7 +700,6 @@ local function StartLoading(titleText, subtitleText, onComplete)
             zap.BorderSizePixel = 0
             zap.Size = UDim2.new(0, math.random(40, 90), 0, 1.5)
             zap.Position = UDim2.new(0.5, math.random(-80, 80), 0.38, math.random(-15, 15))
-            zap.Rotation = math.random(0, 360)
             zap.ZIndex = 9995
             task.spawn(function() task.wait(0.1); zap:Destroy() end)
         end
@@ -964,6 +979,7 @@ function Library:CreateWindow(titleText, subtitleText)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
     FloatingToggle.Visible = false
+    FloatingToggle.ClipsDescendants = true -- Memotong sisa gambar ikon kustom saat animasi menyusut
     RegisterThemeable(FloatingToggle, { 
         BackgroundColor3 = "ElementBg",
         BackgroundTransparency = "ElementTransparency"
@@ -979,8 +995,11 @@ function Library:CreateWindow(titleText, subtitleText)
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Name = "Icon"
-    ToggleIconImage.Size = UDim2.new(0, 38, 0, 38)
-    ToggleIconImage.Position = UDim2.new(0.5, -19, 0.5, -19)
+    
+    -- Menggunakan skala (%) agar ikon mengecil bersamaan secara mulus dengan tombol luar
+    ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0) 
+    ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
+    
     ToggleIconImage.BackgroundTransparency = 1
     ToggleIconImage.ScaleType = Enum.ScaleType.Fit
     RegisterRGB(ToggleIconImage, "ImageColor3")
@@ -1174,6 +1193,11 @@ function Library:CreateWindow(titleText, subtitleText)
         table.insert(Window.Tabs, tabData)
 
         local function Select()
+            -- Cek proteksi klik ganda: jika tab saat ini ditekan kembali, abaikan fungsi
+            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then 
+                return 
+            end
+
             if Window.CurrentTab then
                 local oldTab = Window.CurrentTab
                 local fadeOut = TweenService:Create(oldTab.Frame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0.95, -16), Position = UDim2.new(0, 8, 0, 12)})
@@ -1407,6 +1431,12 @@ function Library:CreateWindow(titleText, subtitleText)
                     task.spawn(function() actualCallback(Toggle.State) end) 
                 end
             end
+
+            -- Mendaftarkan sakelar aktif ke sistem pelacak tema dinamis
+            table.insert(Library.Toggles, {
+                Controller = toggleController,
+                UpdateVisual = UpdateVisual
+            })
 
             Library.Elements[actualFlag] = toggleController
             return toggleController
@@ -1926,11 +1956,15 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
 
     local ExtBtn = Instance.new("TextButton")
     ExtBtn.Name = "ExternalButton_" .. tostring(id)
+    ExtBtn.Text = text or "A"
+    ExtBtn.Font = Enum.Font.MontserratBold
+    ExtBtn.TextSize = 13
+    ExtBtn.AutoButtonColor = false
+    ExtBtn.Parent = ScreenGui
     
-    -- Penyesuaian Lebar Otomatis Terpadu Berdasarkan Isi Teks
-    ExtBtn.AutomaticSize = Enum.AutomaticSize.X
-    ExtBtn.Size = UDim2.new(0, 0, 0, 40) -- X menyesuaikan otomatis, Y dikunci 40 piksel
-    
+    -- Penghitungan lebar otomatis menggunakan TextService (Sangat stabil & anti-bug)
+    UpdateExtBtnSize(ExtBtn, ExtBtn.Text)
+
     local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["ExtBtnPos_" .. tostring(id)]
     if savedPos and type(savedPos) == "table" then
         ExtBtn.Position = UDim2.new(
@@ -1943,11 +1977,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
         ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
     end
 
-    ExtBtn.Text = text or "A"
-    ExtBtn.Font = Enum.Font.MontserratBold
-    ExtBtn.TextSize = 13
-    ExtBtn.AutoButtonColor = false
-    ExtBtn.Parent = ScreenGui
     RegisterThemeable(ExtBtn, { 
         BackgroundColor3 = "ElementBg",
         BackgroundTransparency = "ElementTransparency",
@@ -1957,15 +1986,12 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     local Corner = Instance.new("UICorner", ExtBtn)
     Corner.CornerRadius = UDim.new(0, 6)
 
-    -- Pembatas Tepi Luar (Padding) agar teks tidak menyentuh dinding tombol saat memanjang
-    local Padding = Instance.new("UIPadding", ExtBtn)
-    Padding.PaddingLeft = UDim.new(0, 12)
-    Padding.PaddingRight = UDim.new(0, 12)
-
     local Stroke = Instance.new("UIStroke", ExtBtn)
-    Stroke.Thickness = 1
     RegisterRGB(Stroke, "Color")
-    RegisterThemeable(Stroke, { Color = function(t) return t.IsRGB and Stroke.Color or t.Accent end })
+    RegisterThemeable(Stroke, { 
+        Color = function(t) return t.IsRGB and Stroke.Color or t.Accent end,
+        Thickness = function(t) return t.IsRGB and 1 or 1.5 end -- Lebih tebal di tema pastel agar terlihat menonjol
+    })
 
     EnableDrag(ExtBtn, ExtBtn, function()
         Library.Flags["ExtBtnPos_" .. tostring(id)] = {
@@ -1994,16 +2020,15 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     end
     function controller:SetText(val)
         ExtBtn.Text = tostring(val)
+        UpdateExtBtnSize(ExtBtn, ExtBtn.Text)
     end
     function controller:SetDragLock(locked)
         ExtBtn:SetAttribute("DragLocked", locked)
     end
     function controller:SetSize(size)
         if typeof(size) == "UDim2" then
-            ExtBtn.AutomaticSize = Enum.AutomaticSize.None
             ExtBtn.Size = size
         elseif type(size) == "number" then
-            ExtBtn.AutomaticSize = Enum.AutomaticSize.None
             ExtBtn.Size = UDim2.new(0, size, 0, size)
         end
     end
