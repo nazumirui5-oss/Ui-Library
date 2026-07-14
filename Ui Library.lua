@@ -311,19 +311,8 @@ end
 function Library:LoadConfig(force, preloadOnly)
     if not isfile or not readfile then return end
     
-    if isfile(SettingsFileName) then
-        local success, err = pcall(function()
-            local meta = HttpService:JSONDecode(readfile(SettingsFileName))
-            if meta and type(meta) == "table" then
-                if meta.SelectedProfile then CurrentProfile = meta.SelectedProfile end
-                if meta.AutoLoad ~= nil then AutoLoadEnabled = meta.AutoLoad end
-                if meta.SelectedTheme then CurrentThemeName = meta.SelectedTheme end
-            end
-        end)
-        if not success then
-            warn("LouisHub UI: Gagal membaca settings. Error: " .. tostring(err))
-        end
-    end
+    -- Membaca file settings global dihilangkan dari sini untuk mencegah 'CurrentProfile' ter-overwrite 
+    -- kembali ke profil lama oleh file cache disk akibat delay synchronous penulisan file.
 
     if not preloadOnly then
         if Library.Elements["__MetaProfile"] then
@@ -398,6 +387,7 @@ function Library:LoadConfig(force, preloadOnly)
                 warn("LouisHub UI: Gagal membaca config. Error: " .. tostring(err))
             end
         else
+            -- Jika file profil baru kosong / belum ada config, kembalikan UI ke default (Reset)
             if not preloadOnly then
                 for k in pairs(Library.Flags) do
                     Library.Flags[k] = nil
