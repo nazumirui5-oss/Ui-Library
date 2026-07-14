@@ -27,7 +27,7 @@ if makefolder then
 end
 
 local SettingsFileName = FolderName .. "/Settings_" .. tostring(PlaceId) .. ".json"
-local CurrentProfile = "Profile 1"
+local CurrentProfile = "default"
 local AutoLoadEnabled = false
 
 -- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca
@@ -84,24 +84,26 @@ local ActiveWindowInstance = nil
 
 -- Membaca file config asli secara real-time dari folder LouisHub
 local function GetAvailableProfiles()
-    local profiles = {"Profile 1", "Profile 2", "Profile 3", "Profile 4", "Profile 5"}
+    local profiles = {}
     if listfiles and isfolder and isfolder(FolderName) then
         local success, files = pcall(listfiles, FolderName)
         if success and type(files) == "table" then
-            local foundProfiles = {}
             local pattern = "Config_" .. tostring(PlaceId) .. "_(.-)%.json$"
             for _, file in ipairs(files) do
                 local normalized = file:gsub("\\", "/")
                 local profileName = normalized:match(pattern)
                 if profileName then
-                    table.insert(foundProfiles, profileName)
+                    table.insert(profiles, profileName)
                 end
             end
-            if #foundProfiles > 0 then
-                table.sort(foundProfiles)
-                profiles = foundProfiles
-            end
         end
+    end
+    
+    -- Jika folder kosong, berikan fallback ke list minimal berisi "default"
+    if #profiles == 0 then
+        table.insert(profiles, "default")
+    else
+        table.sort(profiles)
     end
     return profiles
 end
@@ -234,6 +236,19 @@ local function PreloadConfiguration()
                 if meta.SelectedTheme then CurrentThemeName = meta.SelectedTheme end
             end
         end)
+    end
+    
+    -- Memastikan profil terpilih benar-benar ada di folder penyimpanan, jika tidak, pakai profil pertama yang terbaca
+    local profiles = GetAvailableProfiles()
+    local profileExists = false
+    for _, p in ipairs(profiles) do
+        if p == CurrentProfile then
+            profileExists = true
+            break
+        end
+    end
+    if not profileExists then
+        CurrentProfile = profiles[1] or "default"
     end
     
     local fileName = FolderName .. "/Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
@@ -1177,15 +1192,9 @@ function Library:CreateWindow(titleText, subtitleText)
         TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
         TabContent.Visible = false
 
-        -- Menghubungkan warna & transparansi scrollbar secara dinamis ke tema saat ini (Mengatasi bug scrollbar Pastel)
-        RegisterThemeable(TabContent, {
-            ScrollBarImageColor3 = function(t) 
-                return t.IsRGB and Color3.fromRGB(200, 200, 200) or t.Accent 
-            end,
-            ScrollBarImageTransparency = function(t)
-                return 0.3
-            end
-        })
+        -- Scrollbar yang sepenuhnya disamakan dengan gaya tema RGB (Abu-abu tipis netral & bersih)
+        TabContent.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
+        TabContent.ScrollBarImageTransparency = 0.4
 
         local ContentLayout = Instance.new("UIListLayout", TabContent)
         ContentLayout.Padding = UDim.new(0, 6)
@@ -1965,15 +1974,6 @@ function Library:CreateWindow(titleText, subtitleText)
 
     local profileDropdown
     local initialProfiles = GetAvailableProfiles()
-    
-    -- Memastikan profil saat ini masuk dalam list dropdown mula-mula
-    local found = false
-    for _, p in ipairs(initialProfiles) do
-        if p == CurrentProfile then found = true break end
-    end
-    if not found then
-        table.insert(initialProfiles, CurrentProfile)
-    end
 
     profileDropdown = ConfigTab:CreateDropdown("Selected Profile", initialProfiles, CurrentProfile, "__MetaProfile", function(selected)
         CurrentProfile = selected
@@ -1999,7 +1999,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Library:SaveSettings()
             Library:SaveConfig(false)
             
-            -- Muat ulang daftar config asli dari folder ZArchiver & perbarui tampilan dropdown
+            -- Muat ulang daftar config asli dari folder ZArchiver & perbarui tampilan dropdown secara real-time
             local updatedList = GetAvailableProfiles()
             profileDropdown:Refresh(updatedList)
             profileDropdown:Set(CurrentProfile, true, true)
@@ -2031,18 +2031,12 @@ function Library:CreateWindow(titleText, subtitleText)
                 
                 -- Cari profil yang tersisa atau kembalikan ke default jika kosong
                 local remaining = GetAvailableProfiles()
-                if #remaining > 0 then
-                    CurrentProfile = remaining[1]
-                else
-                    CurrentProfile = "Profile 1"
-                end
+                CurrentProfile = remaining[1] or "default"
                 
                 Library:SaveSettings()
                 
                 -- Segarkan ulang dropdown di layar
-                local updatedList = GetAvailableProfiles()
-                if #updatedList == 0 then table.insert(updatedList, "Profile 1") end
-                profileDropdown:Refresh(updatedList)
+                profileDropdown:Refresh(remaining)
                 profileDropdown:Set(CurrentProfile, true, true)
                 Library:LoadConfig(true)
             else
