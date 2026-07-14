@@ -335,14 +335,19 @@ function Library:LoadConfig(force, preloadOnly)
                     Library.LoadedConfigCache = decoded
                     
                     if not preloadOnly then
-                        for k in pairs(Library.Flags) do
-                            Library.Flags[k] = nil
+                        -- 1. Reset semua elemen UI ke DefaultValue masing-masing terlebih dahulu (agar tidak ada flag yang bernilai nil)
+                        for flag, element in pairs(Library.Elements) do
+                            if not flag:find("^__Meta") and element.DefaultValue ~= nil then
+                                element:Set(element.DefaultValue, true, true) -- ignoreSave=true, ignoreCallback=true
+                            end
                         end
                         
+                        -- Jaga meta flags tetap sinkron
                         Library.Flags["__MetaProfile"] = CurrentProfile
                         Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
                         Library.Flags["__MetaTheme"] = CurrentThemeName
                         
+                        -- 2. Terapkan nilai config yang dimuat dari file JSON
                         local mainGui = GetMainGui()
                         for flag, val in pairs(decoded) do
                             if flag:find("^__Meta") then
@@ -350,7 +355,7 @@ function Library:LoadConfig(force, preloadOnly)
                             end
                             
                             if Library.Elements[flag] then
-                                Library.Elements[flag]:Set(val, true, false)
+                                Library.Elements[flag]:Set(val, true, false) -- ignoreSave=true, ignoreCallback=false (memicu callback asli)
                             end
                             if flag:find("^ExtBtnPos_") then
                                 local btnId = flag:gsub("^ExtBtnPos_", "")
