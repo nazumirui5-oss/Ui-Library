@@ -11,30 +11,19 @@ Library.Elements = {}
 Library.ThemeRegistry = {}
 
 -- ========================================================
--- [[ SYSTEM THEME CONFIGURATION ]]
+-- [[ COLOR PALETTE (EXACT IMAGE SCHEME) ]]
 -- ========================================================
 local Themes = {
     ["Compkiller"] = {
-        WindowBg = Color3.fromRGB(18, 20, 24),
-        SidebarBg = Color3.fromRGB(24, 27, 34),
-        SectionBg = Color3.fromRGB(15, 17, 20),
-        ElementBg = Color3.fromRGB(22, 25, 30),
-        StrokeColor = Color3.fromRGB(35, 40, 48),
-        Accent = Color3.fromRGB(0, 220, 255),
+        WindowBg = Color3.fromRGB(21, 23, 28),
+        SidebarBg = Color3.fromRGB(28, 31, 38),
+        SectionBg = Color3.fromRGB(24, 26, 32),
+        ElementBg = Color3.fromRGB(32, 36, 45), -- Digunakan untuk dropdown box & button
+        StrokeColor = Color3.fromRGB(40, 44, 54),
+        Accent = Color3.fromRGB(0, 213, 239),
         TextPrimary = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(140, 145, 155),
+        TextSecondary = Color3.fromRGB(150, 155, 165),
         TextDark = Color3.fromRGB(90, 95, 105)
-    },
-    ["Nordic Dark"] = {
-        WindowBg = Color3.fromRGB(26, 30, 38),
-        SidebarBg = Color3.fromRGB(33, 37, 47),
-        SectionBg = Color3.fromRGB(22, 25, 32),
-        ElementBg = Color3.fromRGB(30, 34, 44),
-        StrokeColor = Color3.fromRGB(45, 52, 64),
-        Accent = Color3.fromRGB(129, 161, 193),
-        TextPrimary = Color3.fromRGB(236, 239, 244),
-        TextSecondary = Color3.fromRGB(162, 169, 182),
-        TextDark = Color3.fromRGB(108, 116, 130)
     }
 }
 
@@ -52,23 +41,8 @@ local function RegisterTheme(instance, propertyMap)
     end
 end
 
-function Library:SetTheme(themeName)
-    if Themes[themeName] then
-        CurrentTheme = Themes[themeName]
-        for _, entry in ipairs(Library.ThemeRegistry) do
-            if entry.Instance and entry.Instance:IsDescendantOf(game) then
-                for prop, key in pairs(entry.Properties) do
-                    pcall(function()
-                        entry.Instance[prop] = CurrentTheme[key]
-                    end)
-                end
-            end
-        end
-    end
-end
-
 -- ========================================================
--- [[ DRAG HANDLING UTILITY ]]
+-- [[ HYBRID TOUCH & MOUSE DRAGGING ]]
 -- ========================================================
 local function MakeDraggable(dragTrigger, frameToMove)
     local dragging, dragInput, dragStart, startPos
@@ -110,20 +84,22 @@ end
 function Library:CreateWindow(titleText, subtitleText)
     local Window = {
         Tabs = {},
-        ActiveTab = nil
+        ActiveTab = nil,
+        Visible = true
     }
 
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "Nexus_UI_Engine"
+    ScreenGui.Name = "Nexus_Compkiller_UI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
     local successHui, hui = pcall(function() return gethui and gethui() end)
     ScreenGui.Parent = (successHui and hui) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
+    -- Responsive Scaling untuk Mobile
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 650, 0, 480)
-    MainFrame.Position = UDim2.new(0.5, -325, 0.5, -240)
+    MainFrame.Size = UDim2.new(0, 640, 0, 460)
+    MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
     RegisterTheme(MainFrame, { BackgroundColor3 = "WindowBg" })
@@ -132,10 +108,10 @@ function Library:CreateWindow(titleText, subtitleText)
     MainCorner.CornerRadius = UDim.new(0, 8)
 
     local MainStroke = Instance.new("UIStroke", MainFrame)
-    MainStroke.Thickness = 1
+    MainStroke.Thickness = 1.5
     RegisterTheme(MainStroke, { Color = "StrokeColor" })
 
-    -- Sidebar (Left)
+    -- Sidebar (Left Area)
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 170, 1, 0)
     Sidebar.BorderSizePixel = 0
@@ -144,14 +120,14 @@ function Library:CreateWindow(titleText, subtitleText)
     local SidebarCorner = Instance.new("UICorner", Sidebar)
     SidebarCorner.CornerRadius = UDim.new(0, 8)
 
-    -- Prevent sidebar corners from clipping the main frame rounded edges on the right
+    -- Sidebar Masking
     local SidebarMask = Instance.new("Frame", Sidebar)
     SidebarMask.Size = UDim2.new(0, 15, 1, 0)
     SidebarMask.Position = UDim2.new(1, -15, 0, 0)
     SidebarMask.BorderSizePixel = 0
     RegisterTheme(SidebarMask, { BackgroundColor3 = "SidebarBg" })
 
-    -- Drag Handle (Logo Area)
+    -- Drag Handle Logo
     local LogoArea = Instance.new("Frame", Sidebar)
     LogoArea.Size = UDim2.new(1, 0, 0, 50)
     LogoArea.BackgroundTransparency = 1
@@ -161,12 +137,12 @@ function Library:CreateWindow(titleText, subtitleText)
     LogoIcon.Size = UDim2.new(0, 24, 0, 24)
     LogoIcon.Position = UDim2.new(0, 15, 0.5, -12)
     LogoIcon.BackgroundTransparency = 1
-    LogoIcon.Image = "rbxassetid://10734887784"
+    LogoIcon.Image = "rbxassetid://10723375133" -- Icon Crown / CK Style
     RegisterTheme(LogoIcon, { ImageColor3 = "Accent" })
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
     TitleLabel.Size = UDim2.new(1, -50, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 45, 0, 0)
+    TitleLabel.Position = UDim2.new(0, 46, 0, 0)
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = titleText or "COMPKILLER"
     TitleLabel.Font = Enum.Font.MontserratBold
@@ -174,38 +150,38 @@ function Library:CreateWindow(titleText, subtitleText)
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     RegisterTheme(TitleLabel, { TextColor3 = "TextPrimary" })
 
-    -- Tab Button Scroll Container
+    -- Sidebar Scroll
     local TabScroll = Instance.new("ScrollingFrame", Sidebar)
-    TabScroll.Size = UDim2.new(1, -10, 1, -115)
+    TabScroll.Size = UDim2.new(1, -10, 1, -120)
     TabScroll.Position = UDim2.new(0, 5, 0, 55)
     TabScroll.BackgroundTransparency = 1
     TabScroll.ScrollBarThickness = 0
     TabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 
     local TabListLayout = Instance.new("UIListLayout", TabScroll)
-    TabListLayout.Padding = UDim.new(0, 4)
+    TabListLayout.Padding = UDim.new(0, 2)
     TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
     TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         TabScroll.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y)
     end)
 
-    -- Profile Card (Bottom Left)
+    -- Bottom User profile
     local UserCard = Instance.new("Frame", Sidebar)
     UserCard.Size = UDim2.new(1, -20, 0, 50)
     UserCard.Position = UDim2.new(0, 10, 1, -60)
     UserCard.BackgroundTransparency = 1
 
     local AvatarImg = Instance.new("ImageLabel", UserCard)
-    AvatarImg.Size = UDim2.new(0, 34, 0, 34)
-    AvatarImg.Position = UDim2.new(0, 5, 0.5, -17)
+    AvatarImg.Size = UDim2.new(0, 32, 0, 32)
+    AvatarImg.Position = UDim2.new(0, 5, 0.5, -16)
     AvatarImg.BackgroundTransparency = 1
     AvatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
     Instance.new("UICorner", AvatarImg).CornerRadius = UDim.new(1, 0)
 
     local UsernameLabel = Instance.new("TextLabel", UserCard)
     UsernameLabel.Size = UDim2.new(1, -50, 0, 16)
-    UsernameLabel.Position = UDim2.new(0, 45, 0.5, -15)
+    UsernameLabel.Position = UDim2.new(0, 44, 0.5, -14)
     UsernameLabel.BackgroundTransparency = 1
     UsernameLabel.Text = LocalPlayer.DisplayName
     UsernameLabel.Font = Enum.Font.MontserratBold
@@ -215,7 +191,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
     local SubtextLabel = Instance.new("TextLabel", UserCard)
     SubtextLabel.Size = UDim2.new(1, -50, 0, 14)
-    SubtextLabel.Position = UDim2.new(0, 45, 0.5, 1)
+    SubtextLabel.Position = UDim2.new(0, 44, 0.5, 2)
     SubtextLabel.BackgroundTransparency = 1
     SubtextLabel.Text = subtitleText or "NEVER"
     SubtextLabel.Font = Enum.Font.MontserratMedium
@@ -223,11 +199,36 @@ function Library:CreateWindow(titleText, subtitleText)
     SubtextLabel.TextXAlignment = Enum.TextXAlignment.Left
     RegisterTheme(SubtextLabel, { TextColor3 = "TextDark" })
 
-    -- Content Container (Right Side)
+    -- Content Frame Workspace
     local ContentArea = Instance.new("Frame", MainFrame)
     ContentArea.Size = UDim2.new(1, -170, 1, 0)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
     ContentArea.BackgroundTransparency = 1
+
+    -- ========================================================
+    -- [[ CATEGORY HEADER SYSTEM ]]
+    -- ========================================================
+    function Window:CreateCategory(categoryName)
+        local CatFrame = Instance.new("Frame", TabScroll)
+        CatFrame.Size = UDim2.new(1, -10, 0, 26)
+        CatFrame.BackgroundTransparency = 1
+
+        local Label = Instance.new("TextLabel", CatFrame)
+        Label.Size = UDim2.new(1, 0, 1, -4)
+        Label.Position = UDim2.new(0, 10, 0, 4)
+        Label.BackgroundTransparency = 1
+        Label.Text = categoryName
+        Label.Font = Enum.Font.MontserratBold
+        Label.TextSize = 10
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        RegisterTheme(Label, { TextColor3 = "TextDark" })
+
+        local Underline = Instance.new("Frame", CatFrame)
+        Underline.Size = UDim2.new(1, -10, 0, 1)
+        Underline.Position = UDim2.new(0, 10, 1, -2)
+        Underline.BorderSizePixel = 0
+        RegisterTheme(Underline, { BackgroundColor3 = "StrokeColor" })
+    end
 
     -- ========================================================
     -- [[ TAB CREATION METHOD ]]
@@ -257,7 +258,7 @@ function Library:CreateWindow(titleText, subtitleText)
         LeftColumn.BackgroundTransparency = 1
 
         local LeftList = Instance.new("UIListLayout", LeftColumn)
-        LeftList.Padding = UDim.new(0, 10)
+        LeftList.Padding = UDim.new(0, 12)
         LeftList.SortOrder = Enum.SortOrder.LayoutOrder
 
         local RightColumn = Instance.new("Frame", ColumnContainer)
@@ -266,7 +267,7 @@ function Library:CreateWindow(titleText, subtitleText)
         RightColumn.BackgroundTransparency = 1
 
         local RightList = Instance.new("UIListLayout", RightColumn)
-        RightList.Padding = UDim.new(0, 10)
+        RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
 
         local function ResizeCanvas()
@@ -281,7 +282,7 @@ function Library:CreateWindow(titleText, subtitleText)
         RightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
 
         local TabBtn = Instance.new("TextButton", TabScroll)
-        TabBtn.Size = UDim2.new(1, -10, 0, 36)
+        TabBtn.Size = UDim2.new(1, -10, 0, 32)
         TabBtn.Position = UDim2.new(0, 5, 0, 0)
         TabBtn.BackgroundTransparency = 1
         TabBtn.Text = ""
@@ -290,9 +291,10 @@ function Library:CreateWindow(titleText, subtitleText)
         local TabBtnCorner = Instance.new("UICorner", TabBtn)
         TabBtnCorner.CornerRadius = UDim.new(0, 6)
 
+        -- Indicator Line on the Right edge of the sidebar
         local TabBtnAccent = Instance.new("Frame", TabBtn)
         TabBtnAccent.Size = UDim2.new(0, 3, 0.6, 0)
-        TabBtnAccent.Position = UDim2.new(0, 0, 0.2, 0)
+        TabBtnAccent.Position = UDim2.new(1, -3, 0.2, 0)
         TabBtnAccent.BorderSizePixel = 0
         TabBtnAccent.BackgroundTransparency = 1
         RegisterTheme(TabBtnAccent, { BackgroundColor3 = "Accent" })
@@ -354,7 +356,7 @@ function Library:CreateWindow(titleText, subtitleText)
             end
         end)
 
-        if #Window.Tabs == 0 then
+        if #Window.Tabs == 1 then
             task.spawn(function()
                 task.wait(0.1)
                 SelectTab()
@@ -364,7 +366,7 @@ function Library:CreateWindow(titleText, subtitleText)
         table.insert(Window.Tabs, Tab)
 
         -- ========================================================
-        -- [[ SECTION CREATION METHOD (Compkiller Cards) ]]
+        -- [[ SECTION CONTAINER CREATION ]]
         -- ========================================================
         function Tab:CreateSection(sectionName)
             local Section = {}
@@ -412,7 +414,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Content.BackgroundTransparency = 1
 
             local ContentList = Instance.new("UIListLayout", Content)
-            ContentList.Padding = UDim.new(0, 6)
+            ContentList.Padding = UDim.new(0, 8)
             ContentList.HorizontalAlignment = Enum.HorizontalAlignment.Center
             ContentList.SortOrder = Enum.SortOrder.LayoutOrder
 
@@ -424,44 +426,86 @@ function Library:CreateWindow(titleText, subtitleText)
             ContentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSectionSize)
 
             local InsidePadding = Instance.new("UIPadding", Content)
-            InsidePadding.PaddingLeft = UDim.new(0, 10)
-            InsidePadding.PaddingRight = UDim.new(0, 10)
-            InsidePadding.PaddingBottom = UDim.new(0, 10)
+            InsidePadding.PaddingLeft = UDim.new(0, 12)
+            InsidePadding.PaddingRight = UDim.new(0, 12)
+            InsidePadding.PaddingBottom = UDim.new(0, 12)
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: TOGGLE ]]
+            -- [[ SECTION ELEMENT: DYNAMIC TOGGLE ]]
             -- ========================================================
-            function Section:CreateToggle(toggleText, defaultVal, flag, callback)
+            function Section:CreateToggle(toggleText, defaultVal, flag, config, callback)
                 local Toggle = { State = defaultVal or false }
                 Library.Flags[flag] = Toggle.State
 
                 local Elem = Instance.new("Frame", Content)
-                Elem.Size = UDim2.new(1, 0, 0, 30)
-                RegisterTheme(Elem, { BackgroundColor3 = "ElementBg" })
-                Instance.new("UICorner", Elem).CornerRadius = UDim.new(0, 4)
+                Elem.Size = UDim2.new(1, 0, 0, 24)
+                Elem.BackgroundTransparency = 1 -- NO INDIVIDUAL BACKGROUND AS SHOWN IN IMAGE
 
                 local Label = Instance.new("TextLabel", Elem)
-                Label.Size = UDim2.new(1, -70, 1, 0)
-                Label.Position = UDim2.new(0, 10, 0, 0)
+                Label.Size = UDim2.new(1, -110, 1, 0)
+                Label.Position = UDim2.new(0, 0, 0, 0)
                 Label.BackgroundTransparency = 1
                 Label.Text = toggleText
                 Label.Font = Enum.Font.MontserratMedium
-                Label.TextSize = 10
+                Label.TextSize = 11
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
-                -- Switch Container
+                -- Dynamic Inline Container (for info icon, gear icon, or inline hotkey box)
+                local InlineList = Instance.new("Frame", Elem)
+                InlineList.Size = UDim2.new(0, 80, 1, 0)
+                InlineList.Position = UDim2.new(1, -110, 0, 0)
+                InlineList.BackgroundTransparency = 1
+
+                local Layout = Instance.new("UIListLayout", InlineList)
+                Layout.FillDirection = Enum.FillDirection.Horizontal
+                Layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+                Layout.VerticalAlignment = Enum.VerticalAlignment.Center
+                Layout.Padding = UDim.new(0, 8)
+
+                if config then
+                    if config.info then
+                        local InfoIcon = Instance.new("ImageLabel", InlineList)
+                        InfoIcon.Size = UDim2.new(0, 14, 0, 14)
+                        InfoIcon.BackgroundTransparency = 1
+                        InfoIcon.Image = "rbxassetid://10723415903" -- Info icon
+                        RegisterTheme(InfoIcon, { ImageColor3 = "TextDark" })
+                    end
+
+                    if config.gear then
+                        local GearIcon = Instance.new("ImageLabel", InlineList)
+                        GearIcon.Size = UDim2.new(0, 14, 0, 14)
+                        GearIcon.BackgroundTransparency = 1
+                        GearIcon.Image = "rbxassetid://10734950309" -- Gear Settings
+                        RegisterTheme(GearIcon, { ImageColor3 = "TextDark" })
+                    end
+
+                    if config.keybind then
+                        local InlineBind = Instance.new("TextLabel", InlineList)
+                        InlineBind.Size = UDim2.new(0, 16, 0, 16)
+                        InlineBind.BackgroundTransparency = 1
+                        InlineBind.Text = tostring(config.keybind)
+                        InlineBind.Font = Enum.Font.MontserratMedium
+                        InlineBind.TextSize = 10
+                        RegisterTheme(InlineBind, { TextColor3 = "TextDark" })
+                        local Border = Instance.new("UIStroke", InlineBind)
+                        Border.Thickness = 0.5
+                        RegisterTheme(Border, { Color = "StrokeColor" })
+                    end
+                end
+
+                -- Toggle Switch
                 local Switch = Instance.new("TextButton", Elem)
-                Switch.Size = UDim2.new(0, 28, 0, 14)
-                Switch.Position = UDim2.new(1, -38, 0.5, -7)
+                Switch.Size = UDim2.new(0, 24, 0, 12)
+                Switch.Position = UDim2.new(1, -24, 0.5, -6)
                 Switch.Text = ""
                 Switch.AutoButtonColor = false
                 RegisterTheme(Switch, { BackgroundColor3 = "StrokeColor" })
                 Instance.new("UICorner", Switch).CornerRadius = UDim.new(1, 0)
 
                 local Ball = Instance.new("Frame", Switch)
-                Ball.Size = UDim2.new(0, 10, 0, 10)
-                Ball.Position = UDim2.new(0, 2, 0.5, -5)
+                Ball.Size = UDim2.new(0, 8, 0, 8)
+                Ball.Position = UDim2.new(0, 2, 0.5, -4)
                 Ball.BorderSizePixel = 0
                 RegisterTheme(Ball, { BackgroundColor3 = "TextDark" })
                 Instance.new("UICorner", Ball).CornerRadius = UDim.new(1, 0)
@@ -471,19 +515,16 @@ function Library:CreateWindow(titleText, subtitleText)
                     Library.Flags[flag] = state
                     local dur = 0.15
                     if state then
-                        TweenService:Create(Ball, TweenInfo.new(dur), {Position = UDim2.new(1, -12, 0.5, -5), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
+                        TweenService:Create(Ball, TweenInfo.new(dur), {Position = UDim2.new(1, -10, 0.5, -4), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
                         TweenService:Create(Switch, TweenInfo.new(dur), {BackgroundColor3 = CurrentTheme.Accent}):Play()
                     else
-                        TweenService:Create(Ball, TweenInfo.new(dur), {Position = UDim2.new(0, 2, 0.5, -5), BackgroundColor3 = CurrentTheme.TextDark}):Play()
+                        TweenService:Create(Ball, TweenInfo.new(dur), {Position = UDim2.new(0, 2, 0.5, -4), BackgroundColor3 = CurrentTheme.TextDark}):Play()
                         TweenService:Create(Switch, TweenInfo.new(dur), {BackgroundColor3 = CurrentTheme.StrokeColor}):Play()
                     end
                     if callback then task.spawn(callback, state) end
                 end
 
-                Switch.MouseButton1Click:Connect(function()
-                    SetState(not Toggle.State)
-                end)
-
+                Switch.MouseButton1Click:Connect(function() SetState(not Toggle.State) end)
                 SetState(Toggle.State)
 
                 local ctrl = {}
@@ -499,23 +540,22 @@ function Library:CreateWindow(titleText, subtitleText)
                 Library.Flags[flag] = Keybind.Value
 
                 local Elem = Instance.new("Frame", Content)
-                Elem.Size = UDim2.new(1, 0, 0, 30)
-                RegisterTheme(Elem, { BackgroundColor3 = "ElementBg" })
-                Instance.new("UICorner", Elem).CornerRadius = UDim.new(0, 4)
+                Elem.Size = UDim2.new(1, 0, 0, 24)
+                Elem.BackgroundTransparency = 1
 
                 local Label = Instance.new("TextLabel", Elem)
                 Label.Size = UDim2.new(1, -80, 1, 0)
-                Label.Position = UDim2.new(0, 10, 0, 0)
+                Label.Position = UDim2.new(0, 0, 0, 0)
                 Label.BackgroundTransparency = 1
                 Label.Text = bindText
                 Label.Font = Enum.Font.MontserratMedium
-                Label.TextSize = 10
+                Label.TextSize = 11
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
                 local BindBtn = Instance.new("TextButton", Elem)
-                BindBtn.Size = UDim2.new(0, 50, 0, 18)
-                BindBtn.Position = UDim2.new(1, -60, 0.5, -9)
+                BindBtn.Size = UDim2.new(0, 46, 0, 18)
+                BindBtn.Position = UDim2.new(1, -46, 0.5, -9)
                 BindBtn.Font = Enum.Font.MontserratBold
                 BindBtn.TextSize = 9
                 BindBtn.Text = Keybind.Value.Name
@@ -558,33 +598,32 @@ function Library:CreateWindow(titleText, subtitleText)
                 Library.Flags[flag] = Slider.Value
 
                 local Elem = Instance.new("Frame", Content)
-                Elem.Size = UDim2.new(1, 0, 0, 42)
-                RegisterTheme(Elem, { BackgroundColor3 = "ElementBg" })
-                Instance.new("UICorner", Elem).CornerRadius = UDim.new(0, 4)
+                Elem.Size = UDim2.new(1, 0, 0, 38)
+                Elem.BackgroundTransparency = 1
 
                 local Label = Instance.new("TextLabel", Elem)
                 Label.Size = UDim2.new(1, -60, 0, 18)
-                Label.Position = UDim2.new(0, 10, 0, 4)
+                Label.Position = UDim2.new(0, 0, 0, 0)
                 Label.BackgroundTransparency = 1
                 Label.Text = sliderText
                 Label.Font = Enum.Font.MontserratMedium
-                Label.TextSize = 10
+                Label.TextSize = 11
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
                 local ValLabel = Instance.new("TextLabel", Elem)
                 ValLabel.Size = UDim2.new(0, 40, 0, 18)
-                ValLabel.Position = UDim2.new(1, -50, 0, 4)
+                ValLabel.Position = UDim2.new(1, -40, 0, 0)
                 ValLabel.BackgroundTransparency = 1
                 ValLabel.Text = tostring(Slider.Value)
                 ValLabel.Font = Enum.Font.MontserratBold
-                ValLabel.TextSize = 10
+                ValLabel.TextSize = 11
                 ValLabel.TextXAlignment = Enum.TextXAlignment.Right
-                RegisterTheme(ValLabel, { TextColor3 = "Accent" })
+                RegisterTheme(ValLabel, { TextColor3 = "TextDark" })
 
                 local SliderBg = Instance.new("TextButton", Elem)
-                SliderBg.Size = UDim2.new(1, -20, 0, 4)
-                SliderBg.Position = UDim2.new(0, 10, 1, -10)
+                SliderBg.Size = UDim2.new(1, 0, 0, 4)
+                SliderBg.Position = UDim2.new(0, 0, 1, -8)
                 SliderBg.Text = ""
                 SliderBg.AutoButtonColor = false
                 RegisterTheme(SliderBg, { BackgroundColor3 = "StrokeColor" })
@@ -647,36 +686,39 @@ function Library:CreateWindow(titleText, subtitleText)
                 Library.Flags[flag] = Dropdown.Value
 
                 local Elem = Instance.new("Frame", Content)
-                Elem.Size = UDim2.new(1, 0, 0, 42)
-                RegisterTheme(Elem, { BackgroundColor3 = "ElementBg" })
-                Instance.new("UICorner", Elem).CornerRadius = UDim.new(0, 4)
+                Elem.Size = UDim2.new(1, 0, 0, 44)
+                Elem.BackgroundTransparency = 1
 
                 local Label = Instance.new("TextLabel", Elem)
-                Label.Size = UDim2.new(1, -20, 0, 16)
-                Label.Position = UDim2.new(0, 10, 0, 2)
+                Label.Size = UDim2.new(1, 0, 0, 16)
+                Label.Position = UDim2.new(0, 0, 0, 0)
                 Label.BackgroundTransparency = 1
                 Label.Text = ddText
                 Label.Font = Enum.Font.MontserratMedium
-                Label.TextSize = 9
-                RegisterTheme(Label, { TextColor3 = "TextDark" })
+                Label.TextSize = 11
+                Label.TextXAlignment = Enum.TextXAlignment.Left
+                RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
                 local Trigger = Instance.new("TextButton", Elem)
-                Trigger.Size = UDim2.new(1, -20, 0, 20)
-                Trigger.Position = UDim2.new(0, 10, 1, -22)
+                Trigger.Size = UDim2.new(1, 0, 0, 24)
+                Trigger.Position = UDim2.new(0, 0, 1, -24)
                 Trigger.Text = ""
                 Trigger.AutoButtonColor = false
-                RegisterTheme(Trigger, { BackgroundColor3 = "SectionBg" })
+                RegisterTheme(Trigger, { BackgroundColor3 = "ElementBg" })
                 Instance.new("UICorner", Trigger).CornerRadius = UDim.new(0, 4)
+                local TriggerStroke = Instance.new("UIStroke", Trigger)
+                TriggerStroke.Thickness = 1
+                RegisterTheme(TriggerStroke, { Color = "StrokeColor" })
 
                 local DisplayText = Instance.new("TextLabel", Trigger)
                 DisplayText.Size = UDim2.new(1, -25, 1, 0)
-                DisplayText.Position = UDim2.new(0, 8, 0, 0)
+                DisplayText.Position = UDim2.new(0, 10, 0, 0)
                 DisplayText.BackgroundTransparency = 1
                 DisplayText.Text = tostring(Dropdown.Value)
-                DisplayText.Font = Enum.Font.MontserratBold
+                DisplayText.Font = Enum.Font.MontserratMedium
                 DisplayText.TextSize = 10
                 DisplayText.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterTheme(DisplayText, { TextColor3 = "TextPrimary" })
+                RegisterTheme(DisplayText, { TextColor3 = "TextSecondary" })
 
                 local Arrow = Instance.new("ImageLabel", Trigger)
                 Arrow.Size = UDim2.new(0, 10, 0, 10)
@@ -757,35 +799,38 @@ function Library:CreateWindow(titleText, subtitleText)
                 Library.Flags[flag] = Dropdown.Selected
 
                 local Elem = Instance.new("Frame", Content)
-                Elem.Size = UDim2.new(1, 0, 0, 42)
-                RegisterTheme(Elem, { BackgroundColor3 = "ElementBg" })
-                Instance.new("UICorner", Elem).CornerRadius = UDim.new(0, 4)
+                Elem.Size = UDim2.new(1, 0, 0, 44)
+                Elem.BackgroundTransparency = 1
 
                 local Label = Instance.new("TextLabel", Elem)
-                Label.Size = UDim2.new(1, -20, 0, 16)
-                Label.Position = UDim2.new(0, 10, 0, 2)
+                Label.Size = UDim2.new(1, 0, 0, 16)
+                Label.Position = UDim2.new(0, 0, 0, 0)
                 Label.BackgroundTransparency = 1
                 Label.Text = ddText
                 Label.Font = Enum.Font.MontserratMedium
-                Label.TextSize = 9
-                RegisterTheme(Label, { TextColor3 = "TextDark" })
+                Label.TextSize = 11
+                Label.TextXAlignment = Enum.TextXAlignment.Left
+                RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
                 local Trigger = Instance.new("TextButton", Elem)
-                Trigger.Size = UDim2.new(1, -20, 0, 20)
-                Trigger.Position = UDim2.new(0, 10, 1, -22)
+                Trigger.Size = UDim2.new(1, 0, 0, 24)
+                Trigger.Position = UDim2.new(0, 0, 1, -24)
                 Trigger.Text = ""
                 Trigger.AutoButtonColor = false
-                RegisterTheme(Trigger, { BackgroundColor3 = "SectionBg" })
+                RegisterTheme(Trigger, { BackgroundColor3 = "ElementBg" })
                 Instance.new("UICorner", Trigger).CornerRadius = UDim.new(0, 4)
+                local TriggerStroke = Instance.new("UIStroke", Trigger)
+                TriggerStroke.Thickness = 1
+                RegisterTheme(TriggerStroke, { Color = "StrokeColor" })
 
                 local DisplayText = Instance.new("TextLabel", Trigger)
                 DisplayText.Size = UDim2.new(1, -25, 1, 0)
-                DisplayText.Position = UDim2.new(0, 8, 0, 0)
+                DisplayText.Position = UDim2.new(0, 10, 0, 0)
                 DisplayText.BackgroundTransparency = 1
-                DisplayText.Font = Enum.Font.MontserratBold
+                DisplayText.Font = Enum.Font.MontserratMedium
                 DisplayText.TextSize = 10
                 DisplayText.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterTheme(DisplayText, { TextColor3 = "TextPrimary" })
+                RegisterTheme(DisplayText, { TextColor3 = "TextSecondary" })
 
                 local function UpdateDisplayText()
                     if #Dropdown.Selected == 0 then
@@ -846,7 +891,7 @@ function Library:CreateWindow(titleText, subtitleText)
                             end
                             Library.Flags[flag] = Dropdown.Selected
                             UpdateDisplayText()
-                            PopulateOptions() -- Refresh selected text color
+                            PopulateOptions()
                             if callback then task.spawn(callback, Dropdown.Selected) end
                         end)
                     end
@@ -874,24 +919,6 @@ function Library:CreateWindow(titleText, subtitleText)
             end
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: BUTTON ]]
-            -- ========================================================
-            function Section:CreateButton(btnText, callback)
-                local Btn = Instance.new("TextButton", Content)
-                Btn.Size = UDim2.new(1, 0, 0, 30)
-                Btn.Font = Enum.Font.MontserratBold
-                Btn.TextSize = 10
-                Btn.Text = btnText
-                Btn.AutoButtonColor = false
-                RegisterTheme(Btn, { BackgroundColor3 = "Accent", TextColor3 = "SectionBg" })
-                Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
-
-                Btn.MouseButton1Click:Connect(function()
-                    if callback then task.spawn(callback) end
-                end)
-            end
-
-            -- ========================================================
             -- [[ SECTION ELEMENT: COLOR PICKER ]]
             -- ========================================================
             function Section:CreateColorPicker(pickerText, defaultColor, flag, callback)
@@ -899,26 +926,26 @@ function Library:CreateWindow(titleText, subtitleText)
                 Library.Flags[flag] = Picker.Value
 
                 local Elem = Instance.new("Frame", Content)
-                Elem.Size = UDim2.new(1, 0, 0, 30)
-                RegisterTheme(Elem, { BackgroundColor3 = "ElementBg" })
-                Instance.new("UICorner", Elem).CornerRadius = UDim.new(0, 4)
+                Elem.Size = UDim2.new(1, 0, 0, 24)
+                Elem.BackgroundTransparency = 1
 
                 local Label = Instance.new("TextLabel", Elem)
                 Label.Size = UDim2.new(1, -50, 1, 0)
-                Label.Position = UDim2.new(0, 10, 0, 0)
+                Label.Position = UDim2.new(0, 0, 0, 0)
                 Label.BackgroundTransparency = 1
                 Label.Text = pickerText
                 Label.Font = Enum.Font.MontserratMedium
-                Label.TextSize = 10
+                Label.TextSize = 11
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
+                -- Rounded square picker button
                 local Preview = Instance.new("TextButton", Elem)
                 Preview.Size = UDim2.new(0, 16, 0, 16)
-                Preview.Position = UDim2.new(1, -26, 0.5, -8)
+                Preview.Position = UDim2.new(1, -16, 0.5, -8)
                 Preview.Text = ""
                 Preview.BackgroundColor3 = Picker.Value
-                Instance.new("UICorner", Preview).CornerRadius = UDim.new(0, 3)
+                Instance.new("UICorner", Preview).CornerRadius = UDim.new(0, 4)
 
                 Preview.MouseButton1Click:Connect(function()
                     local randomColor = Color3.fromHSV(math.random(), 1, 1)
@@ -934,6 +961,24 @@ function Library:CreateWindow(titleText, subtitleText)
                     Preview.BackgroundColor3 = val
                 end
                 return ctrl
+            end
+
+            -- ========================================================
+            -- [[ SECTION ELEMENT: BUTTON ]]
+            -- ========================================================
+            function Section:CreateButton(btnText, callback)
+                local Btn = Instance.new("TextButton", Content)
+                Btn.Size = UDim2.new(1, 0, 0, 30)
+                Btn.Font = Enum.Font.MontserratBold
+                Btn.TextSize = 10
+                Btn.Text = btnText
+                Btn.AutoButtonColor = false
+                RegisterTheme(Btn, { BackgroundColor3 = "Accent", TextColor3 = "SidebarBg" })
+                Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
+
+                Btn.MouseButton1Click:Connect(function()
+                    if callback then task.spawn(callback) end
+                end)
             end
 
             -- ========================================================
@@ -979,6 +1024,76 @@ function Library:CreateWindow(titleText, subtitleText)
         end
 
         return Tab
+    end
+
+    -- ========================================================
+    -- [[ 6. MOBILE FLOATING TOGGLE ICON ]]
+    -- ========================================================
+    local FloatingToggle = Instance.new("TextButton", ScreenGui)
+    FloatingToggle.Name = "Nexus_Floating_Toggler"
+    FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
+    FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
+    FloatingToggle.BorderSizePixel = 0
+    FloatingToggle.Text = ""
+    FloatingToggle.Visible = false
+    FloatingToggle.ClipsDescendants = true
+    RegisterTheme(FloatingToggle, { BackgroundColor3 = "SidebarBg" })
+
+    local ToggleCorner = Instance.new("UICorner", FloatingToggle)
+    ToggleCorner.CornerRadius = UDim.new(1, 0)
+
+    local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
+    ToggleStroke.Thickness = 1.5
+    RegisterTheme(ToggleStroke, { Color = "Accent" })
+
+    local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
+    ToggleIconImage.Size = UDim2.new(0.65, 0, 0.65, 0)
+    ToggleIconImage.Position = UDim2.new(0.175, 0, 0.175, 0)
+    ToggleIconImage.BackgroundTransparency = 1
+    ToggleIconImage.Image = "rbxassetid://10723375133" -- Crown/Shield Logo
+    RegisterTheme(ToggleIconImage, { ImageColor3 = "Accent" })
+
+    MakeDraggable(FloatingToggle, FloatingToggle)
+
+    local function ToggleGui()
+        Window.Visible = not Window.Visible
+        if Window.Visible then
+            -- Tampilkan Dashboard, Sembunyikan Floating Icon
+            MainFrame.Visible = true
+            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 640, 0, 460), Position = UDim2.new(0.5, -320, 0.5, -230)}):Play()
+            
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+            task.delay(0.2, function() FloatingToggle.Visible = false end)
+        else
+            -- Sembunyikan Dashboard, Tampilkan Floating Icon
+            local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
+            shrink:Play()
+            shrink.Completed:Connect(function()
+                if not Window.Visible then
+                    MainFrame.Visible = false
+                end
+            end)
+            
+            FloatingToggle.Visible = true
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+        end
+    end
+
+    FloatingToggle.MouseButton1Click:Connect(ToggleGui)
+
+    -- Sediakan Shortcut keyboard PC (Insert) untuk menyembunyikan
+    UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.KeyCode == Enum.KeyCode.Insert then
+            ToggleGui()
+        end
+    end)
+
+    -- Tutup UI pertama kali jika Anda ingin memulainya dari floating icon (opsional)
+    -- Saat dijalankan pertama kali, UI akan terbuka. Tekan Insert atau tahan drag untuk minimize.
+    
+    function Window:Minimize()
+        ToggleGui()
     end
 
     return Window
