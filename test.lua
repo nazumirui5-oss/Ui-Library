@@ -22,8 +22,8 @@ local Themes = {
         StrokeColor = Color3.fromRGB(38, 41, 49),
         Accent = Color3.fromRGB(0, 213, 239),
         TextPrimary = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(150, 155, 165),
-        TextDark = Color3.fromRGB(90, 95, 105)
+        TextSecondary = Color3.fromRGB(100, 170, 195), -- Biru muda lembut untuk tab tidak aktif
+        TextDark = Color3.fromRGB(110, 115, 125)        -- Abu-abu untuk header kategori
     }
 }
 
@@ -85,7 +85,8 @@ function Library:CreateWindow(titleText, subtitleText)
     local Window = {
         Tabs = {},
         ActiveTab = nil,
-        Visible = true
+        Visible = true,
+        CategoryCount = 0
     }
 
     local ScreenGui = Instance.new("ScreenGui")
@@ -110,10 +111,11 @@ function Library:CreateWindow(titleText, subtitleText)
     MainStroke.Thickness = 1.5
     RegisterTheme(MainStroke, { Color = "StrokeColor" })
 
-    -- Sidebar (Left Area)
+    -- Sidebar (Left Area) - Ditambahkan transparansi
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 170, 1, 0)
     Sidebar.BorderSizePixel = 0
+    Sidebar.BackgroundTransparency = 0.4
     RegisterTheme(Sidebar, { BackgroundColor3 = "SidebarBg" })
 
     local SidebarCorner = Instance.new("UICorner", Sidebar)
@@ -124,6 +126,7 @@ function Library:CreateWindow(titleText, subtitleText)
     SidebarMask.Size = UDim2.new(0, 15, 1, 0)
     SidebarMask.Position = UDim2.new(1, -15, 0, 0)
     SidebarMask.BorderSizePixel = 0
+    SidebarMask.BackgroundTransparency = 0.4
     RegisterTheme(SidebarMask, { BackgroundColor3 = "SidebarBg" })
 
     -- Drag Handle Logo
@@ -208,6 +211,21 @@ function Library:CreateWindow(titleText, subtitleText)
     -- [[ CATEGORY HEADER SYSTEM ]]
     -- ========================================================
     function Window:CreateCategory(categoryName)
+        Window.CategoryCount = Window.CategoryCount + 1
+
+        -- Jika ini kategori ke-2 atau lebih, tambahkan garis pembatas biru tipis di atasnya
+        if Window.CategoryCount > 1 then
+            local SeparatorFrame = Instance.new("Frame", TabScroll)
+            SeparatorFrame.Size = UDim2.new(1, -15, 0, 1)
+            SeparatorFrame.BorderSizePixel = 0
+            RegisterTheme(SeparatorFrame, { BackgroundColor3 = "Accent" })
+            SeparatorFrame.BackgroundTransparency = 0.5 -- transparansi lembut agar seimbang
+            
+            local Spacer = Instance.new("Frame", TabScroll)
+            Spacer.Size = UDim2.new(1, 0, 0, 4)
+            Spacer.BackgroundTransparency = 1
+        end
+
         local CatFrame = Instance.new("Frame", TabScroll)
         CatFrame.Size = UDim2.new(1, -10, 0, 24)
         CatFrame.BackgroundTransparency = 1
@@ -220,7 +238,7 @@ function Library:CreateWindow(titleText, subtitleText)
         Label.Font = Enum.Font.GothamBold
         Label.TextSize = 10
         Label.TextXAlignment = Enum.TextXAlignment.Left
-        RegisterTheme(Label, { TextColor3 = "TextDark" })
+        RegisterTheme(Label, { TextColor3 = "TextDark" }) -- Tetap warna abu-abu
     end
 
     -- ========================================================
@@ -296,7 +314,7 @@ function Library:CreateWindow(titleText, subtitleText)
         TabIcon.Position = UDim2.new(0, 12, 0.5, -8)
         TabIcon.BackgroundTransparency = 1
         TabIcon.Image = iconAssetId or "rbxassetid://10734741641"
-        RegisterTheme(TabIcon, { ImageColor3 = "TextSecondary" })
+        RegisterTheme(TabIcon, { ImageColor3 = "TextSecondary" }) -- Warna biru muda lembut
 
         local TabLabel = Instance.new("TextLabel", TabBtn)
         TabLabel.Size = UDim2.new(1, -40, 1, 0)
@@ -306,7 +324,7 @@ function Library:CreateWindow(titleText, subtitleText)
         TabLabel.Font = Enum.Font.GothamMedium
         TabLabel.TextSize = 11
         TabLabel.TextXAlignment = Enum.TextXAlignment.Left
-        RegisterTheme(TabLabel, { TextColor3 = "TextSecondary" })
+        RegisterTheme(TabLabel, { TextColor3 = "TextSecondary" }) -- Warna biru muda lembut
 
         Tab.Button = TabBtn
         Tab.Frame = TabPage
@@ -329,7 +347,7 @@ function Library:CreateWindow(titleText, subtitleText)
             TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.9}):Play()
             TweenService:Create(TabBtnAccent, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
             TweenService:Create(TabIcon, TweenInfo.new(0.2), {ImageColor3 = CurrentTheme.Accent}):Play()
-            TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play()
+            TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play() -- Putih saat aktif
         end
 
         TabBtn.MouseButton1Click:Connect(SelectTab)
@@ -443,7 +461,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
-                -- Inline container for auxiliary features next to toggle
                 local InlineList = Instance.new("Frame", Elem)
                 InlineList.Size = UDim2.new(0, 80, 1, 0)
                 InlineList.Position = UDim2.new(1, -114, 0, 0)
@@ -490,7 +507,6 @@ function Library:CreateWindow(titleText, subtitleText)
                     end
                 end
 
-                -- Toggle Switch (Pill Button)
                 local Switch = Instance.new("TextButton", Elem)
                 Switch.Size = UDim2.new(0, 26, 0, 14)
                 Switch.Position = UDim2.new(1, -26, 0.5, -7)
@@ -503,7 +519,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 SwitchStroke.Thickness = 1
                 RegisterTheme(SwitchStroke, { Color = "StrokeColor" })
 
-                -- Moving Circle Knob
                 local Ball = Instance.new("Frame", Switch)
                 Ball.Size = UDim2.new(0, 10, 0, 10)
                 Ball.Position = UDim2.new(0, 2, 0.5, -5)
@@ -599,7 +614,7 @@ function Library:CreateWindow(titleText, subtitleText)
             end
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: SLIDER ]]
+            -- [[ SECTION ELEMENT: SLIDER + TEXTBOX INPUT ]]
             -- ========================================================
             function Section:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
                 local Slider = { Value = defaultVal or minVal }
@@ -619,7 +634,8 @@ function Library:CreateWindow(titleText, subtitleText)
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
-                local ValLabel = Instance.new("TextLabel", Elem)
+                -- TextBox Input untuk memasukkan angka secara manual
+                local ValLabel = Instance.new("TextBox", Elem)
                 ValLabel.Size = UDim2.new(0, 40, 0, 18)
                 ValLabel.Position = UDim2.new(1, -40, 0, 0)
                 ValLabel.BackgroundTransparency = 1
@@ -627,6 +643,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 ValLabel.Font = Enum.Font.GothamMedium
                 ValLabel.TextSize = 11
                 ValLabel.TextXAlignment = Enum.TextXAlignment.Right
+                ValLabel.ClearTextOnFocus = false
                 RegisterTheme(ValLabel, { TextColor3 = "TextDark" })
 
                 local SliderBg = Instance.new("TextButton", Elem)
@@ -643,7 +660,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 RegisterTheme(SliderFill, { BackgroundColor3 = "Accent" })
                 Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
 
-                -- Visual Knob Indicator matching the image
                 local SliderKnob = Instance.new("Frame", SliderBg)
                 SliderKnob.Size = UDim2.new(0, 10, 0, 10)
                 SliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -651,31 +667,37 @@ function Library:CreateWindow(titleText, subtitleText)
                 SliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
                 Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
 
-                local function UpdateSlider(input)
+                local function ApplyValue(val)
+                    local clamped = math.clamp(val, minVal, maxVal)
+                    Slider.Value = clamped
+                    Library.Flags[flag] = clamped
+                    ValLabel.Text = tostring(clamped)
+                    
+                    local percentage = (clamped - minVal) / (maxVal - minVal)
+                    SliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+                    SliderKnob.Position = UDim2.new(percentage, 0, 0.5, 0)
+                    if callback then task.spawn(callback, clamped) end
+                end
+
+                local function UpdateSliderFromMouse(input)
                     local percentage = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
                     local rawVal = minVal + (percentage * (maxVal - minVal))
                     local finalVal = math.floor(rawVal + 0.5)
-
-                    Slider.Value = finalVal
-                    Library.Flags[flag] = finalVal
-                    ValLabel.Text = tostring(finalVal)
-                    SliderFill.Size = UDim2.new(percentage, 0, 1, 0)
-                    SliderKnob.Position = UDim2.new(percentage, 0, 0.5, 0)
-                    if callback then task.spawn(callback, finalVal) end
+                    ApplyValue(finalVal)
                 end
 
+                -- Input Dragging
                 local sliding = false
-
                 SliderBg.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                         sliding = true
-                        UpdateSlider(input)
+                        UpdateSliderFromMouse(input)
                     end
                 end)
 
                 UserInputService.InputChanged:Connect(function(input)
                     if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                        UpdateSlider(input)
+                        UpdateSliderFromMouse(input)
                     end
                 end)
 
@@ -685,14 +707,19 @@ function Library:CreateWindow(titleText, subtitleText)
                     end
                 end)
 
+                -- TextBox Input Manual (ketika fokus selesai/Enter ditekan)
+                ValLabel.FocusLost:Connect(function(enterPressed)
+                    local num = tonumber(ValLabel.Text)
+                    if num then
+                        ApplyValue(num)
+                    else
+                        ValLabel.Text = tostring(Slider.Value)
+                    end
+                end)
+
                 local ctrl = {}
                 function ctrl:Set(val)
-                    local clamped = math.clamp(val, minVal, maxVal)
-                    Slider.Value = clamped
-                    ValLabel.Text = tostring(clamped)
-                    local perc = (clamped - minVal) / (maxVal - minVal)
-                    SliderFill.Size = UDim2.new(perc, 0, 1, 0)
-                    SliderKnob.Position = UDim2.new(perc, 0, 0.5, 0)
+                    ApplyValue(val)
                 end
                 return ctrl
             end
@@ -958,7 +985,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
-                -- Rounded color square matching image
                 local Preview = Instance.new("TextButton", Elem)
                 Preview.Size = UDim2.new(0, 16, 0, 16)
                 Preview.Position = UDim2.new(1, -16, 0.5, -8)
@@ -1046,7 +1072,7 @@ function Library:CreateWindow(titleText, subtitleText)
     end
 
     -- ========================================================
-    -- [[ 6. MOBILE FLOATING TOGGLE ICON ]]
+    -- [[ MOBILE FLOATING TOGGLE ICON ]]
     -- ========================================================
     local FloatingToggle = Instance.new("TextButton", ScreenGui)
     FloatingToggle.Name = "Nexus_Floating_Toggler"
