@@ -1,4 +1,4 @@
--- Memuat UI Library utama dari gg.txt
+-- Memuat UI Library utama dari file gg.txt
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
 -- Inisialisasi Window Utama (Config terisolasi di dalam folder "Compkiller_Configs/Murder_Mystery_2/")
