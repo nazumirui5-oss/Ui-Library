@@ -1,5 +1,5 @@
 -- Memuat UI Library dari hosting/file eksternal (sesuaikan path atau URL raw-nya)
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/username/repo/main/gg.txt"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
 -- Inisialisasi Window Utama
 local Win = Library:CreateWindow("COMPKILLER", "NEVER")
