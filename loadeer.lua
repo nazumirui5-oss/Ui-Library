@@ -1,69 +1,69 @@
--- Fetch the UI Library source from your gg.txt file
+-- Sourced UI Library loader from raw Github gg.txt
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Initialize the Main Window (Hidden on launch, only the rounded floating squircle button appears)
-local Win = Library:CreateWindow("Universal Script", "V2.6", {
-    Mode = "PC",                       -- Initial mode: "PC" or "Mobile"
-    Scale = 1.0,                       -- Initial UI scale (1.0 = standard)
-    TextSizeMultiplier = 1.0,          -- Initial text size multiplier
-    Font = Enum.Font.GothamMedium,     -- Normal Font
-    BoldFont = Enum.Font.GothamBold    -- Bold Font
+-- Initialise Window (UI remains hidden at launch, showing only the squircle floating toggle icon)
+local Win = Library:CreateWindow("Universal Loader", "V2.6", {
+    Mode = "PC",                       -- Set "PC" or "Mobile" initial layout responsive modes
+    Scale = 1.0,                       -- Sizing Scale multiplier
+    TextSizeMultiplier = 1.0,          -- Text Size multiplier
+    Font = Enum.Font.GothamMedium,     -- Sourced text font
+    BoldFont = Enum.Font.GothamBold    -- Sourced bold text font
 })
 
 -- ========================================================
--- [[ SIMPLE EXAMPLES (BOILERPLATE TAB) ]]
+-- [[ BOILERPLATE CATEGORY AND TAB REFERENCE CREATIONS ]]
 -- ========================================================
-Win:CreateCategory("Features")
+Win:CreateCategory("Boilerplate")
 
--- Create a tab using Lucide "apple" icon
-local FeatureTab = Win:CreateTab("Main Hacks", "apple")   
+-- Custom Tab featuring dynamic Lucide "apple" icon downloading
+local ExampleTab = Win:CreateTab("Feature Tab", "apple")   
 
--- Create Section 1 (Left Area)
-local LeftSec = FeatureTab:CreateSection("Movement hacks")
+-- Section 1: left layout elements
+local Sec1 = ExampleTab:CreateSection("Left Section")
 
--- Toggle example
-LeftSec:CreateToggle("WalkSpeed Hack", false, "Toggle_Speed", { info = true, keybind = "X" }, function(state)
-    print("WalkSpeed State: ", state)
+-- 1. Toggle Switch
+Sec1:CreateToggle("Toggle Switch", false, "Toggle_Key1", { info = true, keybind = "E" }, function(state)
+    print("Toggle State: ", state)
 end)
 
--- Keybind example
-LeftSec:CreateKeybind("Trigger Keybind", Enum.KeyCode.E, "Keybind_Trigger", function(key)
-    print("Active Keybind: ", key.Name)
+-- 2. Bind Button
+Sec1:CreateKeybind("Select Keybind", Enum.KeyCode.LeftAlt, "Keybind_Key1", function(key)
+    print("Keybind State: ", key.Name)
 end)
 
--- Slider example (Supports manual typing values)
-LeftSec:CreateSlider("Speed Value", 16, 250, 16, "Slider_SpeedVal", function(val)
-    print("New Speed: ", val)
+-- 3. Slider (Supports direct input box typing)
+Sec1:CreateSlider("Numeric Slider", 0, 100, 50, "Slider_Key1", function(val)
+    print("Slider Value: ", val)
 end)
 
--- Color Picker example (Supports manual Hex code inputs like #ffffff)
-LeftSec:CreateColorPicker("ESP Color", Color3.fromRGB(0, 213, 239), "Color_ESP", function(color)
-    print("New ESP Color: ", color)
+-- 4. Color Picker (Supports hex code entry like #ffffff)
+Sec1:CreateColorPicker("Color Selector", Color3.fromRGB(0, 213, 239), "Color_Key1", function(color)
+    print("Selected Color (RGB): ", color)
 end)
 
 
--- Create Section 2 (Right Area)
-local RightSec = FeatureTab:CreateSection("Combat Settings")
+-- Section 2: right layout elements
+local Sec2 = ExampleTab:CreateSection("Right Section")
 
--- Dropdown example
-RightSec:CreateDropdown("Target Selection", {"Nearest", "Lowest HP", "Prioritise Friends"}, "Nearest", "Dropdown_Target", function(choice)
-    print("Target Priority: ", choice)
+-- 5. Standard Dropdown Menu
+Sec2:CreateDropdown("Single Selection", {"Aimbot", "Rage", "Legit"}, "Aimbot", "Dropdown_Key1", function(option)
+    print("Dropdown Selected: ", option)
 end)
 
--- Multi-Dropdown example
-RightSec:CreateMultiDropdown("ESP Visuals", {"Boxes", "Tracers", "Name Tags"}, {"Boxes"}, "Multi_ESPVisuals", function(options)
-    print("Active ESP: ", table.concat(options, ", "))
+-- 6. Multi Selection Menu
+Sec2:CreateMultiDropdown("Multi Selection", {"ESP Boxes", "ESP Lines", "ESP Names"}, {"ESP Boxes"}, "MultiDropdown_Key1", function(options)
+    print("Multi-Dropdown Selected: ", table.concat(options, ", "))
 end)
 
--- TextBox example
-RightSec:CreateTextBox("Target White-List", "Enter username...", "Text_Whitelist", function(input)
-    print("Whitelisted Player: ", input)
+-- 7. Standard Text Box
+Sec2:CreateTextBox("Custom Input Box", "Type something here...", "TextBox_Key1", function(text)
+    print("TextBox Submitted: ", text)
 end)
 
--- Button example
-RightSec:CreateButton("Apply Changes Now", function()
-    print("Changes applied!")
+-- 8. Command Button
+Sec2:CreateButton("Submit Settings", function()
+    print("Submit Button Clicked!")
 end)
 
--- Info Box Paragraph example
-RightSec:CreateParagraph("Status Log", "Use this section to config combat. WalkSpeed hack settings can be modified on the left section.")
+-- 9. Text Paragraph
+Sec2:CreateParagraph("Information Box", "This is an example paragraph template. You can write any help descriptions, instructions, or credits here.")
