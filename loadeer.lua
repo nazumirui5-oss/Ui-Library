@@ -1,69 +1,69 @@
--- Memuat UI Library utama dari gg.txt
+-- Memuat UI Library utama dari file gg.txt Anda
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Inisialisasi Window Utama dengan Pengaturan Kustom dari Loader
--- Konfigurasi ini secara dinamis mengisolasi folder penyimpanan file di dalam "Compkiller_Configs/Murder_Mystery_2/"
-local Win = Library:CreateWindow("Murder Mystery 2", "V2.5", {
+-- Inisialisasi Window Utama (UI Utama disembunyikan saat startup, hanya ikon floating yang muncul di awal)
+local Win = Library:CreateWindow("Universal Loader", "V2.6", {
     Mode = "PC",                       -- "PC" atau "Mobile"
-    Scale = 1.0,                       -- Skala awal UI (1.0 = normal, 1.2 = besar, 0.8 = kecil)
-    TextSizeMultiplier = 1.0,          -- Skala teks
-    Font = Enum.Font.GothamMedium,     -- Font utama
+    Scale = 1.0,                       -- Skala awal UI (1.0 = normal)
+    TextSizeMultiplier = 1.0,          -- Skala font
+    Font = Enum.Font.GothamMedium,     -- Font reguler
     BoldFont = Enum.Font.GothamBold    -- Font tebal
 })
 
--- ============================================
--- [[ PENATAAN KATEGORI & TAB (SIDEBAR) ]]
--- ============================================
+-- ========================================================
+-- [[ CONTOH TAB UTAMA YANG DIBUAT DI LOADER ]]
+-- ========================================================
+Win:CreateCategory("Boilerplate")
 
--- Kategori: "Game Features"
-Win:CreateCategory("Game Features")
+-- Contoh pembuatan Tab baru menggunakan ikon Lucide "apple"
+local ExampleTab = Win:CreateTab("Feature Tab", "apple")   
 
--- Membuat Tab Utama "Example" dengan sub-tab terkelompok di dalamnya
-local ExampleTab = Win:CreateTab("Example", "apple")
+-- Pembuatan Section Kiri (Section 1)
+local Sec1 = ExampleTab:CreateSection("Left Section")
 
--- Membuat Sub-Tab "Example" di dalam Tab Utama "Example"
-local ExampleSubTab = ExampleTab:CreateSubTab("Example")
-
--- ========================================================================
--- [[ PEMBUATAN FITUR DI DALAM SUB-TAB "EXAMPLE" ]]
--- ========================================================================
-
--- Pembuatan Section 1
-local Sec1 = ExampleSubTab:CreateSection("Section 1")
-
-Sec1:CreateToggle("Toggle Option 1", false, "Toggle1_Sec1", { info = true, keybind = "E" }, function(state)
-    print("Toggle 1 (Sec1): ", state)
+-- 1. Contoh Toggle
+Sec1:CreateToggle("Toggle Switch", false, "Toggle_Key1", { info = true, keybind = "E" }, function(state)
+    print("Toggle State: ", state)
 end)
 
-Sec1:CreateToggle("Toggle Option 2", false, "Toggle2_Sec1", { gear = true }, function(state)
-    print("Toggle 2 (Sec1): ", state)
+-- 2. Contoh Keybind
+Sec1:CreateKeybind("Select Keybind", Enum.KeyCode.LeftAlt, "Keybind_Key1", function(key)
+    print("Keybind State: ", key.Name)
 end)
 
-Sec1:CreateKeybind("Keybind Bind", Enum.KeyCode.LeftAlt, "Keybind1_Sec1", function(key)
-    print("Keybind (Sec1): ", key.Name)
+-- 3. Contoh Slider (Mendukung input manual lewat pengetikan teks angka)
+Sec1:CreateSlider("Numeric Slider", 0, 100, 50, "Slider_Key1", function(val)
+    print("Slider Value: ", val)
 end)
 
-Sec1:CreateSlider("Slider Bar", 0, 100, 50, "Slider1_Sec1", function(val)
-    print("Slider (Sec1): ", val)
+-- 4. Contoh Color Picker (Mendukung input manual lewat kode Hex seperti #ffffff atau ffffff)
+Sec1:CreateColorPicker("Color Selector", Color3.fromRGB(0, 213, 239), "Color_Key1", function(color)
+    print("Selected Color (RGB): ", color)
 end)
 
--- Pembuatan Section 2
-local Sec2 = ExampleSubTab:CreateSection("Section 2")
 
-Sec2:CreateColorPicker("ColorPicker Choice", Color3.fromRGB(0, 240, 130), "Color1_Sec1", function(color)
-    print("Color (Sec1): ", color)
+-- Pembuatan Section Kanan (Section 2)
+local Sec2 = ExampleTab:CreateSection("Right Section")
+
+-- 5. Contoh Dropdown Pilihan Tunggal
+Sec2:CreateDropdown("Single Selection", {"Aimbot", "Rage", "Legit"}, "Aimbot", "Dropdown_Key1", function(option)
+    print("Dropdown Selected: ", option)
 end)
 
-Sec2:CreateDropdown("Single Dropdown Choice", {"Head", "Torso", "Left Arm", "Right Arm"}, "Head", "Dropdown1_Sec1", function(opt)
-    print("Dropdown (Sec1): ", opt)
+-- 6. Contoh Dropdown Pilihan Ganda (Multi-select)
+Sec2:CreateMultiDropdown("Multi Selection", {"ESP Boxes", "ESP Lines", "ESP Names"}, {"ESP Boxes"}, "MultiDropdown_Key1", function(options)
+    print("Multi-Dropdown Selected: ", table.concat(options, ", "))
 end)
 
-Sec2:CreateMultiDropdown("Multi Dropdown Choice", {"Head", "Torso", "Left Arm", "Right Arm"}, {"Head"}, "MultiDropdown1_Sec1", function(opts)
-    print("Multi Dropdown (Sec1): ", table.concat(opts, ", "))
+-- 7. Contoh TextBox Input Teks
+Sec2:CreateTextBox("Custom Input Box", "Type something here...", "TextBox_Key1", function(text)
+    print("TextBox Submitted: ", text)
 end)
 
-Sec2:CreateButton("Button Action", function()
-    print("Button 1 Clicked!")
+-- 8. Contoh Tombol (Button)
+Sec2:CreateButton("Submit Settings", function()
+    print("Submit Button Clicked!")
 end)
 
-Sec2:CreateParagraph("Paragraph Description", "Very cool paragraph\nAll elements are loaded inside sub-tabs flawlessly!")
+-- 9. Contoh Paragraf Informasi
+Sec2:CreateParagraph("Information Box", "This is an example paragraph template. You can write any help descriptions, instructions, or credits here.")
