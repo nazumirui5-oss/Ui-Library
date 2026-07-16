@@ -21,49 +21,53 @@ if isFolderSupported and not isfolder("Compkiller_Configs") then
 end
 
 -- ========================================================
--- [[ GITHUB FONTAWESOME ICON LOADER ]]
+-- [[ DYNAMIC GITHUB LUCIDE ICON LOADER ]]
 -- ========================================================
-local GITHUB_ICON_DB_URL = "https://raw.githubusercontent.com/yofriend/roblox-fontawesome/main/icons.json"
-
-local IconMap = {
-    ["apple"] = "rbxassetid://10734741641",
-    ["user"] = "rbxassetid://10723374112",
-    ["gear"] = "rbxassetid://10734950309",
-    ["cog"] = "rbxassetid://10734950309",
-    ["folder"] = "rbxassetid://10734741211",
-    ["sliders"] = "rbxassetid://10734942250",
-    ["slider"] = "rbxassetid://10734942250",
-    ["info"] = "rbxassetid://10723415903"
-}
-
-task.spawn(function()
-    local success, response = pcall(function()
-        return game:HttpGet(GITHUB_ICON_DB_URL)
-    end)
-    if success and response then
-        local successDecode, decoded = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        if successDecode and typeof(decoded) == "table" then
-            for k, v in pairs(decoded) do
-                IconMap[string.lower(k)] = v
+local function GetIcon(iconName)
+    if not iconName then return "" end
+    iconName = iconName:lower()
+    
+    -- Jika sudah berupa direct Asset ID atau web URL
+    if string.match(iconName, "^rbxassetid://") or string.match(iconName, "^http") then
+        return iconName
+    end
+    
+    -- Jika executor mendukung download custom assets
+    if writefile and readfile and isfile and getcustomasset then
+        if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
+        if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
+        
+        local fileName = iconName .. ".png"
+        local localPath = "Compkiller_Configs/.icons/" .. fileName
+        
+        if isfile(localPath) then
+            return getcustomasset(localPath)
+        else
+            -- Download PNG 256px langsung dari latte-soft/lucide-roblox GitHub Repository
+            local url = "https://raw.githubusercontent.com/latte-soft/lucide-roblox/master/icons/compiled/256px/" .. fileName
+            local success, content = pcall(function()
+                return game:HttpGet(url)
+            end)
+            if success and content and #content > 0 then
+                pcall(writefile, localPath, content)
+                return getcustomasset(localPath)
             end
         end
     end
-end)
-
-local function GetIcon(iconInput)
-    if not iconInput then return "" end
-    if typeof(iconInput) == "string" then
-        if string.match(iconInput, "^rbxassetid://") or string.match(iconInput, "^http") then
-            return iconInput
-        end
-        local lowerName = string.lower(iconInput)
-        if IconMap[lowerName] then
-            return IconMap[lowerName]
-        end
-    end
-    return tostring(iconInput)
+    
+    -- Fallback lokal jika offline atau executor tidak mendukung getcustomasset
+    local Fallbacks = {
+        ["apple"] = "rbxassetid://10734741641",
+        ["user"] = "rbxassetid://10723374112",
+        ["gear"] = "rbxassetid://10734950309",
+        ["cog"] = "rbxassetid://10734950309",
+        ["settings"] = "rbxassetid://10734950309",
+        ["folder"] = "rbxassetid://10734741211",
+        ["sliders"] = "rbxassetid://10734942250",
+        ["slider"] = "rbxassetid://10734942250",
+        ["info"] = "rbxassetid://10723415903"
+    }
+    return Fallbacks[iconName] or "rbxassetid://10723375133"
 end
 
 -- ========================================================
@@ -182,7 +186,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TextSizeMultiplier = config.TextSizeMultiplier or 1.0
     }
 
-    -- Penamaan Folder Berdasarkan Game/Loader agar Tidak Saling Menimpa
+    -- Penamaan Folder Terisolasi Berdasarkan Loader Game
     local cleanTitle = string.gsub(titleText or "Universal", "[%s%p]", "_")
     local ConfigFolder = "Compkiller_Configs/" .. cleanTitle
     if isFolderSupported and not isfolder(ConfigFolder) then
@@ -368,7 +372,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Label.TextXAlignment = Enum.TextXAlignment.Left
         RegisterTheme(Label, { TextColor3 = "TextDark" })
         RegisterFont(Label, true)
-        RegisterText(Label, 14) -- Diperbesar sesuai dengan tampilan foto
+        RegisterText(Label, 14) -- Diperbesar secara visual agar sesuai contoh gambar
     end
 
     -- ========================================================
@@ -544,7 +548,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ToggleIcon.Size = UDim2.new(0, 12, 0, 12)
             ToggleIcon.Position = UDim2.new(1, -24, 0.5, -6)
             ToggleIcon.BackgroundTransparency = 1
-            ToggleIcon.Image = "rbxassetid://10709790644"
+            ToggleIcon.Image = GetIcon("chevron-down")
             RegisterTheme(ToggleIcon, { ImageColor3 = "TextSecondary" })
 
             local Content = Instance.new("Frame", SecFrame)
@@ -606,7 +610,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         local InfoIcon = Instance.new("ImageLabel", InlineList)
                         InfoIcon.Size = UDim2.new(0, 14, 0, 14)
                         InfoIcon.BackgroundTransparency = 1
-                        InfoIcon.Image = "rbxassetid://10723415903"
+                        InfoIcon.Image = GetIcon("info")
                         RegisterTheme(InfoIcon, { ImageColor3 = "TextDark" })
                     end
 
@@ -614,7 +618,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         local GearIcon = Instance.new("ImageLabel", InlineList)
                         GearIcon.Size = UDim2.new(0, 14, 0, 14)
                         GearIcon.BackgroundTransparency = 1
-                        GearIcon.Image = "rbxassetid://10734950309"
+                        GearIcon.Image = GetIcon("settings")
                         RegisterTheme(GearIcon, { ImageColor3 = "TextDark" })
                     end
 
@@ -1258,46 +1262,94 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     end
 
     -- ========================================================
-    -- [[ 6. AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
+    -- [[ AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
     -- ========================================================
     task.spawn(function()
         task.wait(0.05)
 
-        -- Penanganan Serialisasi / Deserialisasi Config
-        local function SaveConfig(configName)
-            if not isFolderSupported then return end
-            local dataToSave = {}
-            for flag, value in pairs(Library.Flags) do
-                if typeof(value) == "Color3" then
-                    dataToSave[flag] = {math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255)}
-                elseif typeof(value) == "EnumItem" then
-                    dataToSave[flag] = tostring(value)
-                else
-                    dataToSave[flag] = value
+        -- Serialisasi Tabel Luau Kompleks
+        local function serializeTable(val)
+            if typeof(val) == "string" then
+                return string.format("%q", val)
+            elseif typeof(val) == "number" or typeof(val) == "boolean" then
+                return tostring(val)
+            elseif typeof(val) == "table" then
+                local str = "{\n"
+                for k, v in pairs(val) do
+                    str = str .. string.format("  [%s] = %s,\n", serializeTable(k), serializeTable(v))
+                end
+                str = str .. "}"
+                return str
+            end
+            return "nil"
+        end
+
+        -- Pembacaan Konfigurasi Lua format return table
+        local function LoadLuaConfig(path)
+            local content = readfile(path)
+            local func, err = loadstring(content)
+            if func then
+                local success, tbl = pcall(func)
+                if success and typeof(tbl) == "table" then
+                    return tbl
                 end
             end
-            local path = ConfigFolder .. "/" .. configName .. ".json"
-            writefile(path, HttpService:JSONEncode(dataToSave))
+            return nil
+        end
+
+        local function SaveConfig(configName, format)
+            if not isFolderSupported then return end
+            format = format or "JSON"
+            
+            local dataToSave = {}
+            for flag, value in pairs(Library.Flags) do
+                -- Jangan simpan flag config internal
+                if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
+                    if typeof(value) == "Color3" then
+                        dataToSave[flag] = {math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255)}
+                    elseif typeof(value) == "EnumItem" then
+                        dataToSave[flag] = tostring(value)
+                    else
+                        dataToSave[flag] = value
+                    end
+                end
+            end
+            
+            local path = ConfigFolder .. "/" .. configName
+            if format == "LUA" then
+                local serialized = "return " .. serializeTable(dataToSave)
+                writefile(path .. ".lua", serialized)
+            else
+                local encoded = HttpService:JSONEncode(dataToSave)
+                writefile(path .. ".json", encoded)
+            end
         end
 
         local function LoadConfig(configName)
             if not isFolderSupported then return end
-            local path = ConfigFolder .. "/" .. configName .. ".json"
-            if isfile(path) then
-                local data = readfile(path)
+            local luaPath = ConfigFolder .. "/" .. configName .. ".lua"
+            local jsonPath = ConfigFolder .. "/" .. configName .. ".json"
+            local loadedData = nil
+            
+            if isfile(luaPath) then
+                loadedData = LoadLuaConfig(luaPath)
+            elseif isfile(jsonPath) then
+                local data = readfile(jsonPath)
                 local success, decoded = pcall(function() return HttpService:JSONDecode(data) end)
-                if success and typeof(decoded) == "table" then
-                    for flag, value in pairs(decoded) do
-                        if Library.Registry[flag] then
-                            pcall(function()
-                                if Library.Registry[flag].Type == "ColorPicker" and typeof(value) == "table" then
-                                    local r, g, b = value[1], value[2], value[3]
-                                    Library.Registry[flag].Control:Set(Color3.fromRGB(r, g, b))
-                                else
-                                    Library.Registry[flag].Control:Set(value)
-                                end
-                            end)
-                        end
+                if success then loadedData = decoded end
+            end
+            
+            if loadedData and typeof(loadedData) == "table" then
+                for flag, value in pairs(loadedData) do
+                    if Library.Registry[flag] then
+                        pcall(function()
+                            if Library.Registry[flag].Type == "ColorPicker" and typeof(value) == "table" then
+                                local r, g, b = value[1], value[2], value[3]
+                                Library.Registry[flag].Control:Set(Color3.fromRGB(r, g, b))
+                            else
+                                Library.Registry[flag].Control:Set(value)
+                            end
+                        end)
                     end
                 end
             end
@@ -1305,10 +1357,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
         local function DeleteConfig(configName)
             if not isFolderSupported then return end
-            local path = ConfigFolder .. "/" .. configName .. ".json"
-            if isfile(path) then
-                delfile(path)
-            end
+            local luaPath = ConfigFolder .. "/" .. configName .. ".lua"
+            local jsonPath = ConfigFolder .. "/" .. configName .. ".json"
+            if isfile(luaPath) then delfile(luaPath) end
+            if isfile(jsonPath) then delfile(jsonPath) end
         end
 
         local function GetConfigsList()
@@ -1316,8 +1368,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             if listfiles and isfolder and isfolder(ConfigFolder) then
                 local files = listfiles(ConfigFolder)
                 for _, file in ipairs(files) do
-                    local name = string.match(file, "([^/]+)%.json$")
-                    if name then
+                    local name = string.match(file, "([^/]+)%.[jJ][sS][oO][nN]$") or string.match(file, "([^/]+)%.[lL][uU][aA]$")
+                    if name and not table.find(list, name) then
                         table.insert(list, name)
                     end
                 end
@@ -1328,7 +1380,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return list
         end
 
-        -- Pembuatan Tab Pengaturan Bawaan
+        -- Pembuatan Kategori Khusus & Tab Pengaturan Bawaan
         Window:CreateCategory("UI Settings")
         
         -- Built-in Preferences Tab (Ikon Gear)
@@ -1347,18 +1399,20 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             UpdateTextSizes(sizePerc / 100)
         end)
 
-        -- Built-in File Manager Tab (Ikon Folder)
+        -- Built-in File Manager Tab (Ikon Folder Berbeda)
         local ConfigManagerTab = Window:CreateTab("Configs", "folder")
         
         local SaveSec = ConfigManagerTab:CreateSection("Save Configuration")
         SaveSec:CreateTextBox("Config Name", "Enter name...", "Sys_Save_Name")
+        SaveSec:CreateDropdown("Save Format", {"JSON", "LUA"}, "JSON", "Sys_Save_Format")
         
         local configDropdown
 
         SaveSec:CreateButton("Save Configuration", function()
             local name = Library.Flags["Sys_Save_Name"]
+            local format = Library.Flags["Sys_Save_Format"] or "JSON"
             if name and name ~= "" and name ~= "Enter name..." then
-                SaveConfig(name)
+                SaveConfig(name, format)
                 if configDropdown then
                     local newList = GetConfigsList()
                     configDropdown:Refresh(newList, name)
