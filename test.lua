@@ -188,8 +188,7 @@ function Library:Notify(title, message, duration)
     duration = duration or 5
 
     local Toast = Instance.new("Frame")
-    Toast.Size = UDim2.new(1, 0, 0, 0) -- automatic size
-    Toast.AutomaticSize = Enum.AutomaticSize.Y
+    Toast.Size = UDim2.new(1, 0, 0, 60)
     Toast.BackgroundTransparency = 0.1
     Toast.ClipsDescendants = true
     RegisterTheme(Toast, { BackgroundColor3 = "SectionBg" })
@@ -285,8 +284,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     CreateNotificationContainer(ScreenGui)
 
-    -- CanvasGroup used for perfect clipping & removing vertical gap seams between Sidebar and Content
-    local MainFrame = Instance.new("CanvasGroup")
+    local MainFrame = Instance.new("Frame")
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
     MainFrame.BackgroundTransparency = 1
@@ -316,19 +314,42 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     end
     ApplyUiSettings(Library.Settings.Mode, Library.Settings.Scale)
 
-    -- Sidebar (Left Area)
+    -- Sidebar Container (Size: 170)
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 170, 1, 0)
+    Sidebar.BackgroundTransparency = 1
     Sidebar.BorderSizePixel = 0
-    Sidebar.BackgroundTransparency = 0.4
-    RegisterTheme(Sidebar, { BackgroundColor3 = "SidebarBg" })
 
-    -- Latar Belakang Padat Bagian Kanan (Content Area) - No overlapping masks, clean adjacency
-    local ContentBg = Instance.new("Frame", MainFrame)
-    ContentBg.Size = UDim2.new(1, -170, 1, 0)
-    ContentBg.Position = UDim2.new(0, 170, 0, 0)
-    ContentBg.BorderSizePixel = 0
-    RegisterTheme(ContentBg, { BackgroundColor3 = "WindowBg" })
+    -- Left Rounded Sidebar (Width: 155) - No overlap/masks, no double transparency seams!
+    local SidebarLeft = Instance.new("Frame", Sidebar)
+    SidebarLeft.Size = UDim2.new(0, 155, 1, 0)
+    SidebarLeft.BorderSizePixel = 0
+    SidebarLeft.BackgroundTransparency = 0.4
+    RegisterTheme(SidebarLeft, { BackgroundColor3 = "SidebarBg" })
+    Instance.new("UICorner", SidebarLeft).CornerRadius = UDim.new(0, 8)
+
+    -- Right Flat Sidebar (Width: 15) - Flush connection
+    local SidebarRight = Instance.new("Frame", Sidebar)
+    SidebarRight.Size = UDim2.new(0, 15, 1, 0)
+    SidebarRight.Position = UDim2.new(0, 155, 0, 0)
+    SidebarRight.BorderSizePixel = 0
+    SidebarRight.BackgroundTransparency = 0.4
+    RegisterTheme(SidebarRight, { BackgroundColor3 = "SidebarBg" })
+
+    -- Left Flat Content Area (Width: 15)
+    local ContentBgLeft = Instance.new("Frame", MainFrame)
+    ContentBgLeft.Size = UDim2.new(0, 15, 1, 0)
+    ContentBgLeft.Position = UDim2.new(0, 170, 0, 0)
+    ContentBgLeft.BorderSizePixel = 0
+    RegisterTheme(ContentBgLeft, { BackgroundColor3 = "WindowBg" })
+
+    -- Right Rounded Content Area (Width: 100% - 185)
+    local ContentBgRight = Instance.new("Frame", MainFrame)
+    ContentBgRight.Size = UDim2.new(1, -185, 1, 0)
+    ContentBgRight.Position = UDim2.new(0, 185, 0, 0)
+    ContentBgRight.BorderSizePixel = 0
+    RegisterTheme(ContentBgRight, { BackgroundColor3 = "WindowBg" })
+    Instance.new("UICorner", ContentBgRight).CornerRadius = UDim.new(0, 8)
 
     -- Drag Handle Logo
     local LogoArea = Instance.new("Frame", Sidebar)
@@ -438,7 +459,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Label.TextXAlignment = Enum.TextXAlignment.Left
         RegisterTheme(Label, { TextColor3 = "TextDark" })
         RegisterFont(Label, true)
-        RegisterText(Label, 14)
+        RegisterText(Label, 14) -- Large matching example image
     end
 
     -- ========================================================
@@ -457,35 +478,49 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabPage.BackgroundTransparency = 1
         TabPage.ScrollBarThickness = 0
         TabPage.Visible = false
-        TabPage.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
-        TabPage.CanvasSize = UDim2.new(0, 0, 0, 0)
 
         local ColumnContainer = Instance.new("Frame", TabPage)
         ColumnContainer.Size = UDim2.new(1, -20, 0, 0)
         ColumnContainer.Position = UDim2.new(0, 10, 0, 10)
         ColumnContainer.BackgroundTransparency = 1
-        ColumnContainer.AutomaticSize = Enum.AutomaticSize.Y
 
-        -- Layout-Safe Dual Columns with Automatic Sizing (Fixes section disappearing bugs)
+        -- Dual Columns with Robust Height Handling (Fixes section disappearing bugs)
         local LeftColumn = Instance.new("Frame", ColumnContainer)
-        LeftColumn.Size = UDim2.new(0.5, -6, 0, 0)
+        LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
         LeftColumn.Position = UDim2.new(0, 0, 0, 0)
         LeftColumn.BackgroundTransparency = 1
-        LeftColumn.AutomaticSize = Enum.AutomaticSize.Y
 
         local LeftList = Instance.new("UIListLayout", LeftColumn)
         LeftList.Padding = UDim.new(0, 12)
         LeftList.SortOrder = Enum.SortOrder.LayoutOrder
 
         local RightColumn = Instance.new("Frame", ColumnContainer)
-        RightColumn.Size = UDim2.new(0.5, -6, 0, 0)
+        RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
         RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
         RightColumn.BackgroundTransparency = 1
-        RightColumn.AutomaticSize = Enum.AutomaticSize.Y
 
         local RightList = Instance.new("UIListLayout", RightColumn)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
+
+        -- Safe and deterministic height calculation
+        local function UpdateCanvas()
+            local leftHeight = 0
+            for _, child in ipairs(LeftColumn:GetChildren()) do
+                if child:IsA("Frame") then
+                    leftHeight = leftHeight + child.Size.Y.Offset + 12
+                end
+            end
+            local rightHeight = 0
+            for _, child in ipairs(RightColumn:GetChildren()) do
+                if child:IsA("Frame") then
+                    rightHeight = rightHeight + child.Size.Y.Offset + 12
+                end
+            end
+            local maxHeight = math.max(leftHeight, rightHeight) + 30
+            TabPage.CanvasSize = UDim2.new(0, 0, 0, maxHeight)
+            ColumnContainer.Size = UDim2.new(1, -20, 0, maxHeight)
+        end
 
         local TabBtn = Instance.new("TextButton", TabScroll)
         TabBtn.Size = UDim2.new(1, -10, 0, 32)
@@ -543,6 +578,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TweenService:Create(TabBtnAccent, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
             TweenService:Create(TabIcon, TweenInfo.new(0.2), {ImageColor3 = CurrentTheme.Accent}):Play()
             TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play()
+            UpdateCanvas()
         end
 
         TabBtn.MouseButton1Click:Connect(SelectTab)
@@ -576,13 +612,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         function Tab:CreateSection(sectionName)
             local Section = {}
             
-            -- Alternate columns structurally to guarantee 100% bug-free rendering
+            -- Alternate columns to keep sections balanced
             Tab.SectionCount = Tab.SectionCount + 1
             local targetColumn = (Tab.SectionCount % 2 == 1) and LeftColumn or RightColumn
 
             local SecFrame = Instance.new("Frame", targetColumn)
             SecFrame.Size = UDim2.new(1, 0, 0, 40)
-            SecFrame.AutomaticSize = Enum.AutomaticSize.Y
             RegisterTheme(SecFrame, { BackgroundColor3 = "SectionBg" })
 
             local SecCorner = Instance.new("UICorner", SecFrame)
@@ -614,15 +649,22 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             RegisterTheme(ToggleIcon, { ImageColor3 = "TextSecondary" })
 
             local Content = Instance.new("Frame", SecFrame)
-            Content.Size = UDim2.new(1, 0, 0, 0)
+            Content.Size = UDim2.new(1, 0, 1, -34)
             Content.Position = UDim2.new(0, 0, 0, 34)
             Content.BackgroundTransparency = 1
-            Content.AutomaticSize = Enum.AutomaticSize.Y
 
             local ContentList = Instance.new("UIListLayout", Content)
             ContentList.Padding = UDim.new(0, 10)
             ContentList.HorizontalAlignment = Enum.HorizontalAlignment.Center
             ContentList.SortOrder = Enum.SortOrder.LayoutOrder
+
+            local function UpdateSectionSize()
+                local contentHeight = ContentList.AbsoluteContentSize.Y
+                SecFrame.Size = UDim2.new(1, 0, 0, contentHeight + 46)
+                UpdateCanvas()
+            end
+
+            ContentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSectionSize)
 
             local InsidePadding = Instance.new("UIPadding", Content)
             InsidePadding.PaddingLeft = UDim.new(0, 12)
