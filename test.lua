@@ -7,11 +7,6 @@ local LocalPlayer = Players.LocalPlayer
 local TextService = game:GetService("TextService")
 local HttpService = game:GetService("HttpService")
 
--- ========================================================
--- [[ CUSTOMISABLE CONFIGURATIONS ]]
--- ========================================================
-local FLOATING_ICON_DECAL = "rbxassetid://10723375133" -- Customize your floating button image ID here
-
 Library.Flags = {}
 Library.Elements = {}
 Library.Registry = {}
@@ -19,7 +14,12 @@ Library.ThemeRegistry = {}
 Library.TextRegistry = {}
 Library.FontRegistry = {}
 
--- Main folder directory for configs
+-- ========================================================
+-- [[ CONFIGURABLE FLOATING ICON DECAL ]]
+-- ========================================================
+local FLOATING_ICON_DECAL = "rbxassetid://10723375133" -- Replace this ID with your custom decal image
+
+-- Main save directory
 local isFolderSupported = makefolder and isfolder
 if isFolderSupported and not isfolder("Compkiller_Configs") then
     makefolder("Compkiller_Configs")
@@ -28,35 +28,6 @@ end
 -- ========================================================
 -- [[ DYNAMIC GITHUB LUCIDE ICON LOADER ]]
 -- ========================================================
-local GITHUB_ICON_DB_URL = "https://raw.githubusercontent.com/yofriend/roblox-fontawesome/main/icons.json"
-
-local IconMap = {
-    ["apple"] = "rbxassetid://10734741641",
-    ["user"] = "rbxassetid://10723374112",
-    ["gear"] = "rbxassetid://10734950309",
-    ["cog"] = "rbxassetid://10734950309",
-    ["folder"] = "rbxassetid://10734741211",
-    ["sliders"] = "rbxassetid://10734942250",
-    ["slider"] = "rbxassetid://10734942250",
-    ["info"] = "rbxassetid://10723415903"
-}
-
-task.spawn(function()
-    local success, response = pcall(function()
-        return game:HttpGet(GITHUB_ICON_DB_URL)
-    end)
-    if success and response then
-        local successDecode, decoded = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        if successDecode and typeof(decoded) == "table" then
-            for k, v in pairs(decoded) do
-                IconMap[string.lower(k)] = v
-            end
-        end
-    end
-end)
-
 local function GetIcon(iconName)
     if not iconName then return "" end
     iconName = iconName:lower()
@@ -166,7 +137,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
+            TweenService:Create(item.Instance, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextSize = math.round(item.BaseSize * multiplier) }):Play()
         end)
     end
 end
@@ -223,7 +194,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local Window = {
         Tabs = {},
         ActiveTab = nil,
-        Visible = false, -- Starts hidden by default
+        Visible = false,
         CategoryCount = 0
     }
 
@@ -254,7 +225,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
     MainFrame.BackgroundTransparency = 1
-    MainFrame.Visible = false -- Hidden initially
+    MainFrame.Visible = false
     
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 8)
@@ -266,9 +237,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local UiScale = Instance.new("UIScale", MainFrame)
     UiScale.Scale = Library.Settings.Scale
 
-    -- Sidebar (Left Area) - Width set to 185 to naturally overlap with ContentBg and avoid annoying stripes
+    -- Sidebar (Left Area)
     local Sidebar = Instance.new("Frame", MainFrame)
-    Sidebar.Size = UDim2.new(0, 185, 1, 0)
+    Sidebar.Size = UDim2.new(0, 170, 1, 0)
     Sidebar.BorderSizePixel = 0
     Sidebar.BackgroundTransparency = 0.4
     RegisterTheme(Sidebar, { BackgroundColor3 = "SidebarBg" })
@@ -276,30 +247,33 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local SidebarCorner = Instance.new("UICorner", Sidebar)
     SidebarCorner.CornerRadius = UDim.new(0, 8)
 
-    -- Solid Background for Content Pane (Right Area)
+    local SidebarMask = Instance.new("Frame", Sidebar)
+    SidebarMask.Size = UDim2.new(0, 15, 1, 0)
+    SidebarMask.Position = UDim2.new(1, -15, 0, 0)
+    SidebarMask.BorderSizePixel = 0
+    SidebarMask.BackgroundTransparency = 0.4
+    RegisterTheme(SidebarMask, { BackgroundColor3 = "SidebarBg" })
+
+    -- Latar Belakang Padat Bagian Kanan (Content Area)
     local ContentBg = Instance.new("Frame", MainFrame)
     ContentBg.Size = UDim2.new(1, -170, 1, 0)
     ContentBg.Position = UDim2.new(0, 170, 0, 0)
     ContentBg.BorderSizePixel = 0
-    ContentBg.ZIndex = 2 -- Overlayed above Sidebar's extended area
     RegisterTheme(ContentBg, { BackgroundColor3 = "WindowBg" })
 
     local ContentBgCorner = Instance.new("UICorner", ContentBg)
     ContentBgCorner.CornerRadius = UDim.new(0, 8)
 
-    -- Flatten the left side of ContentBg to fit Sidebar perfectly
     local ContentBgMask = Instance.new("Frame", ContentBg)
     ContentBgMask.Size = UDim2.new(0, 15, 1, 0)
     ContentBgMask.Position = UDim2.new(0, 0, 0, 0)
     ContentBgMask.BorderSizePixel = 0
-    ContentBgMask.ZIndex = 1
     RegisterTheme(ContentBgMask, { BackgroundColor3 = "WindowBg" })
 
     -- Drag Handle Logo
     local LogoArea = Instance.new("Frame", Sidebar)
-    LogoArea.Size = UDim2.new(0, 170, 0, 50)
+    LogoArea.Size = UDim2.new(1, 0, 0, 50)
     LogoArea.BackgroundTransparency = 1
-    LogoArea.ZIndex = 3
     MakeDraggable(LogoArea, MainFrame)
 
     local LogoIcon = Instance.new("ImageLabel", LogoArea)
@@ -319,12 +293,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(TitleLabel, true)
     RegisterText(TitleLabel, 13)
 
-    -- Sidebar Scroll View
+    -- Sidebar Scroll
     local TabScroll = Instance.new("ScrollingFrame", Sidebar)
-    TabScroll.Size = UDim2.new(0, 160, 1, -120)
+    TabScroll.Size = UDim2.new(1, -10, 1, -120)
     TabScroll.Position = UDim2.new(0, 5, 0, 55)
     TabScroll.BackgroundTransparency = 1
-    TabScroll.ZIndex = 3
     TabScroll.ScrollBarThickness = 0
     TabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 
@@ -336,12 +309,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabScroll.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y)
     end)
 
-    -- User Card at bottom of Sidebar
+    -- Bottom User profile
     local UserCard = Instance.new("Frame", Sidebar)
-    UserCard.Size = UDim2.new(0, 160, 0, 50)
+    UserCard.Size = UDim2.new(1, -20, 0, 50)
     UserCard.Position = UDim2.new(0, 10, 1, -60)
     UserCard.BackgroundTransparency = 1
-    UserCard.ZIndex = 3
 
     local AvatarImg = Instance.new("ImageLabel", UserCard)
     AvatarImg.Size = UDim2.new(0, 32, 0, 32)
@@ -370,12 +342,31 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(SubtextLabel, true)
     RegisterText(SubtextLabel, 9)
 
-    -- Content Area Panel
+    -- Content Frame Workspace
     local ContentArea = Instance.new("Frame", MainFrame)
     ContentArea.Size = UDim2.new(1, -170, 1, 0)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
     ContentArea.BackgroundTransparency = 1
-    ContentArea.ZIndex = 3
+
+    -- Responsive PC vs Mobile Sizing & Alignment
+    local function ApplyUiSettings(mode, scale)
+        Library.Settings.Mode = mode
+        Library.Settings.Scale = scale
+        UiScale.Scale = scale
+        
+        if mode == "PC" then
+            MainFrame.Size = UDim2.new(0, 640, 0, 460)
+            MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
+        elseif mode == "Mobile" then
+            MainFrame.Size = UDim2.new(0, 500, 0, 340)
+            MainFrame.Position = UDim2.new(0.5, -250, 0.5, -170)
+        end
+        
+        -- Force re-calculation of current tab heights and canvas layout
+        for _, t in ipairs(Window.Tabs) do
+            t.ResizeCanvas()
+        end
+    end
 
     -- ========================================================
     -- [[ CATEGORY HEADER SYSTEM ]]
@@ -396,7 +387,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
 
         local CatFrame = Instance.new("Frame", TabScroll)
-        CatFrame.Size = UDim2.new(1, 0, 0, 24)
+        CatFrame.Size = UDim2.new(1, -10, 0, 24)
         CatFrame.BackgroundTransparency = 1
 
         local Label = Instance.new("TextLabel", CatFrame)
@@ -407,7 +398,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Label.TextXAlignment = Enum.TextXAlignment.Left
         RegisterTheme(Label, { TextColor3 = "TextDark" })
         RegisterFont(Label, true)
-        RegisterText(Label, 14) -- Visually matched size
+        RegisterText(Label, 14)
     end
 
     -- ========================================================
@@ -431,58 +422,57 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         ColumnContainer.Position = UDim2.new(0, 10, 0, 10)
         ColumnContainer.BackgroundTransparency = 1
 
-        -- Column List Layout for Stacked Mobile Mode
-        local ColumnLayout = Instance.new("UIListLayout", ColumnContainer)
-        ColumnLayout.Padding = UDim.new(0, 12)
-        ColumnLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        ColumnLayout.Enabled = false -- Default disabled in PC mode
-
         local LeftColumn = Instance.new("Frame", ColumnContainer)
-        LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
-        LeftColumn.Position = UDim2.new(0, 0, 0, 0)
         LeftColumn.BackgroundTransparency = 1
-        LeftColumn.LayoutOrder = 1
 
         local LeftList = Instance.new("UIListLayout", LeftColumn)
         LeftList.Padding = UDim.new(0, 12)
         LeftList.SortOrder = Enum.SortOrder.LayoutOrder
 
         local RightColumn = Instance.new("Frame", ColumnContainer)
-        RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
-        RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
         RightColumn.BackgroundTransparency = 1
-        RightColumn.LayoutOrder = 2
 
         local RightList = Instance.new("UIListLayout", RightColumn)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
 
-        -- Resizes Canvas and Columns dynamically based on Layout Mode to prevent overlaps
+        -- Dynamic Column and Canvas Resize (Responsive Alignment)
         local function ResizeCanvas()
-            local leftHeight = LeftList.AbsoluteContentSize.Y
-            local rightHeight = RightList.AbsoluteContentSize.Y
             local targetHeight
-            
             if Library.Settings.Mode == "PC" then
+                local leftHeight = LeftList.AbsoluteContentSize.Y
+                local rightHeight = RightList.AbsoluteContentSize.Y
                 targetHeight = math.max(leftHeight, rightHeight) + 30
+                
                 LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
+                LeftColumn.Position = UDim2.new(0, 0, 0, 0)
+                
                 RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
                 RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
-            else
-                targetHeight = leftHeight + rightHeight + 42
+                RightColumn.Visible = true
+            else -- Mobile stacked view to completely prevent overlaps
+                local leftHeight = LeftList.AbsoluteContentSize.Y
+                local rightHeight = RightList.AbsoluteContentSize.Y
+                
                 LeftColumn.Size = UDim2.new(1, 0, 0, leftHeight)
+                LeftColumn.Position = UDim2.new(0, 0, 0, 0)
+                
                 RightColumn.Size = UDim2.new(1, 0, 0, rightHeight)
+                RightColumn.Position = UDim2.new(0, 0, 0, leftHeight + 12)
+                RightColumn.Visible = true
+                
+                targetHeight = leftHeight + rightHeight + 42
             end
-            
             TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
             ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
         end
+        Tab.ResizeCanvas = ResizeCanvas
 
         LeftList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
         RightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
 
         local TabBtn = Instance.new("TextButton", TabScroll)
-        TabBtn.Size = UDim2.new(1, 0, 0, 32)
+        TabBtn.Size = UDim2.new(1, -10, 0, 32)
         TabBtn.Position = UDim2.new(0, 5, 0, 0)
         TabBtn.BackgroundTransparency = 1
         TabBtn.Text = ""
@@ -532,6 +522,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
             Window.ActiveTab = Tab
             TabPage.Visible = true
+            ResizeCanvas()
             
             TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.9}):Play()
             TweenService:Create(TabBtnAccent, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
@@ -563,24 +554,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
 
         table.insert(Window.Tabs, Tab)
-
-        -- Apply Settings dynamically
-        local function ApplyUiSettings(mode, scale)
-            Library.Settings.Mode = mode
-            Library.Settings.Scale = scale
-            UiScale.Scale = scale
-            
-            if mode == "PC" then
-                MainFrame.Size = UDim2.new(0, 640, 0, 460)
-                MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
-                ColumnLayout.Enabled = false
-            elseif mode == "Mobile" then
-                MainFrame.Size = UDim2.new(0, 500, 0, 340)
-                MainFrame.Position = UDim2.new(0.5, -250, 0.5, -170)
-                ColumnLayout.Enabled = true
-            end
-            ResizeCanvas()
-        end
 
         -- ========================================================
         -- [[ SECTION CONTAINER CREATION ]]
@@ -1181,7 +1154,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: COLOR PICKER + HEX TEXT INPUT ]]
+            -- [[ SECTION ELEMENT: COLOR PICKER + HEX INPUT ]]
             -- ========================================================
             function Section:CreateColorPicker(pickerText, defaultColor, flag, callback)
                 local Picker = { Value = defaultColor or Color3.fromRGB(0, 255, 120) }
@@ -1201,7 +1174,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Label, false)
                 RegisterText(Label, 11)
 
-                -- Rounded square color preview box
                 local Preview = Instance.new("TextButton", Elem)
                 Preview.Size = UDim2.new(0, 16, 0, 16)
                 Preview.Position = UDim2.new(1, -16, 0.5, -8)
@@ -1209,7 +1181,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Preview.BackgroundColor3 = Picker.Value
                 Instance.new("UICorner", Preview).CornerRadius = UDim.new(0, 4)
 
-                -- TextBox Input for RGB Hex Code (e.g. #ffffff)
+                -- Hex Code RGB Text Input
                 local HexInput = Instance.new("TextBox", Elem)
                 HexInput.Size = UDim2.new(0, 60, 0, 18)
                 HexInput.Position = UDim2.new(1, -82, 0.5, -9)
@@ -1370,7 +1342,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     task.spawn(function()
         task.wait(0.05)
 
-        -- Complex Luau Serialization Helper
+        -- Complex Luau Table Serialization
         local function serializeTable(val)
             if typeof(val) == "string" then
                 return string.format("%q", val)
@@ -1387,7 +1359,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return "nil"
         end
 
-        -- Config Luau Script Deserialization
+        -- Loader configuration parser
         local function LoadLuaConfig(path)
             local content = readfile(path)
             local func, err = loadstring(content)
@@ -1482,10 +1454,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return list
         end
 
-        -- Generate Built-in Kategori UI Settings
+        -- Automatically create UI Settings category
         Window:CreateCategory("UI Settings")
         
-        -- Built-in preferences tab ("Setting")
+        -- Built-in preferences tab ("Setting" - Formerly "Config UI")
         local BuiltInTab = Window:CreateTab("Setting", "gear")
         
         local ConfigSec = BuiltInTab:CreateSection("Layout Preferences")
@@ -1502,28 +1474,33 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             UpdateTextSizes(sizePerc / 100)
         end)
 
-        -- Smooth-Tweened Accent Color selector with hex textbox inside the "Setting" tab
+        -- Smooth Accent RGB Color Picker with hex code input
         ThemeSec:CreateColorPicker("Accent Color", CurrentTheme.Accent, "BuiltIn_AccentColor", function(color)
             CurrentTheme.Accent = color
             for _, item in ipairs(Library.ThemeRegistry) do
                 for prop, key in pairs(item.Properties) do
                     if key == "Accent" then
                         pcall(function()
-                            TweenService:Create(item.Instance, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                                [prop] = color
-                            }):Play()
+                            TweenService:Create(item.Instance, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { [prop] = color }):Play()
                         end)
                     end
+                end
+            end
+            -- Instantly update selected tab icon color
+            if Window.ActiveTab then
+                local icon = Window.ActiveTab.Button:FindFirstChildOfClass("ImageLabel")
+                if icon then
+                    TweenService:Create(icon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { ImageColor3 = color }):Play()
                 end
             end
         end)
 
         local ActionSec = BuiltInTab:CreateSection("Emergency Actions")
-        ActionSec:CreateButton("Destroy UI Permanently", function()
+        ActionSec:CreateButton("Destroy UI", function()
             ScreenGui:Destroy()
         end)
 
-        -- Built-in File Manager Tab (Configs)
+        -- Built-in File Manager Tab (Ikon Folder)
         local ConfigManagerTab = Window:CreateTab("Configs", "folder")
         
         local SaveSec = ConfigManagerTab:CreateSection("Save Configuration")
@@ -1580,11 +1557,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
-    FloatingToggle.Visible = true -- Visible on startup
+    FloatingToggle.Visible = true -- Starts visible before main UI appears
     FloatingToggle.ClipsDescendants = true
     RegisterTheme(FloatingToggle, { BackgroundColor3 = "SidebarBg" })
 
-    -- Corner radius changed to 12 for rounded-squircle shape
+    -- Redesigned squircle rounded toggle
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
     ToggleCorner.CornerRadius = UDim.new(0, 12)
 
@@ -1592,14 +1569,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ToggleStroke.Thickness = 1.5
     RegisterTheme(ToggleStroke, { Color = "Accent" })
 
-    -- Display thumbnail/decal image onto the floating toggle button
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
-    ToggleIconImage.Size = UDim2.new(1, 0, 1, 0)
+    ToggleIconImage.Size = UDim2.new(0.65, 0, 0.65, 0)
+    ToggleIconImage.Position = UDim2.new(0.175, 0, 0.175, 0)
     ToggleIconImage.BackgroundTransparency = 1
-    ToggleIconImage.Image = GetIcon(FLOATING_ICON_DECAL)
-    
-    local IconCorner = Instance.new("UICorner", ToggleIconImage)
-    IconCorner.CornerRadius = UDim.new(0, 12)
+    ToggleIconImage.Image = FLOATING_ICON_DECAL -- Core decaling thumbnail support
+    RegisterTheme(ToggleIconImage, { ImageColor3 = "Accent" })
 
     MakeDraggable(FloatingToggle, FloatingToggle)
 
@@ -1608,7 +1583,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         if Window.Visible then
             MainFrame.Visible = true
             TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = MainFrame.Size, Position = MainFrame.Position}):Play()
-            -- Icon shrink and disappear when open
             TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
         else
             local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
@@ -1618,8 +1592,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     MainFrame.Visible = false
                 end
             end)
-            
-            -- Icon reappear when closed
             TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
         end
     end
