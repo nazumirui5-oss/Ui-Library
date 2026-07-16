@@ -1,11 +1,10 @@
--- Memuat UI Library utama dari file gg.txt
+-- Memuat UI Library utama dari gg.txt
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Inisialisasi Window Utama dengan Pengaturan Kustom dari Loader
--- Konfigurasi ini secara dinamis mengisolasi folder penyimpanan file di dalam "Compkiller_Configs/Murder_Mystery_2/"
-local Win = Library:CreateWindow("Murder Mystery 2", "V2.5", {
-    Mode = "PC",                       -- "PC" atau "Mobile"
-    Scale = 1.0,                       -- Skala awal UI
+-- Inisialisasi Window Utama (Config terisolasi di dalam folder "Compkiller_Configs/Murder_Mystery_2/")
+local Win = Library:CreateWindow("Murder Mystery 2", "V2.6", {
+    Mode = "PC",                       -- "PC" atau "Mobile" (bisa diubah manual sewaktu-waktu)
+    Scale = 1.0,                       -- Skala awal UI (bisa diubah manual sewaktu-waktu)
     TextSizeMultiplier = 1.0,          -- Skala teks
     Font = Enum.Font.GothamMedium,     -- Font utama
     BoldFont = Enum.Font.GothamBold    -- Font tebal
@@ -20,14 +19,6 @@ Win:CreateCategory("Example")
 
 -- Menggunakan download ikon Lucide otomatis dari repositori GitHub latte-soft
 local ExampleTab = Win:CreateTab("Example Tab", "apple")   
-local SingleTab = Win:CreateTab("Single Tab", "sliders")     
-local ExtractTabs = Win:CreateTab("Extract Tabs", "user")   
-
--- Kategori: "Misc" (Garis pembatas biru tipis otomatis muncul di atas kategori ini)
-Win:CreateCategory("Misc")
-local SettingsTab = Win:CreateTab("Settings", "settings")     
-local ConfigTab = Win:CreateTab("Config", "folder")         
-
 
 -- ========================================================================
 -- [[ KOLOM KIRI (SECTION 1) ]]
