@@ -1,23 +1,33 @@
+-- Memuat UI Library yang sudah ditingkatkan
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Inisialisasi Window Utama
-local Win = Library:CreateWindow("COMPKILLER", "NEVER")
+-- Inisialisasi Window Utama dengan Pengaturan Kustom dari Loader
+local Win = Library:CreateWindow("COMPKILLER", "NEVER", {
+    Mode = "PC",                       -- "PC" atau "Mobile" (ukuran akan disesuaikan otomatis)
+    Scale = 1.0,                       -- Skala awal UI (1.0 = normal, 1.2 = besar, 0.8 = kecil)
+    TextSizeMultiplier = 1.0,          -- Skala ukuran teks (1.0 = normal)
+    Font = Enum.Font.GothamMedium,     -- Jenis Font reguler seluruh UI
+    BoldFont = Enum.Font.GothamBold    -- Jenis Font tebal untuk header dan judul
+})
 
 -- ============================================
--- [[ PENATAAN SIDEBAR & DIVIDER OTOMATIS ]]
+-- [[ PENATAAN KATEGORI & TAB (SIDEBAR) ]]
 -- ============================================
 
--- Kategori 1: "Example"
+-- Kategori: "Example"
 Win:CreateCategory("Example")
 
-local ExampleTab = Win:CreateTab("Example Tab", "rbxassetid://10734741641")   -- Apple (Aktif/Putih)
-local SingleTab = Win:CreateTab("Single Tab", "rbxassetid://10734942250")     -- Loop (Tidak Aktif/Biru Muda)
-local ExtractTabs = Win:CreateTab("Extract Tabs", "rbxassetid://10723374112")   -- Profile (Tidak Aktif/Biru Muda)
+-- Menggunakan ikon FontAwesome: "apple", "slider", "user"
+local ExampleTab = Win:CreateTab("Example Tab", "apple")   
+local SingleTab = Win:CreateTab("Single Tab", "slider")     
+local ExtractTabs = Win:CreateTab("Extract Tabs", "user")   
 
--- Kategori 2: "Misc" (Garis pembatas biru otomatis akan dibuat tepat di atasnya)
+-- Kategori: "Misc" (Garis pembatas biru tipis otomatis muncul di atas kategori ini)
 Win:CreateCategory("Misc")
-local SettingsTab = Win:CreateTab("Settings", "rbxassetid://10734950309")     -- Settings (Tidak Aktif/Biru Muda)
-local ConfigTab = Win:CreateTab("Config", "rbxassetid://10734741211")         -- Config (Tidak Aktif/Biru Muda)
+
+-- Menggunakan ikon FontAwesome: "settings", "folder"
+local SettingsTab = Win:CreateTab("Settings", "settings")     
+local ConfigTab = Win:CreateTab("Config", "folder")         
 
 
 -- ========================================================================
@@ -37,7 +47,6 @@ Sec1:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec1", function(ke
     print("Keybind (Sec1): ", key.Name)
 end)
 
--- Slider dengan textbox input manual angka di sebelah kanan
 Sec1:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec1", function(val)
     print("Slider (Sec1): ", val)
 end)
@@ -78,7 +87,6 @@ Sec2:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec2", function(ke
     print("Keybind (Sec2): ", key.Name)
 end)
 
--- Slider dengan textbox input manual angka di sebelah kanan
 Sec2:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec2", function(val)
     print("Slider (Sec2): ", val)
 end)
