@@ -1,27 +1,28 @@
--- Memuat UI Library dari hosting/file eksternal (sesuaikan path atau URL raw-nya)
+-- Memuat UI Library yang sudah diperbarui
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Inisialisasi Window Utama
+-- Membuat Window Utama
 local Win = Library:CreateWindow("COMPKILLER", "NEVER")
 
 -- ============================================
--- [[ PENATAAN KATEGORI & TAB (SIDEBAR) ]]
+-- [[ STRUKTUR KATEGORI & TAB (SIDEBAR) ]]
 -- ============================================
 
--- Kategori: Example
+-- Kategori Pertama: "Example"
 Win:CreateCategory("Example")
 
-local ExampleTab = Win:CreateTab("Example Tab", "rbxassetid://10734741641")   -- Ikon Apple
-local SingleTab = Win:CreateTab("Single Tab", "rbxassetid://10734942250")     -- Ikon Lingkaran Loop
-local ExtractTabs = Win:CreateTab("Extract Tabs", "rbxassetid://10723374112")   -- Ikon Kalender/Profile
+local ExampleTab = Win:CreateTab("Example Tab", "rbxassetid://10734741641")   -- Ikon Apple (Tab Aktif)
+local SingleTab = Win:CreateTab("Single Tab", "rbxassetid://10734942250")     -- Ikon Loop Biru
+local ExtractTabs = Win:CreateTab("Extract Tabs", "rbxassetid://10723374112")   -- Ikon Kalender/Profile Biru
 
--- Kategori: Misc
+-- Kategori Kedua: "Misc" (Garis pemisah biru otomatis akan muncul di atas kategori ini)
 Win:CreateCategory("Misc")
-local SettingsTab = Win:CreateTab("Settings", "rbxassetid://10734950309")     -- Ikon Gerigi Settings
-local ConfigTab = Win:CreateTab("Config", "rbxassetid://10734741211")         -- Ikon Folder Config
+local SettingsTab = Win:CreateTab("Settings", "rbxassetid://10734950309")     -- Ikon Gerigi Settings Biru
+local ConfigTab = Win:CreateTab("Config", "rbxassetid://10734741211")         -- Ikon Folder Config Biru
+
 
 -- ========================================================================
--- [[ KOLOM KIRI (SECTION 1) - SEMUA ELEMEN DI-SAVE KE CONFIG ]]
+-- [[ KOLOM KIRI (SECTION 1) ]]
 -- ========================================================================
 local Sec1 = ExampleTab:CreateSection("Section")
 
@@ -37,6 +38,7 @@ Sec1:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec1", function(ke
     print("Keybind (Sec1): ", key.Name)
 end)
 
+-- Slider dengan TextBox yang bisa diketik angka nilainya!
 Sec1:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec1", function(val)
     print("Slider (Sec1): ", val)
 end)
@@ -61,7 +63,7 @@ Sec1:CreateParagraph("Paragraph", "Very cool paragraph\nAll element in this scrt
 
 
 -- ========================================================================
--- [[ KOLOM KANAN (SECTION 2) - SEMUA ELEMEN TIDAK DI-SAVE KE CONFIG ]]
+-- [[ KOLOM KANAN (SECTION 2) ]]
 -- ========================================================================
 local Sec2 = ExampleTab:CreateSection("Section")
 
@@ -77,6 +79,7 @@ Sec2:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec2", function(ke
     print("Keybind (Sec2): ", key.Name)
 end)
 
+-- Slider kanan juga mendukung ketikan angka di TextBox-nya!
 Sec2:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec2", function(val)
     print("Slider (Sec2): ", val)
 end)
