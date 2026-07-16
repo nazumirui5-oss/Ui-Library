@@ -1,24 +1,23 @@
--- Memuat UI Library yang sudah diperbarui
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Membuat Window Utama
+-- Inisialisasi Window Utama
 local Win = Library:CreateWindow("COMPKILLER", "NEVER")
 
 -- ============================================
--- [[ STRUKTUR KATEGORI & TAB (SIDEBAR) ]]
+-- [[ PENATAAN SIDEBAR & DIVIDER OTOMATIS ]]
 -- ============================================
 
--- Kategori Pertama: "Example"
+-- Kategori 1: "Example"
 Win:CreateCategory("Example")
 
-local ExampleTab = Win:CreateTab("Example Tab", "rbxassetid://10734741641")   -- Ikon Apple (Tab Aktif)
-local SingleTab = Win:CreateTab("Single Tab", "rbxassetid://10734942250")     -- Ikon Loop Biru
-local ExtractTabs = Win:CreateTab("Extract Tabs", "rbxassetid://10723374112")   -- Ikon Kalender/Profile Biru
+local ExampleTab = Win:CreateTab("Example Tab", "rbxassetid://10734741641")   -- Apple (Aktif/Putih)
+local SingleTab = Win:CreateTab("Single Tab", "rbxassetid://10734942250")     -- Loop (Tidak Aktif/Biru Muda)
+local ExtractTabs = Win:CreateTab("Extract Tabs", "rbxassetid://10723374112")   -- Profile (Tidak Aktif/Biru Muda)
 
--- Kategori Kedua: "Misc" (Garis pemisah biru otomatis akan muncul di atas kategori ini)
+-- Kategori 2: "Misc" (Garis pembatas biru otomatis akan dibuat tepat di atasnya)
 Win:CreateCategory("Misc")
-local SettingsTab = Win:CreateTab("Settings", "rbxassetid://10734950309")     -- Ikon Gerigi Settings Biru
-local ConfigTab = Win:CreateTab("Config", "rbxassetid://10734741211")         -- Ikon Folder Config Biru
+local SettingsTab = Win:CreateTab("Settings", "rbxassetid://10734950309")     -- Settings (Tidak Aktif/Biru Muda)
+local ConfigTab = Win:CreateTab("Config", "rbxassetid://10734741211")         -- Config (Tidak Aktif/Biru Muda)
 
 
 -- ========================================================================
@@ -38,7 +37,7 @@ Sec1:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec1", function(ke
     print("Keybind (Sec1): ", key.Name)
 end)
 
--- Slider dengan TextBox yang bisa diketik angka nilainya!
+-- Slider dengan textbox input manual angka di sebelah kanan
 Sec1:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec1", function(val)
     print("Slider (Sec1): ", val)
 end)
@@ -79,7 +78,7 @@ Sec2:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec2", function(ke
     print("Keybind (Sec2): ", key.Name)
 end)
 
--- Slider kanan juga mendukung ketikan angka di TextBox-nya!
+-- Slider dengan textbox input manual angka di sebelah kanan
 Sec2:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec2", function(val)
     print("Slider (Sec2): ", val)
 end)
