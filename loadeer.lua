@@ -1,13 +1,14 @@
--- Memuat UI Library yang sudah ditingkatkan
+-- Memuat UI Library utama dari gg.txt
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
 -- Inisialisasi Window Utama dengan Pengaturan Kustom dari Loader
-local Win = Library:CreateWindow("COMPKILLER", "NEVER", {
-    Mode = "PC",                       -- "PC" atau "Mobile" (ukuran akan disesuaikan otomatis)
-    Scale = 1.0,                       -- Skala awal UI (1.0 = normal, 1.2 = besar, 0.8 = kecil)
-    TextSizeMultiplier = 1.0,          -- Skala ukuran teks (1.0 = normal)
-    Font = Enum.Font.GothamMedium,     -- Jenis Font reguler seluruh UI
-    BoldFont = Enum.Font.GothamBold    -- Jenis Font tebal untuk header dan judul
+-- Konfigurasi ini secara dinamis mengisolasi folder penyimpanan file di dalam "Compkiller_Configs/Murder_Mystery_2/"
+local Win = Library:CreateWindow("Murder Mystery 2", "V2.4", {
+    Mode = "PC",                       -- "PC" atau "Mobile"
+    Scale = 1.0,                       -- Skala awal UI
+    TextSizeMultiplier = 1.0,          -- Skala teks
+    Font = Enum.Font.GothamMedium,     -- Font utama
+    BoldFont = Enum.Font.GothamBold    -- Font tebal
 })
 
 -- ============================================
@@ -17,15 +18,13 @@ local Win = Library:CreateWindow("COMPKILLER", "NEVER", {
 -- Kategori: "Example"
 Win:CreateCategory("Example")
 
--- Menggunakan ikon FontAwesome: "apple", "slider", "user"
+-- Otomatis mencari pemetaan ID Roblox FontAwesome secara dinamis dari tautan GitHub
 local ExampleTab = Win:CreateTab("Example Tab", "apple")   
 local SingleTab = Win:CreateTab("Single Tab", "slider")     
 local ExtractTabs = Win:CreateTab("Extract Tabs", "user")   
 
 -- Kategori: "Misc" (Garis pembatas biru tipis otomatis muncul di atas kategori ini)
 Win:CreateCategory("Misc")
-
--- Menggunakan ikon FontAwesome: "settings", "folder"
 local SettingsTab = Win:CreateTab("Settings", "settings")     
 local ConfigTab = Win:CreateTab("Config", "folder")         
 
