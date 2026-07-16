@@ -13,8 +13,9 @@ Library.Registry = {}
 Library.ThemeRegistry = {}
 Library.TextRegistry = {}
 Library.FontRegistry = {}
+Library.AccentRegistry = {}
 
--- Folder Utama Penyimpanan Config
+-- Main folder for configs
 local isFolderSupported = makefolder and isfolder
 if isFolderSupported and not isfolder("Compkiller_Configs") then
     makefolder("Compkiller_Configs")
@@ -27,12 +28,10 @@ local function GetIcon(iconName)
     if not iconName then return "" end
     iconName = iconName:lower()
     
-    -- Jika sudah berupa direct Asset ID atau web URL
     if string.match(iconName, "^rbxassetid://") or string.match(iconName, "^http") then
         return iconName
     end
     
-    -- Jika executor mendukung download custom assets
     if writefile and readfile and isfile and getcustomasset then
         if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
         if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
@@ -43,7 +42,6 @@ local function GetIcon(iconName)
         if isfile(localPath) then
             return getcustomasset(localPath)
         else
-            -- Download PNG 256px langsung dari latte-soft/lucide-roblox GitHub Repository
             local url = "https://raw.githubusercontent.com/latte-soft/lucide-roblox/master/icons/compiled/256px/" .. fileName
             local success, content = pcall(function()
                 return game:HttpGet(url)
@@ -55,7 +53,6 @@ local function GetIcon(iconName)
         end
     end
     
-    -- Fallback lokal jika offline atau executor tidak mendukung getcustomasset
     local Fallbacks = {
         ["apple"] = "rbxassetid://10734741641",
         ["user"] = "rbxassetid://10723374112",
@@ -102,6 +99,45 @@ local function RegisterTheme(instance, propertyMap)
 end
 
 -- ========================================================
+-- [[ ACCENT COLOR REGISTRY (SMOOTH TWEENS) ]]
+-- ========================================================
+local function RegisterAccent(instance, property)
+    table.insert(Library.AccentRegistry, {
+        Instance = instance,
+        Property = property
+    })
+    instance[property] = CurrentTheme.Accent
+end
+
+local function UpdateAccentColor(newColor)
+    CurrentTheme.Accent = newColor
+    for _, item in ipairs(Library.AccentRegistry) do
+        pcall(function()
+            TweenService:Create(item.Instance, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                [item.Property] = newColor
+            }):Play()
+        end)
+    end
+end
+
+-- Hex Color Parser supporting #fff, #ffff, #ffffff, #ffffffff
+local function GetColorFromHex(hex)
+    hex = hex:gsub("#", "")
+    if #hex == 3 then
+        local r = tonumber(hex:sub(1, 1) .. hex:sub(1, 1), 16)
+        local g = tonumber(hex:sub(2, 2) .. hex:sub(2, 2), 16)
+        local b = tonumber(hex:sub(3, 3) .. hex:sub(3, 3), 16)
+        if r and g and b then return Color3.fromRGB(r, g, b) end
+    elseif #hex == 4 or #hex == 8 or #hex == 6 then
+        local r = tonumber(hex:sub(1, 2), 16) or tonumber(hex:sub(1, 1) .. hex:sub(1, 1), 16)
+        local g = tonumber(hex:sub(3, 4), 16) or tonumber(hex:sub(2, 2) .. hex:sub(2, 2), 16)
+        local b = tonumber(hex:sub(5, 6), 16) or tonumber(hex:sub(3, 3) .. hex:sub(3, 3), 16)
+        if r and g and b then return Color3.fromRGB(r, g, b) end
+    end
+    return nil
+end
+
+-- ========================================================
 -- [[ TEXT & FONT REGISTRY ]]
 -- ========================================================
 local function RegisterText(instance, baseSize)
@@ -130,39 +166,86 @@ local function RegisterFont(instance, isBold)
 end
 
 -- ========================================================
--- [[ HYBRID TOUCH & MOUSE DRAGGING ]]
+-- [[ TOAST NOTIFICATION SYSTEM ]]
 -- ========================================================
-local function MakeDraggable(dragTrigger, frameToMove)
-    local dragging, dragInput, dragStart, startPos
-    
-    dragTrigger.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frameToMove.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    
-    dragTrigger.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            frameToMove.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
-        end
+local NotificationContainer
+local function CreateNotificationContainer(parent)
+    if NotificationContainer then return end
+    NotificationContainer = Instance.new("Frame")
+    NotificationContainer.Name = "NotificationContainer"
+    NotificationContainer.Size = UDim2.new(0, 280, 1, -20)
+    NotificationContainer.Position = UDim2.new(1, -300, 0, 10)
+    NotificationContainer.BackgroundTransparency = 1
+    NotificationContainer.Parent = parent
+
+    local Layout = Instance.new("UIListLayout", NotificationContainer)
+    Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    Layout.Padding = UDim.new(0, 10)
+end
+
+function Library:Notify(title, message, duration)
+    if not NotificationContainer then return end
+    duration = duration or 5
+
+    local Toast = Instance.new("Frame")
+    Toast.Size = UDim2.new(1, 0, 0, 0) -- automatic size
+    Toast.AutomaticSize = Enum.AutomaticSize.Y
+    Toast.BackgroundTransparency = 0.1
+    Toast.ClipsDescendants = true
+    RegisterTheme(Toast, { BackgroundColor3 = "SectionBg" })
+
+    local Corner = Instance.new("UICorner", Toast)
+    Corner.CornerRadius = UDim.new(0, 6)
+
+    local Stroke = Instance.new("UIStroke", Toast)
+    Stroke.Thickness = 1
+    RegisterTheme(Stroke, { Color = "StrokeColor" })
+
+    local AccentBar = Instance.new("Frame", Toast)
+    AccentBar.Size = UDim2.new(0, 4, 1, 0)
+    AccentBar.Position = UDim2.new(0, 0, 0, 0)
+    AccentBar.BorderSizePixel = 0
+    RegisterAccent(AccentBar, "BackgroundColor3")
+
+    local Pad = Instance.new("UIPadding", Toast)
+    Pad.PaddingLeft = UDim.new(0, 14)
+    Pad.PaddingRight = UDim.new(0, 10)
+    Pad.PaddingTop = UDim.new(0, 10)
+    Pad.PaddingBottom = UDim.new(0, 10)
+
+    local Title = Instance.new("TextLabel", Toast)
+    Title.Size = UDim2.new(1, 0, 0, 16)
+    Title.BackgroundTransparency = 1
+    Title.Text = title
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterTheme(Title, { TextColor3 = "TextPrimary" })
+    RegisterFont(Title, true)
+    RegisterText(Title, 11)
+
+    local Desc = Instance.new("TextLabel", Toast)
+    Desc.Size = UDim2.new(1, 0, 0, 0)
+    Desc.Position = UDim2.new(0, 0, 0, 18)
+    Desc.AutomaticSize = Enum.AutomaticSize.Y
+    Desc.BackgroundTransparency = 1
+    Desc.Text = message
+    Desc.TextWrapped = true
+    Desc.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterTheme(Desc, { TextColor3 = "TextSecondary" })
+    RegisterFont(Desc, false)
+    RegisterText(Desc, 10)
+
+    Toast.Parent = NotificationContainer
+
+    -- Pop-in Animation
+    Toast.Size = UDim2.new(1, 0, 0, 0)
+    TweenService:Create(Toast, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(1, 0, 0, 60) }):Play()
+
+    task.delay(duration, function()
+        local shrink = TweenService:Create(Toast, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.new(1, 0, 0, 0) })
+        shrink:Play()
+        shrink.Completed:Connect(function()
+            Toast:Destroy()
+        end)
     end)
 end
 
@@ -186,7 +269,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TextSizeMultiplier = config.TextSizeMultiplier or 1.0
     }
 
-    -- Penamaan Folder Terisolasi Berdasarkan Loader Game
     local cleanTitle = string.gsub(titleText or "Universal", "[%s%p]", "_")
     local ConfigFolder = "Compkiller_Configs/" .. cleanTitle
     if isFolderSupported and not isfolder(ConfigFolder) then
@@ -201,7 +283,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local successHui, hui = pcall(function() return gethui and gethui() end)
     ScreenGui.Parent = (successHui and hui) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
-    local MainFrame = Instance.new("Frame")
+    CreateNotificationContainer(ScreenGui)
+
+    -- CanvasGroup used for perfect clipping & removing vertical gap seams between Sidebar and Content
+    local MainFrame = Instance.new("CanvasGroup")
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
     MainFrame.BackgroundTransparency = 1
@@ -221,13 +306,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Library.Settings.Scale = scale
         UiScale.Scale = scale
         
-        if mode == "PC" then
-            MainFrame.Size = UDim2.new(0, 640, 0, 460)
-            MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
-        elseif mode == "Mobile" then
-            MainFrame.Size = UDim2.new(0, 500, 0, 340)
-            MainFrame.Position = UDim2.new(0.5, -250, 0.5, -170)
-        end
+        local targetSize = (mode == "PC") and UDim2.new(0, 640, 0, 460) or UDim2.new(0, 500, 0, 340)
+        local targetPos = (mode == "PC") and UDim2.new(0.5, -320, 0.5, -230) or UDim2.new(0.5, -250, 0.5, -170)
+
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = targetSize,
+            Position = targetPos
+        }):Play()
     end
     ApplyUiSettings(Library.Settings.Mode, Library.Settings.Scale)
 
@@ -238,31 +323,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     Sidebar.BackgroundTransparency = 0.4
     RegisterTheme(Sidebar, { BackgroundColor3 = "SidebarBg" })
 
-    local SidebarCorner = Instance.new("UICorner", Sidebar)
-    SidebarCorner.CornerRadius = UDim.new(0, 8)
-
-    local SidebarMask = Instance.new("Frame", Sidebar)
-    SidebarMask.Size = UDim2.new(0, 15, 1, 0)
-    SidebarMask.Position = UDim2.new(1, -15, 0, 0)
-    SidebarMask.BorderSizePixel = 0
-    SidebarMask.BackgroundTransparency = 0.4
-    RegisterTheme(SidebarMask, { BackgroundColor3 = "SidebarBg" })
-
-    -- Latar Belakang Padat Bagian Kanan (Content Area)
+    -- Latar Belakang Padat Bagian Kanan (Content Area) - No overlapping masks, clean adjacency
     local ContentBg = Instance.new("Frame", MainFrame)
     ContentBg.Size = UDim2.new(1, -170, 1, 0)
     ContentBg.Position = UDim2.new(0, 170, 0, 0)
     ContentBg.BorderSizePixel = 0
     RegisterTheme(ContentBg, { BackgroundColor3 = "WindowBg" })
-
-    local ContentBgCorner = Instance.new("UICorner", ContentBg)
-    ContentBgCorner.CornerRadius = UDim.new(0, 8)
-
-    local ContentBgMask = Instance.new("Frame", ContentBg)
-    ContentBgMask.Size = UDim2.new(0, 15, 1, 0)
-    ContentBgMask.Position = UDim2.new(0, 0, 0, 0)
-    ContentBgMask.BorderSizePixel = 0
-    RegisterTheme(ContentBgMask, { BackgroundColor3 = "WindowBg" })
 
     -- Drag Handle Logo
     local LogoArea = Instance.new("Frame", Sidebar)
@@ -275,7 +341,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     LogoIcon.Position = UDim2.new(0, 15, 0.5, -12)
     LogoIcon.BackgroundTransparency = 1
     LogoIcon.Image = "rbxassetid://10723375133"
-    RegisterTheme(LogoIcon, { ImageColor3 = "Accent" })
+    RegisterAccent(LogoIcon, "ImageColor3")
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
     TitleLabel.Size = UDim2.new(1, -50, 1, 0)
@@ -352,7 +418,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             local SeparatorFrame = Instance.new("Frame", TabScroll)
             SeparatorFrame.Size = UDim2.new(1, -15, 0, 1)
             SeparatorFrame.BorderSizePixel = 0
-            RegisterTheme(SeparatorFrame, { BackgroundColor3 = "Accent" })
+            RegisterAccent(SeparatorFrame, "BackgroundColor3")
             SeparatorFrame.BackgroundTransparency = 0.5
             
             local Spacer = Instance.new("Frame", TabScroll)
@@ -372,7 +438,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Label.TextXAlignment = Enum.TextXAlignment.Left
         RegisterTheme(Label, { TextColor3 = "TextDark" })
         RegisterFont(Label, true)
-        RegisterText(Label, 14) -- Diperbesar secara visual agar sesuai contoh gambar
+        RegisterText(Label, 14)
     end
 
     -- ========================================================
@@ -382,7 +448,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         local Tab = {
             Sections = {},
             Button = nil,
-            Frame = nil
+            Frame = nil,
+            SectionCount = 0
         }
 
         local TabPage = Instance.new("ScrollingFrame", ContentArea)
@@ -390,40 +457,35 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabPage.BackgroundTransparency = 1
         TabPage.ScrollBarThickness = 0
         TabPage.Visible = false
+        TabPage.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+        TabPage.CanvasSize = UDim2.new(0, 0, 0, 0)
 
         local ColumnContainer = Instance.new("Frame", TabPage)
-        ColumnContainer.Size = UDim2.new(1, -20, 1, 0)
+        ColumnContainer.Size = UDim2.new(1, -20, 0, 0)
         ColumnContainer.Position = UDim2.new(0, 10, 0, 10)
         ColumnContainer.BackgroundTransparency = 1
+        ColumnContainer.AutomaticSize = Enum.AutomaticSize.Y
 
+        -- Layout-Safe Dual Columns with Automatic Sizing (Fixes section disappearing bugs)
         local LeftColumn = Instance.new("Frame", ColumnContainer)
-        LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
+        LeftColumn.Size = UDim2.new(0.5, -6, 0, 0)
         LeftColumn.Position = UDim2.new(0, 0, 0, 0)
         LeftColumn.BackgroundTransparency = 1
+        LeftColumn.AutomaticSize = Enum.AutomaticSize.Y
 
         local LeftList = Instance.new("UIListLayout", LeftColumn)
         LeftList.Padding = UDim.new(0, 12)
         LeftList.SortOrder = Enum.SortOrder.LayoutOrder
 
         local RightColumn = Instance.new("Frame", ColumnContainer)
-        RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
+        RightColumn.Size = UDim2.new(0.5, -6, 0, 0)
         RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
         RightColumn.BackgroundTransparency = 1
+        RightColumn.AutomaticSize = Enum.AutomaticSize.Y
 
         local RightList = Instance.new("UIListLayout", RightColumn)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
-
-        local function ResizeCanvas()
-            local leftHeight = LeftList.AbsoluteContentSize.Y
-            local rightHeight = RightList.AbsoluteContentSize.Y
-            local targetHeight = math.max(leftHeight, rightHeight) + 30
-            TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
-            ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
-        end
-
-        LeftList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
-        RightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
 
         local TabBtn = Instance.new("TextButton", TabScroll)
         TabBtn.Size = UDim2.new(1, -10, 0, 32)
@@ -440,7 +502,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabBtnAccent.Position = UDim2.new(1, -3, 0.2, 0)
         TabBtnAccent.BorderSizePixel = 0
         TabBtnAccent.BackgroundTransparency = 1
-        RegisterTheme(TabBtnAccent, { BackgroundColor3 = "Accent" })
+        RegisterAccent(TabBtnAccent, "BackgroundColor3")
 
         local TabIcon = Instance.new("ImageLabel", TabBtn)
         TabIcon.Size = UDim2.new(0, 16, 0, 16)
@@ -514,13 +576,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         function Tab:CreateSection(sectionName)
             local Section = {}
             
-            local targetColumn = LeftColumn
-            if LeftList.AbsoluteContentSize.Y > RightList.AbsoluteContentSize.Y then
-                targetColumn = RightColumn
-            end
+            -- Alternate columns structurally to guarantee 100% bug-free rendering
+            Tab.SectionCount = Tab.SectionCount + 1
+            local targetColumn = (Tab.SectionCount % 2 == 1) and LeftColumn or RightColumn
 
             local SecFrame = Instance.new("Frame", targetColumn)
             SecFrame.Size = UDim2.new(1, 0, 0, 40)
+            SecFrame.AutomaticSize = Enum.AutomaticSize.Y
             RegisterTheme(SecFrame, { BackgroundColor3 = "SectionBg" })
 
             local SecCorner = Instance.new("UICorner", SecFrame)
@@ -552,21 +614,15 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             RegisterTheme(ToggleIcon, { ImageColor3 = "TextSecondary" })
 
             local Content = Instance.new("Frame", SecFrame)
-            Content.Size = UDim2.new(1, 0, 1, -34)
+            Content.Size = UDim2.new(1, 0, 0, 0)
             Content.Position = UDim2.new(0, 0, 0, 34)
             Content.BackgroundTransparency = 1
+            Content.AutomaticSize = Enum.AutomaticSize.Y
 
             local ContentList = Instance.new("UIListLayout", Content)
             ContentList.Padding = UDim.new(0, 10)
             ContentList.HorizontalAlignment = Enum.HorizontalAlignment.Center
             ContentList.SortOrder = Enum.SortOrder.LayoutOrder
-
-            local function UpdateSectionSize()
-                local contentHeight = ContentList.AbsoluteContentSize.Y
-                SecFrame.Size = UDim2.new(1, 0, 0, contentHeight + 46)
-            end
-
-            ContentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSectionSize)
 
             local InsidePadding = Instance.new("UIPadding", Content)
             InsidePadding.PaddingLeft = UDim.new(0, 12)
@@ -792,7 +848,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 local SliderFill = Instance.new("Frame", SliderBg)
                 SliderFill.Size = UDim2.new((Slider.Value - minVal) / (maxVal - minVal), 0, 1, 0)
                 SliderFill.BorderSizePixel = 0
-                RegisterTheme(SliderFill, { BackgroundColor3 = "Accent" })
+                RegisterAccent(SliderFill, "BackgroundColor3")
                 Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
 
                 local SliderKnob = Instance.new("Frame", SliderBg)
@@ -1160,6 +1216,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Btn.Text = btnText
                 Btn.AutoButtonColor = false
                 RegisterTheme(Btn, { BackgroundColor3 = "Accent", TextColor3 = "WindowBg" })
+                RegisterAccent(Btn, "BackgroundColor3")
                 Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
                 RegisterFont(Btn, true)
                 RegisterText(Btn, 11)
@@ -1267,7 +1324,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     task.spawn(function()
         task.wait(0.05)
 
-        -- Serialisasi Tabel Luau Kompleks
         local function serializeTable(val)
             if typeof(val) == "string" then
                 return string.format("%q", val)
@@ -1284,7 +1340,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return "nil"
         end
 
-        -- Pembacaan Konfigurasi Lua format return table
         local function LoadLuaConfig(path)
             local content = readfile(path)
             local func, err = loadstring(content)
@@ -1303,7 +1358,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             
             local dataToSave = {}
             for flag, value in pairs(Library.Flags) do
-                -- Jangan simpan flag config internal
                 if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
                     if typeof(value) == "Color3" then
                         dataToSave[flag] = {math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255)}
@@ -1380,35 +1434,41 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return list
         end
 
-        -- Pembuatan Kategori Khusus & Tab Pengaturan Bawaan
-        Window:CreateCategory("UI Settings")
+        -- Automatic Grouped "Misc" Tab Creation
+        Window:CreateCategory("Utility")
+        local MiscTab = Window:CreateTab("Misc", "settings") -- Single Grouped Tab
         
-        -- Built-in Preferences Tab (Ikon Gear)
-        local BuiltInTab = Window:CreateTab("Config UI", "gear")
-        local ConfigSec = BuiltInTab:CreateSection("Preferences")
+        -- Section: UI Settings
+        local SettingsSec = MiscTab:CreateSection("UI Settings")
         
-        ConfigSec:CreateDropdown("Layout Mode", {"PC", "Mobile"}, Library.Settings.Mode, "BuiltIn_Mode", function(mode)
+        SettingsSec:CreateDropdown("Layout Mode", {"PC", "Mobile"}, Library.Settings.Mode, "BuiltIn_Mode", function(mode)
             ApplyUiSettings(mode, Library.Settings.Scale)
         end)
         
-        ConfigSec:CreateSlider("UI Scale", 50, 150, math.floor(Library.Settings.Scale * 100), "BuiltIn_Scale", function(scalePerc)
+        SettingsSec:CreateSlider("UI Scale", 50, 150, math.floor(Library.Settings.Scale * 100), "BuiltIn_Scale", function(scalePerc)
             ApplyUiSettings(Library.Settings.Mode, scalePerc / 100)
         end)
         
-        ConfigSec:CreateSlider("Text Size", 80, 150, math.floor(Library.Settings.TextSizeMultiplier * 100), "BuiltIn_Text", function(sizePerc)
+        SettingsSec:CreateSlider("Text Size", 80, 150, math.floor(Library.Settings.TextSizeMultiplier * 100), "BuiltIn_Text", function(sizePerc)
             UpdateTextSizes(sizePerc / 100)
         end)
 
-        -- Built-in File Manager Tab (Ikon Folder Berbeda)
-        local ConfigManagerTab = Window:CreateTab("Configs", "folder")
-        
-        local SaveSec = ConfigManagerTab:CreateSection("Save Configuration")
-        SaveSec:CreateTextBox("Config Name", "Enter name...", "Sys_Save_Name")
-        SaveSec:CreateDropdown("Save Format", {"JSON", "LUA"}, "JSON", "Sys_Save_Format")
+        -- Smooth transitions for custom HEX values (support #ffff)
+        SettingsSec:CreateTextBox("Custom Accent Color (HEX)", "#00d5ef", "BuiltIn_AccentColor", function(hexStr)
+            local col = GetColorFromHex(hexStr)
+            if col then
+                UpdateAccentColor(col)
+            end
+        end)
+
+        -- Section: Config Manager
+        local ConfigSec = MiscTab:CreateSection("Config Manager")
+        ConfigSec:CreateTextBox("Config Name", "Enter name...", "Sys_Save_Name")
+        ConfigSec:CreateDropdown("Save Format", {"JSON", "LUA"}, "JSON", "Sys_Save_Format")
         
         local configDropdown
 
-        SaveSec:CreateButton("Save Configuration", function()
+        ConfigSec:CreateButton("Save Configuration", function()
             local name = Library.Flags["Sys_Save_Name"]
             local format = Library.Flags["Sys_Save_Format"] or "JSON"
             if name and name ~= "" and name ~= "Enter name..." then
@@ -1420,19 +1480,17 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
         end)
 
-        local ManageSec = ConfigManagerTab:CreateSection("File Manager")
-        
         local initialList = GetConfigsList()
-        configDropdown = ManageSec:CreateDropdown("Select File", initialList, initialList[1], "Sys_Selected_File")
+        configDropdown = ConfigSec:CreateDropdown("Select File", initialList, initialList[1], "Sys_Selected_File")
         
-        ManageSec:CreateButton("Load Selected Config", function()
+        ConfigSec:CreateButton("Load Config", function()
             local selected = Library.Flags["Sys_Selected_File"]
             if selected and selected ~= "No Configs Found" then
                 LoadConfig(selected)
             end
         end)
 
-        ManageSec:CreateButton("Delete Selected Config", function()
+        ConfigSec:CreateButton("Delete Config", function()
             local selected = Library.Flags["Sys_Selected_File"]
             if selected and selected ~= "No Configs Found" then
                 DeleteConfig(selected)
@@ -1441,10 +1499,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
         end)
 
-        ManageSec:CreateButton("Refresh File List", function()
+        ConfigSec:CreateButton("Refresh List", function()
             local newList = GetConfigsList()
             configDropdown:Refresh(newList, newList[1])
         end)
+
+        -- Prompt user via Toast Notifications
+        Library:Notify("Welcome!", "You can adjust layout modes and scales inside the 'Misc' tab to match your device.", 8)
     end)
 
     -- ========================================================
@@ -1465,14 +1526,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1.5
-    RegisterTheme(ToggleStroke, { Color = "Accent" })
+    RegisterAccent(ToggleStroke, "Color")
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Size = UDim2.new(0.65, 0, 0.65, 0)
     ToggleIconImage.Position = UDim2.new(0.175, 0, 0.175, 0)
     ToggleIconImage.BackgroundTransparency = 1
     ToggleIconImage.Image = "rbxassetid://10723375133"
-    RegisterTheme(ToggleIconImage, { ImageColor3 = "Accent" })
+    RegisterAccent(ToggleIconImage, "ImageColor3")
 
     MakeDraggable(FloatingToggle, FloatingToggle)
 
@@ -1480,12 +1541,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Window.Visible = not Window.Visible
         if Window.Visible then
             MainFrame.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = MainFrame.Size, Position = MainFrame.Position}):Play()
+            -- Elastic bouncy bounce opening animation
+            TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = MainFrame.Size, Position = MainFrame.Position}):Play()
             
             TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
             task.delay(0.2, function() FloatingToggle.Visible = false end)
         else
-            local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
+            -- Smooth shrink exit animation
+            local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
             shrink:Play()
             shrink.Completed:Connect(function()
                 if not Window.Visible then
@@ -1494,7 +1557,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end)
             
             FloatingToggle.Visible = true
-            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
         end
     end
 
