@@ -1,91 +1,100 @@
--- ========================================================
--- [[ NEXUS COMPKILLER LOADER ]]
--- ========================================================
+-- Memuat UI Library dari hosting/file eksternal (sesuaikan path atau URL raw-nya)
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/username/repo/main/gg.txt"))()
 
--- Ganti link di bawah dengan link raw Pastebin atau GitHub Gist berisi kode UI Library Anda
-local LibraryURL = "https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua" 
+-- Inisialisasi Window Utama
+local Win = Library:CreateWindow("COMPKILLER", "NEVER")
 
-local success, Library = pcall(function()
-    return loadstring(game:HttpGet(LibraryURL))()
+-- ============================================
+-- [[ PENATAAN KATEGORI & TAB (SIDEBAR) ]]
+-- ============================================
+
+-- Kategori: Example
+Win:CreateCategory("Example")
+
+local ExampleTab = Win:CreateTab("Example Tab", "rbxassetid://10734741641")   -- Ikon Apple
+local SingleTab = Win:CreateTab("Single Tab", "rbxassetid://10734942250")     -- Ikon Lingkaran Loop
+local ExtractTabs = Win:CreateTab("Extract Tabs", "rbxassetid://10723374112")   -- Ikon Kalender/Profile
+
+-- Kategori: Misc
+Win:CreateCategory("Misc")
+local SettingsTab = Win:CreateTab("Settings", "rbxassetid://10734950309")     -- Ikon Gerigi Settings
+local ConfigTab = Win:CreateTab("Config", "rbxassetid://10734741211")         -- Ikon Folder Config
+
+-- ========================================================================
+-- [[ KOLOM KIRI (SECTION 1) - SEMUA ELEMEN DI-SAVE KE CONFIG ]]
+-- ========================================================================
+local Sec1 = ExampleTab:CreateSection("Section")
+
+Sec1:CreateToggle("Toggle", false, "Toggle1_Sec1", { info = true, keybind = "E" }, function(state)
+    print("Toggle 1 (Sec1): ", state)
 end)
 
-if not success or not Library then
-    warn("Gagal memuat UI Library. Silakan periksa kembali link raw Anda.")
-    return
-end
-
--- ========================================================
--- [[ INISIALISASI & CONFIG MENU ]]
--- ========================================================
-
-local Window = Library:CreateWindow("COMPKILLER", "NEVER")
-
--- Group Kategori Sidebar: Example
-Window:CreateCategory("Example")
-
--- Tab 1
-local Tab1 = Window:CreateTab("Example Tab", "rbxassetid://10723407389")
-
-local SecLeft = Tab1:CreateSection("Section")
-
--- Toggle 1: Dengan Ikon Info dan Keybind inline "E"
-SecLeft:CreateToggle("Toggle", false, "Toggle_Info_E", { info = true, keybind = "E" }, function(state)
-    print("Toggle State:", state)
+Sec1:CreateToggle("Toggle", false, "Toggle2_Sec1", { gear = true }, function(state)
+    print("Toggle 2 (Sec1): ", state)
 end)
 
--- Toggle 2: Dengan Ikon Gear (Setting) inline
-SecLeft:CreateToggle("Toggle", false, "Toggle_Gear", { gear = true }, function(state)
-    print("Toggle Gear State:", state)
+Sec1:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec1", function(key)
+    print("Keybind (Sec1): ", key.Name)
 end)
 
--- Keybind Standard
-SecLeft:CreateKeybind("Keybind", Enum.KeyCode.LAlt, "Bind_LAlt", function(key)
-    print("Keybind updated to:", key.Name)
+Sec1:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec1", function(val)
+    print("Slider (Sec1): ", val)
 end)
 
--- Slider Standard (Track gelap, Fill cyan, Handle bulat putih)
-SecLeft:CreateSlider("Slider", 1, 100, 50, "Slider_Val", function(v)
-    print("Slider updated:", v)
+Sec1:CreateColorPicker("ColorPicker", Color3.fromRGB(0, 240, 130), "Color1_Sec1", function(color)
+    print("Color (Sec1): ", color)
 end)
 
--- ColorPicker (Square rounded preview hijau)
-SecLeft:CreateColorPicker("ColorPicker", Color3.fromRGB(0, 255, 120), "CP_Value", function(color)
-    print("Color Picker updated:", tostring(color))
+Sec1:CreateDropdown("Single Dropdown", {"Head", "Torso", "Left Arm", "Right Arm"}, "Head", "Dropdown1_Sec1", function(opt)
+    print("Dropdown (Sec1): ", opt)
 end)
 
--- Single Dropdown (Box ada di bawah label)
-SecLeft:CreateDropdown("Single Dropdown", {"Head", "HumanoidRootPart", "Torso"}, "Head", "Dropdown_Part", function(selected)
-    print("Dropdown Selected:", selected)
+Sec1:CreateMultiDropdown("Multi Dropdown", {"Head", "Torso", "Left Arm", "Right Arm"}, {"Head"}, "MultiDropdown1_Sec1", function(opts)
+    print("Multi Dropdown (Sec1): ", table.concat(opts, ", "))
 end)
 
--- Multi Dropdown (Box ada di bawah label)
-SecLeft:CreateMultiDropdown("Multi Dropdown", {"Head", "HumanoidRootPart", "Torso"}, {"Head"}, "Multi_Dropdown_Part", function(selectedTable)
-    print("Multi Dropdown Updated")
+Sec1:CreateButton("Button", function()
+    print("Button 1 Clicked!")
 end)
 
--- Solid Cyan Button
-SecLeft:CreateButton("Button", function()
-    print("Button clicked!")
+Sec1:CreateParagraph("Paragraph", "Very cool paragraph\nAll element in this scrtion\nwill be saved to the config!")
+
+
+-- ========================================================================
+-- [[ KOLOM KANAN (SECTION 2) - SEMUA ELEMEN TIDAK DI-SAVE KE CONFIG ]]
+-- ========================================================================
+local Sec2 = ExampleTab:CreateSection("Section")
+
+Sec2:CreateToggle("Toggle", false, "Toggle1_Sec2", { keybind = "E" }, function(state)
+    print("Toggle 1 (Sec2): ", state)
 end)
 
--- Paragraph Text
-SecLeft:CreateParagraph("Paragraph", "Very cool paragraph\nAll element in this scrtion\nwill be saved to the config!")
+Sec2:CreateToggle("Toggle", false, "Toggle2_Sec2", { gear = true }, function(state)
+    print("Toggle 2 (Sec2): ", state)
+end)
 
+Sec2:CreateKeybind("Keybind", Enum.KeyCode.LeftAlt, "Keybind1_Sec2", function(key)
+    print("Keybind (Sec2): ", key.Name)
+end)
 
--- Section Kanan (Didistribusikan otomatis ke kolom kedua)
-local SecRight = Tab1:CreateSection("Section")
-SecRight:CreateToggle("Toggle", false, "Toggle_Info_E_Right", { info = true, keybind = "E" })
-SecRight:CreateToggle("Toggle", false, "Toggle_Gear_Right", { gear = true })
-SecRight:CreateKeybind("Keybind", Enum.KeyCode.LAlt, "Bind_LAlt_Right")
-SecRight:CreateSlider("Slider", 1, 100, 50, "Slider_Val_Right")
-SecRight:CreateColorPicker("ColorPicker", Color3.fromRGB(0, 255, 120), "CP_Value_Right")
-SecRight:CreateDropdown("Single Dropdown", {"Head", "HRP"}, "Head", "Dropdown_Part_Right")
-SecRight:CreateMultiDropdown("Multi Dropdown", {"Head", "HRP"}, {"Head"}, "Multi_Dropdown_Part_Right")
-SecRight:CreateButton("Button", function() end)
-SecRight:CreateParagraph("Paragraph", "Very cool paragraph\nAll elements in this section\nwill not be save to the config")
+Sec2:CreateSlider("Slider", 0, 100, 50, "Slider1_Sec2", function(val)
+    print("Slider (Sec2): ", val)
+end)
 
+Sec2:CreateColorPicker("ColorPicker", Color3.fromRGB(0, 240, 130), "Color1_Sec2", function(color)
+    print("Color (Sec2): ", color)
+end)
 
--- Group Kategori Sidebar: Misc
-Window:CreateCategory("Misc")
-local SettingsTab = Window:CreateTab("Settings", "rbxassetid://10734950309")
-local ConfigTab = Window:CreateTab("Config", "rbxassetid://10734741641")
+Sec2:CreateDropdown("Single Dropdown", {"Head", "Torso", "Left Arm", "Right Arm"}, "Head", "Dropdown1_Sec2", function(opt)
+    print("Dropdown (Sec2): ", opt)
+end)
+
+Sec2:CreateMultiDropdown("Multi Dropdown", {"Head", "Torso", "Left Arm", "Right Arm"}, {"Head"}, "MultiDropdown1_Sec2", function(opts)
+    print("Multi Dropdown (Sec2): ", table.concat(opts, ", "))
+end)
+
+Sec2:CreateButton("Button", function()
+    print("Button 2 Clicked!")
+end)
+
+Sec2:CreateParagraph("Paragraph", "Very cool paragraph\nAll elements in this section\nwill not be save to the config")
