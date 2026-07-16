@@ -102,8 +102,9 @@ function Library:CreateWindow(titleText, subtitleText)
     MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
-    RegisterTheme(MainFrame, { BackgroundColor3 = "WindowBg" })
+    MainFrame.BackgroundTransparency = 1 -- Diubah menjadi transparan penuh agar sidebar tidak terhalang latar belakang padat
 
+    -- Bingkai luar bulat nempel di MainFrame yang transparan
     local MainCorner = Instance.new("UICorner", MainFrame)
     MainCorner.CornerRadius = UDim.new(0, 8)
 
@@ -111,7 +112,7 @@ function Library:CreateWindow(titleText, subtitleText)
     MainStroke.Thickness = 1.5
     RegisterTheme(MainStroke, { Color = "StrokeColor" })
 
-    -- Sidebar (Left Area) - Ditambahkan transparansi
+    -- Sidebar (Left Area) - Benar-benar transparan langsung ke arah game
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 170, 1, 0)
     Sidebar.BorderSizePixel = 0
@@ -121,13 +122,30 @@ function Library:CreateWindow(titleText, subtitleText)
     local SidebarCorner = Instance.new("UICorner", Sidebar)
     SidebarCorner.CornerRadius = UDim.new(0, 8)
 
-    -- Sidebar Masking
+    -- Sidebar Masking (Menghilangkan lengkungan bulat sisi kanan sidebar)
     local SidebarMask = Instance.new("Frame", Sidebar)
     SidebarMask.Size = UDim2.new(0, 15, 1, 0)
     SidebarMask.Position = UDim2.new(1, -15, 0, 0)
     SidebarMask.BorderSizePixel = 0
     SidebarMask.BackgroundTransparency = 0.4
     RegisterTheme(SidebarMask, { BackgroundColor3 = "SidebarBg" })
+
+    -- Latar Belakang Padat Khusus Bagian Kanan (Content Area)
+    local ContentBg = Instance.new("Frame", MainFrame)
+    ContentBg.Size = UDim2.new(1, -170, 1, 0)
+    ContentBg.Position = UDim2.new(0, 170, 0, 0)
+    ContentBg.BorderSizePixel = 0
+    RegisterTheme(ContentBg, { BackgroundColor3 = "WindowBg" })
+
+    local ContentBgCorner = Instance.new("UICorner", ContentBg)
+    ContentBgCorner.CornerRadius = UDim.new(0, 8)
+
+    -- Content Background Masking (Menghilangkan lengkungan bulat sisi kiri content agar menyatu rata ke sidebar)
+    local ContentBgMask = Instance.new("Frame", ContentBg)
+    ContentBgMask.Size = UDim2.new(0, 15, 1, 0)
+    ContentBgMask.Position = UDim2.new(0, 0, 0, 0)
+    ContentBgMask.BorderSizePixel = 0
+    RegisterTheme(ContentBgMask, { BackgroundColor3 = "WindowBg" })
 
     -- Drag Handle Logo
     local LogoArea = Instance.new("Frame", Sidebar)
@@ -213,13 +231,12 @@ function Library:CreateWindow(titleText, subtitleText)
     function Window:CreateCategory(categoryName)
         Window.CategoryCount = Window.CategoryCount + 1
 
-        -- Jika ini kategori ke-2 atau lebih, tambahkan garis pembatas biru tipis di atasnya
         if Window.CategoryCount > 1 then
             local SeparatorFrame = Instance.new("Frame", TabScroll)
             SeparatorFrame.Size = UDim2.new(1, -15, 0, 1)
             SeparatorFrame.BorderSizePixel = 0
             RegisterTheme(SeparatorFrame, { BackgroundColor3 = "Accent" })
-            SeparatorFrame.BackgroundTransparency = 0.5 -- transparansi lembut agar seimbang
+            SeparatorFrame.BackgroundTransparency = 0.5
             
             local Spacer = Instance.new("Frame", TabScroll)
             Spacer.Size = UDim2.new(1, 0, 0, 4)
@@ -238,7 +255,7 @@ function Library:CreateWindow(titleText, subtitleText)
         Label.Font = Enum.Font.GothamBold
         Label.TextSize = 10
         Label.TextXAlignment = Enum.TextXAlignment.Left
-        RegisterTheme(Label, { TextColor3 = "TextDark" }) -- Tetap warna abu-abu
+        RegisterTheme(Label, { TextColor3 = "TextDark" })
     end
 
     -- ========================================================
@@ -301,7 +318,6 @@ function Library:CreateWindow(titleText, subtitleText)
         local TabBtnCorner = Instance.new("UICorner", TabBtn)
         TabBtnCorner.CornerRadius = UDim.new(0, 6)
 
-        -- Active Indicator Line (Cyan line on the edge of selected tab)
         local TabBtnAccent = Instance.new("Frame", TabBtn)
         TabBtnAccent.Size = UDim2.new(0, 3, 0.6, 0)
         TabBtnAccent.Position = UDim2.new(1, -3, 0.2, 0)
@@ -314,7 +330,7 @@ function Library:CreateWindow(titleText, subtitleText)
         TabIcon.Position = UDim2.new(0, 12, 0.5, -8)
         TabIcon.BackgroundTransparency = 1
         TabIcon.Image = iconAssetId or "rbxassetid://10734741641"
-        RegisterTheme(TabIcon, { ImageColor3 = "TextSecondary" }) -- Warna biru muda lembut
+        RegisterTheme(TabIcon, { ImageColor3 = "TextSecondary" })
 
         local TabLabel = Instance.new("TextLabel", TabBtn)
         TabLabel.Size = UDim2.new(1, -40, 1, 0)
@@ -324,7 +340,7 @@ function Library:CreateWindow(titleText, subtitleText)
         TabLabel.Font = Enum.Font.GothamMedium
         TabLabel.TextSize = 11
         TabLabel.TextXAlignment = Enum.TextXAlignment.Left
-        RegisterTheme(TabLabel, { TextColor3 = "TextSecondary" }) -- Warna biru muda lembut
+        RegisterTheme(TabLabel, { TextColor3 = "TextSecondary" })
 
         Tab.Button = TabBtn
         Tab.Frame = TabPage
@@ -347,7 +363,7 @@ function Library:CreateWindow(titleText, subtitleText)
             TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.9}):Play()
             TweenService:Create(TabBtnAccent, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
             TweenService:Create(TabIcon, TweenInfo.new(0.2), {ImageColor3 = CurrentTheme.Accent}):Play()
-            TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play() -- Putih saat aktif
+            TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play()
         end
 
         TabBtn.MouseButton1Click:Connect(SelectTab)
@@ -634,7 +650,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 RegisterTheme(Label, { TextColor3 = "TextSecondary" })
 
-                -- TextBox Input untuk memasukkan angka secara manual
                 local ValLabel = Instance.new("TextBox", Elem)
                 ValLabel.Size = UDim2.new(0, 40, 0, 18)
                 ValLabel.Position = UDim2.new(1, -40, 0, 0)
@@ -686,7 +701,6 @@ function Library:CreateWindow(titleText, subtitleText)
                     ApplyValue(finalVal)
                 end
 
-                -- Input Dragging
                 local sliding = false
                 SliderBg.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -707,7 +721,6 @@ function Library:CreateWindow(titleText, subtitleText)
                     end
                 end)
 
-                -- TextBox Input Manual (ketika fokus selesai/Enter ditekan)
                 ValLabel.FocusLost:Connect(function(enterPressed)
                     local num = tonumber(ValLabel.Text)
                     if num then
