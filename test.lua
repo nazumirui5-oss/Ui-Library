@@ -5,32 +5,52 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local TextService = game:GetService("TextService")
+local HttpService = game:GetService("HttpService")
 
 Library.Flags = {}
 Library.Elements = {}
+Library.Registry = {}
 Library.ThemeRegistry = {}
 Library.TextRegistry = {}
 Library.FontRegistry = {}
 
+-- Folder Utama Penyimpanan Config
+local isFolderSupported = makefolder and isfolder
+if isFolderSupported and not isfolder("Compkiller_Configs") then
+    makefolder("Compkiller_Configs")
+end
+
 -- ========================================================
--- [[ FONTAWESOME ICON DATABASE ]]
+-- [[ GITHUB FONTAWESOME ICON LOADER ]]
 -- ========================================================
-Library.Icons = {
+local GITHUB_ICON_DB_URL = "https://raw.githubusercontent.com/yofriend/roblox-fontawesome/main/icons.json"
+
+local IconMap = {
     ["apple"] = "rbxassetid://10734741641",
     ["user"] = "rbxassetid://10723374112",
     ["gear"] = "rbxassetid://10734950309",
     ["cog"] = "rbxassetid://10734950309",
-    ["settings"] = "rbxassetid://10734950309",
     ["folder"] = "rbxassetid://10734741211",
     ["sliders"] = "rbxassetid://10734942250",
     ["slider"] = "rbxassetid://10734942250",
-    ["info"] = "rbxassetid://10723415903",
-    ["info-circle"] = "rbxassetid://10723415903",
-    ["chevron-down"] = "rbxassetid://10709790644",
-    ["angle-down"] = "rbxassetid://10709790644",
-    ["circle"] = "rbxassetid://10723375133",
-    ["shield"] = "rbxassetid://10723375133"
+    ["info"] = "rbxassetid://10723415903"
 }
+
+task.spawn(function()
+    local success, response = pcall(function()
+        return game:HttpGet(GITHUB_ICON_DB_URL)
+    end)
+    if success and response then
+        local successDecode, decoded = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+        if successDecode and typeof(decoded) == "table" then
+            for k, v in pairs(decoded) do
+                IconMap[string.lower(k)] = v
+            end
+        end
+    end
+end)
 
 local function GetIcon(iconInput)
     if not iconInput then return "" end
@@ -39,8 +59,8 @@ local function GetIcon(iconInput)
             return iconInput
         end
         local lowerName = string.lower(iconInput)
-        if Library.Icons[lowerName] then
-            return Library.Icons[lowerName]
+        if IconMap[lowerName] then
+            return IconMap[lowerName]
         end
     end
     return tostring(iconInput)
@@ -78,7 +98,7 @@ local function RegisterTheme(instance, propertyMap)
 end
 
 -- ========================================================
--- [[ CENTRALISED TEXT & FONT REGISTRY ]]
+-- [[ TEXT & FONT REGISTRY ]]
 -- ========================================================
 local function RegisterText(instance, baseSize)
     table.insert(Library.TextRegistry, {
@@ -103,16 +123,6 @@ local function RegisterFont(instance, isBold)
         IsBold = isBold
     })
     instance.Font = isBold and Library.Settings.BoldFont or Library.Settings.Font
-end
-
-local function UpdateFonts(normalFont, boldFont)
-    Library.Settings.Font = normalFont
-    Library.Settings.BoldFont = boldFont
-    for _, item in ipairs(Library.FontRegistry) do
-        pcall(function()
-            item.Instance.Font = item.IsBold and boldFont or normalFont
-        end)
-    end
 end
 
 -- ========================================================
@@ -163,7 +173,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         CategoryCount = 0
     }
 
-    -- Konfigurasi Default Loader
     local config = customConfig or {}
     Library.Settings = {
         Mode = config.Mode or "PC",
@@ -172,6 +181,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         BoldFont = config.BoldFont or Enum.Font.GothamBold,
         TextSizeMultiplier = config.TextSizeMultiplier or 1.0
     }
+
+    -- Penamaan Folder Berdasarkan Game/Loader agar Tidak Saling Menimpa
+    local cleanTitle = string.gsub(titleText or "Universal", "[%s%p]", "_")
+    local ConfigFolder = "Compkiller_Configs/" .. cleanTitle
+    if isFolderSupported and not isfolder(ConfigFolder) then
+        makefolder(ConfigFolder)
+    end
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "Nexus_Compkiller_UI"
@@ -193,11 +209,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     MainStroke.Thickness = 1.5
     RegisterTheme(MainStroke, { Color = "StrokeColor" })
 
-    -- UIScale Terintegrasi
     local UiScale = Instance.new("UIScale", MainFrame)
     UiScale.Scale = Library.Settings.Scale
 
-    -- Fungsi Mengatur Skala UI dan Posisi Layout Mode
     local function ApplyUiSettings(mode, scale)
         Library.Settings.Mode = mode
         Library.Settings.Scale = scale
@@ -354,7 +368,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Label.TextXAlignment = Enum.TextXAlignment.Left
         RegisterTheme(Label, { TextColor3 = "TextDark" })
         RegisterFont(Label, true)
-        RegisterText(Label, 10)
+        RegisterText(Label, 14) -- Diperbesar sesuai dengan tampilan foto
     end
 
     -- ========================================================
@@ -661,6 +675,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
                 local ctrl = {}
                 function ctrl:Set(val) SetState(val) end
+                Library.Registry[flag] = { Type = "Toggle", Control = ctrl }
                 return ctrl
             end
 
@@ -726,6 +741,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     Library.Flags[flag] = val
                     BindBtn.Text = val.Name
                 end
+                Library.Registry[flag] = { Type = "Keybind", Control = ctrl }
                 return ctrl
             end
 
@@ -834,6 +850,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 function ctrl:Set(val)
                     ApplyValue(val)
                 end
+                Library.Registry[flag] = { Type = "Slider", Control = ctrl }
                 return ctrl
             end
 
@@ -947,6 +964,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     Dropdown.Value = val
                     DisplayText.Text = tostring(val)
                 end
+                function ctrl:Refresh(newOptions, defaultVal)
+                    options = newOptions
+                    Dropdown.Value = defaultVal or newOptions[1] or ""
+                    DisplayText.Text = tostring(Dropdown.Value)
+                    Library.Flags[flag] = Dropdown.Value
+                end
+                Library.Registry[flag] = { Type = "Dropdown", Control = ctrl }
                 return ctrl
             end
 
@@ -1074,6 +1098,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     Dropdown.Selected = val
                     UpdateDisplayText()
                 end
+                Library.Registry[flag] = { Type = "MultiDropdown", Control = ctrl }
                 return ctrl
             end
 
@@ -1118,6 +1143,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     Picker.Value = val
                     Preview.BackgroundColor3 = val
                 end
+                Library.Registry[flag] = { Type = "ColorPicker", Control = ctrl }
                 return ctrl
             end
 
@@ -1177,6 +1203,53 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 ResizeParagraph()
             end
 
+            -- ========================================================
+            -- [[ SECTION ELEMENT: TEXTBOX ]]
+            -- ========================================================
+            function Section:CreateTextBox(labelText, placeholderText, flag, callback)
+                local TextBoxElem = Instance.new("Frame", Content)
+                TextBoxElem.Size = UDim2.new(1, 0, 0, 44)
+                TextBoxElem.BackgroundTransparency = 1
+
+                local Label = Instance.new("TextLabel", TextBoxElem)
+                Label.Size = UDim2.new(1, 0, 0, 16)
+                Label.BackgroundTransparency = 1
+                Label.Text = labelText
+                Label.TextXAlignment = Enum.TextXAlignment.Left
+                RegisterTheme(Label, { TextColor3 = "TextSecondary" })
+                RegisterFont(Label, false)
+                RegisterText(Label, 11)
+
+                local InputBox = Instance.new("TextBox", TextBoxElem)
+                InputBox.Size = UDim2.new(1, 0, 0, 24)
+                InputBox.Position = UDim2.new(0, 0, 1, -24)
+                InputBox.PlaceholderText = placeholderText or "Type here..."
+                InputBox.Text = ""
+                InputBox.ClearTextOnFocus = false
+                RegisterTheme(InputBox, { BackgroundColor3 = "ElementBg", TextColor3 = "TextPrimary" })
+                Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
+                
+                local Stroke = Instance.new("UIStroke", InputBox)
+                Stroke.Thickness = 1
+                RegisterTheme(Stroke, { Color = "StrokeColor" })
+                
+                RegisterFont(InputBox, false)
+                RegisterText(InputBox, 11)
+
+                InputBox.FocusLost:Connect(function(enterPressed)
+                    Library.Flags[flag] = InputBox.Text
+                    if callback then task.spawn(callback, InputBox.Text) end
+                end)
+
+                local ctrl = {}
+                function ctrl:Set(val)
+                    InputBox.Text = tostring(val)
+                    Library.Flags[flag] = val
+                end
+                Library.Registry[flag] = { Type = "TextBox", Control = ctrl }
+                return ctrl
+            end
+
             table.insert(Tab.Sections, Section)
             return Section
         end
@@ -1185,13 +1258,81 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     end
 
     -- ========================================================
-    -- [[ 6. BUILT-IN AUTOMATIC CONFIG & SUPPORT TAB ]]
+    -- [[ 6. AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
     -- ========================================================
     task.spawn(function()
         task.wait(0.05)
+
+        -- Penanganan Serialisasi / Deserialisasi Config
+        local function SaveConfig(configName)
+            if not isFolderSupported then return end
+            local dataToSave = {}
+            for flag, value in pairs(Library.Flags) do
+                if typeof(value) == "Color3" then
+                    dataToSave[flag] = {math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255)}
+                elseif typeof(value) == "EnumItem" then
+                    dataToSave[flag] = tostring(value)
+                else
+                    dataToSave[flag] = value
+                end
+            end
+            local path = ConfigFolder .. "/" .. configName .. ".json"
+            writefile(path, HttpService:JSONEncode(dataToSave))
+        end
+
+        local function LoadConfig(configName)
+            if not isFolderSupported then return end
+            local path = ConfigFolder .. "/" .. configName .. ".json"
+            if isfile(path) then
+                local data = readfile(path)
+                local success, decoded = pcall(function() return HttpService:JSONDecode(data) end)
+                if success and typeof(decoded) == "table" then
+                    for flag, value in pairs(decoded) do
+                        if Library.Registry[flag] then
+                            pcall(function()
+                                if Library.Registry[flag].Type == "ColorPicker" and typeof(value) == "table" then
+                                    local r, g, b = value[1], value[2], value[3]
+                                    Library.Registry[flag].Control:Set(Color3.fromRGB(r, g, b))
+                                else
+                                    Library.Registry[flag].Control:Set(value)
+                                end
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+
+        local function DeleteConfig(configName)
+            if not isFolderSupported then return end
+            local path = ConfigFolder .. "/" .. configName .. ".json"
+            if isfile(path) then
+                delfile(path)
+            end
+        end
+
+        local function GetConfigsList()
+            local list = {}
+            if listfiles and isfolder and isfolder(ConfigFolder) then
+                local files = listfiles(ConfigFolder)
+                for _, file in ipairs(files) do
+                    local name = string.match(file, "([^/]+)%.json$")
+                    if name then
+                        table.insert(list, name)
+                    end
+                end
+            end
+            if #list == 0 then
+                table.insert(list, "No Configs Found")
+            end
+            return list
+        end
+
+        -- Pembuatan Tab Pengaturan Bawaan
         Window:CreateCategory("UI Settings")
-        local BuiltInTab = Window:CreateTab("Config UI", "gear") -- Sourced using internal "gear" FontAwesome mapping!
         
+        -- Built-in Preferences Tab (Ikon Gear)
+        local BuiltInTab = Window:CreateTab("Config UI", "gear")
         local ConfigSec = BuiltInTab:CreateSection("Preferences")
         
         ConfigSec:CreateDropdown("Layout Mode", {"PC", "Mobile"}, Library.Settings.Mode, "BuiltIn_Mode", function(mode)
@@ -1205,11 +1346,50 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         ConfigSec:CreateSlider("Text Size", 80, 150, math.floor(Library.Settings.TextSizeMultiplier * 100), "BuiltIn_Text", function(sizePerc)
             UpdateTextSizes(sizePerc / 100)
         end)
+
+        -- Built-in File Manager Tab (Ikon Folder)
+        local ConfigManagerTab = Window:CreateTab("Configs", "folder")
         
-        local SupportSec = BuiltInTab:CreateSection("Support & Information")
-        SupportSec:CreateParagraph("Credits", "UI Redesigned with FontAwesome, dynamic PC/Mobile layout scaling, and robust element spacing.")
-        SupportSec:CreateButton("Copy Support Discord", function()
-            setclipboard("https://discord.gg/nexus-compkiller")
+        local SaveSec = ConfigManagerTab:CreateSection("Save Configuration")
+        SaveSec:CreateTextBox("Config Name", "Enter name...", "Sys_Save_Name")
+        
+        local configDropdown
+
+        SaveSec:CreateButton("Save Configuration", function()
+            local name = Library.Flags["Sys_Save_Name"]
+            if name and name ~= "" and name ~= "Enter name..." then
+                SaveConfig(name)
+                if configDropdown then
+                    local newList = GetConfigsList()
+                    configDropdown:Refresh(newList, name)
+                end
+            end
+        end)
+
+        local ManageSec = ConfigManagerTab:CreateSection("File Manager")
+        
+        local initialList = GetConfigsList()
+        configDropdown = ManageSec:CreateDropdown("Select File", initialList, initialList[1], "Sys_Selected_File")
+        
+        ManageSec:CreateButton("Load Selected Config", function()
+            local selected = Library.Flags["Sys_Selected_File"]
+            if selected and selected ~= "No Configs Found" then
+                LoadConfig(selected)
+            end
+        end)
+
+        ManageSec:CreateButton("Delete Selected Config", function()
+            local selected = Library.Flags["Sys_Selected_File"]
+            if selected and selected ~= "No Configs Found" then
+                DeleteConfig(selected)
+                local newList = GetConfigsList()
+                configDropdown:Refresh(newList, newList[1])
+            end
+        end)
+
+        ManageSec:CreateButton("Refresh File List", function()
+            local newList = GetConfigsList()
+            configDropdown:Refresh(newList, newList[1])
         end)
     end)
 
