@@ -16,34 +16,15 @@ Library.FontRegistry = {}
 Library.ThemeCallbacks = {}
 
 -- ========================================================
--- [[ BACKEND: CONNECTION TRACKER / JANITOR (GC HELPER) ]]
+-- [[ CONFIGURABLE CUSTOM DECAL THUMBNAIL ]]
 -- ========================================================
-local Janitor = { Connections = {} }
+local CUSTOM_DECAL_THUMB = "rbxthumb://type=Asset&id=121466567819000&w=420&h=420"
 
-function Janitor:Add(connection)
-    table.insert(self.Connections, connection)
-    return connection
-end
-
-function Janitor:Cleanup()
-    for _, conn in ipairs(self.Connections) do
-        if conn and conn.Disconnect then
-            pcall(function() conn:Disconnect() end)
-        end
-    end
-    self.Connections = {}
-end
-
--- Main save directory
+-- Main directory initialization
 local isFolderSupported = makefolder and isfolder
 if isFolderSupported and not isfolder("Compkiller_Configs") then
     makefolder("Compkiller_Configs")
 end
-
--- ========================================================
--- [[ CONFIGURABLE FLOATING ICON DECAL ]]
--- ========================================================
-local FLOATING_ICON_DECAL = "rbxassetid://10723375133"
 
 -- ========================================================
 -- [[ DYNAMIC GITHUB LUCIDE ICON LOADER ]]
@@ -56,10 +37,11 @@ local function GetIcon(iconName)
         return iconName
     end
     
+    -- Protected implementation to guarantee no crashes on any executor
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
-            if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
-            if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
+            if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
+            if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
             
             local fileName = iconName .. ".png"
             local localPath = "Compkiller_Configs/.icons/" .. fileName
@@ -129,7 +111,7 @@ local Themes = {
         StrokeColor = Color3.fromRGB(38, 41, 49),
         Accent = Color3.fromRGB(0, 213, 239),
         TextPrimary = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(100, 170, 195),
+        TextSecondary = Color3.fromRGB(160, 165, 175), -- Neutral gray (replaces the old blue text)
         TextDark = Color3.fromRGB(110, 115, 125)
     }
 }
@@ -168,7 +150,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
+            TweenService:Create(item.Instance, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextSize = math.round(item.BaseSize * multiplier) }):Play()
         end)
     end
 end
@@ -348,6 +330,54 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     MainStroke.Thickness = 1.5
     RegisterTheme(MainStroke, { Color = "StrokeColor" })
 
+    -- PERFORMANCE Floating HUD di Pojok Kanan Atas Layar (Toggleable)
+    local HudFrame = Instance.new("Frame", ScreenGui)
+    HudFrame.Name = "Nexus_Performance_HUD"
+    HudFrame.Size = UDim2.new(0, 130, 0, 24)
+    HudFrame.Position = UDim2.new(1, -140, 0, 10)
+    HudFrame.BackgroundTransparency = 0.4
+    HudFrame.Visible = false -- Tersembunyi dari awal
+    RegisterTheme(HudFrame, { BackgroundColor3 = "SidebarBg" })
+
+    local HudCorner = Instance.new("UICorner", HudFrame)
+    HudCorner.CornerRadius = UDim.new(0, 6)
+
+    local HudStroke = Instance.new("UIStroke", HudFrame)
+    HudStroke.Thickness = 1
+    RegisterTheme(HudStroke, { Color = "Accent" }) -- Mengikuti aksen warna secara serempak
+
+    local HudText = Instance.new("TextLabel", HudFrame)
+    HudText.Size = UDim2.new(1, 0, 1, 0)
+    HudText.BackgroundTransparency = 1
+    HudText.Text = "FPS: Calculating... | Ping: Calculating..."
+    HudText.TextXAlignment = Enum.TextXAlignment.Center
+    HudText.TextYAlignment = Enum.TextYAlignment.Center
+    RegisterTheme(HudText, { TextColor3 = "TextPrimary" })
+    RegisterFont(HudText, true)
+    RegisterText(HudText, 10)
+
+    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
+    local MinimizeContainer = Instance.new("Frame", MainFrame)
+    MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
+    MinimizeContainer.Position = UDim2.new(1, -34, 0, 12)
+    RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
+
+    local MinCorner = Instance.new("UICorner", MinimizeContainer)
+    MinCorner.CornerRadius = UDim.new(0, 6)
+
+    local MinStroke = Instance.new("UIStroke", MinimizeContainer)
+    MinStroke.Thickness = 1
+    RegisterTheme(MinStroke, { Color = "StrokeColor" })
+
+    local MinimizeBtn = Instance.new("TextButton", MinimizeContainer)
+    MinimizeBtn.Size = UDim2.new(1, 0, 1, 0)
+    MinimizeBtn.BackgroundTransparency = 1
+    MinimizeBtn.Text = "-"
+    MinimizeBtn.TextYAlignment = Enum.TextYAlignment.Center
+    RegisterTheme(MinimizeBtn, { TextColor3 = "TextSecondary" })
+    RegisterFont(MinimizeBtn, true)
+    RegisterText(MinimizeBtn, 18)
+
     local UiScale = Instance.new("UIScale", MainFrame)
     UiScale.Scale = Library.Settings.Scale
 
@@ -421,8 +451,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     LogoIcon.Size = UDim2.new(0, 24, 0, 24)
     LogoIcon.Position = UDim2.new(0, 15, 0.5, -12)
     LogoIcon.BackgroundTransparency = 1
-    LogoIcon.Image = "rbxassetid://10723375133"
-    RegisterTheme(LogoIcon, { ImageColor3 = "Accent" })
+    LogoIcon.Image = CUSTOM_DECAL_THUMB -- Menampilkan Decal Kustom Anda dalam format rbxthumb (resolusi tinggi)
+    -- Dilepas dari pewarnaan aksen agar gambar decal asli tampil dengan warna naturalnya
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
     TitleLabel.Size = UDim2.new(1, -50, 1, 0)
@@ -1288,7 +1318,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end
                 end
 
-                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
+                Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
@@ -1637,6 +1667,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ApplyUiSettings(Library.Settings.Mode, scalePerc / 100)
         end)
         
+        -- Toggle ON/OFF untuk menampilkan/menyembunyikan Floating Performance HUD
+        ConfigSec:CreateToggle("Performance HUD", false, "BuiltIn_ShowHUD", {}, function(state)
+            HudFrame.Visible = state
+        end)
+
         local ThemeSec = BuiltInTab:CreateSection("Theme & Typography")
         ThemeSec:CreateSlider("Text Size", 80, 150, math.floor(Library.Settings.TextSizeMultiplier * 100), "BuiltIn_Text", function(sizePerc)
             UpdateTextSizes(sizePerc / 100)
@@ -1669,23 +1704,36 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
         -- PREMIUM DIAGNOSTICS SECTION (DEVELOPER TOOLS)
         local DiagnosticSec = BuiltInTab:CreateSection("Diagnostics")
-        local fpsLabel = DiagnosticSec:CreateParagraph("Performance Stats", "FPS: Calculating...\nMemory: Calculating...")
+        local fpsLabel = DiagnosticSec:CreateParagraph("Performance Stats", "FPS: Calculating...\nPing: Calculating...\nMemory: Calculating...")
         
         local fpsCount = 0
         local lastTime = os.clock()
+        local currentFps = 60
+        local pingVal = 0
+
         Janitor:Add(RunService.RenderStepped:Connect(function()
             fpsCount = fpsCount + 1
             local now = os.clock()
             if now - lastTime >= 1 then
-                local currentFps = fpsCount
-                local memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
-                pcall(function()
-                    fpsLabel:Set("FPS: " .. tostring(currentFps) .. "\nMemory Estimate: " .. memoryUsage)
-                end)
+                currentFps = fpsCount
                 fpsCount = 0
                 lastTime = now
             end
         end))
+
+        -- Safe diagnostics loop (Real Ping and Framerate updating)
+        task.spawn(function()
+            while task.wait(1) do
+                pcall(function()
+                    pingVal = math.round(LocalPlayer:GetNetworkPing() * 1000)
+                end)
+                local memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
+                pcall(function()
+                    fpsLabel:Set("FPS: " .. tostring(currentFps) .. "\nPing: " .. tostring(pingVal) .. " ms\nMemory Estimate: " .. memoryUsage)
+                    HudText.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. tostring(pingVal) .. " ms"
+                end)
+            end
+        end)
 
         local ActionSec = BuiltInTab:CreateSection("Emergency Actions")
         ActionSec:CreateButton("Destroy UI", function()
@@ -1811,8 +1859,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ToggleIconImage.Size = UDim2.new(0.65, 0, 0.65, 0)
     ToggleIconImage.Position = UDim2.new(0.175, 0, 0.175, 0)
     ToggleIconImage.BackgroundTransparency = 1
-    ToggleIconImage.Image = "rbxassetid://10723375133"
-    RegisterTheme(ToggleIconImage, { ImageColor3 = "Accent" })
+    ToggleIconImage.Image = CUSTOM_DECAL_THUMB -- Menggunakan gambar decal kustom orisinal Anda tanpa filter warna
+    -- RegisterTheme dilepas agar warna asli dekal tetap terjaga
 
     MakeDraggable(FloatingToggle, FloatingToggle)
 
@@ -1857,16 +1905,27 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
 
-    -- Tombol Sembunyikan/Minimalkan Terpisah di Kanan Atas Window
-    local MinimizeBtn = Instance.new("TextButton", MainFrame)
-    MinimizeBtn.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeBtn.Position = UDim2.new(1, -34, 0, 12)
+    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
+    local MinimizeContainer = Instance.new("Frame", MainFrame)
+    MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
+    MinimizeContainer.Position = UDim2.new(1, -34, 0, 12)
+    RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
+
+    local MinCorner = Instance.new("UICorner", MinimizeContainer)
+    MinCorner.CornerRadius = UDim.new(0, 6)
+
+    local MinStroke = Instance.new("UIStroke", MinimizeContainer)
+    MinStroke.Thickness = 1
+    RegisterTheme(MinStroke, { Color = "StrokeColor" })
+
+    local MinimizeBtn = Instance.new("TextButton", MinimizeContainer)
+    MinimizeBtn.Size = UDim2.new(1, 0, 1, 0)
     MinimizeBtn.BackgroundTransparency = 1
     MinimizeBtn.Text = "-"
-    MinimizeBtn.ZIndex = 10
+    MinimizeBtn.TextYAlignment = Enum.TextYAlignment.Center
     RegisterTheme(MinimizeBtn, { TextColor3 = "TextSecondary" })
     RegisterFont(MinimizeBtn, true)
-    RegisterText(MinimizeBtn, 20)
+    RegisterText(MinimizeBtn, 18)
 
     Janitor:Add(MinimizeBtn.MouseButton1Click:Connect(ToggleGui))
 
