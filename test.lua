@@ -16,15 +16,34 @@ Library.FontRegistry = {}
 Library.ThemeCallbacks = {}
 
 -- ========================================================
--- [[ CONFIGURABLE FLOATING ICON DECAL ]]
+-- [[ BACKEND: CONNECTION TRACKER / JANITOR (GC HELPER) ]]
 -- ========================================================
-local FLOATING_ICON_DECAL = "rbxassetid://10723375133" -- Customize this asset ID for your floating toggle icon
+local Janitor = { Connections = {} }
 
--- Main directory initialization
+function Janitor:Add(connection)
+    table.insert(self.Connections, connection)
+    return connection
+end
+
+function Janitor:Cleanup()
+    for _, conn in ipairs(self.Connections) do
+        if conn and conn.Disconnect then
+            pcall(function() conn:Disconnect() end)
+        end
+    end
+    self.Connections = {}
+end
+
+-- Config directory initialization
 local isFolderSupported = makefolder and isfolder
 if isFolderSupported and not isfolder("Compkiller_Configs") then
     makefolder("Compkiller_Configs")
 end
+
+-- ========================================================
+-- [[ CONFIGURABLE FLOATING ICON DECAL ]]
+-- ========================================================
+local FLOATING_ICON_DECAL = "rbxassetid://10723375133"
 
 -- ========================================================
 -- [[ DYNAMIC GITHUB LUCIDE ICON LOADER ]]
@@ -37,7 +56,6 @@ local function GetIcon(iconName)
         return iconName
     end
     
-    -- Protected implementation to guarantee no crashes on any executor
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
             if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
@@ -150,7 +168,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
+            TweenService:Create(item.Instance, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextSize = math.round(item.BaseSize * multiplier) }):Play()
         end)
     end
 end
@@ -169,27 +187,29 @@ end
 local function MakeDraggable(dragTrigger, frameToMove)
     local dragging, dragInput, dragStart, startPos
     
-    dragTrigger.InputBegan:Connect(function(input)
+    Janitor:Add(dragTrigger.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frameToMove.Position
             
-            input.Changed:Connect(function()
+            local endConn
+            endConn = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
+                    endConn:Disconnect()
                 end
             end)
         end
-    end)
+    end))
     
-    dragTrigger.InputChanged:Connect(function(input)
+    Janitor:Add(dragTrigger.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
-    end)
+    end))
     
-    UserInputService.InputChanged:Connect(function(input)
+    Janitor:Add(UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             frameToMove.Position = UDim2.new(
@@ -197,6 +217,82 @@ local function MakeDraggable(dragTrigger, frameToMove)
                 startPos.Y.Scale, startPos.Y.Offset + delta.Y
             )
         end
+    end))
+end
+
+-- ========================================================
+-- [[ BACKEND: PREMIUM TOAST NOTIFICATION MANAGER ]]
+-- ========================================================
+local NotificationPool = {}
+
+function Library:CreateNotification(titleText, messageText, duration)
+    local screenGui = game:GetService("CoreGui"):FindFirstChild("Nexus_Compkiller_UI") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Nexus_Compkiller_UI")
+    if not screenGui then return end
+    
+    local container = screenGui:FindFirstChild("NotificationContainer")
+    if not container then
+        container = Instance.new("Frame", screenGui)
+        container.Name = "NotificationContainer"
+        container.Size = UDim2.new(0, 280, 1, -20)
+        container.Position = UDim2.new(1, -290, 0, 10)
+        container.BackgroundTransparency = 1
+        
+        local layout = Instance.new("UIListLayout", container)
+        layout.Padding = UDim.new(0, 8)
+        layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    end
+    
+    local toast = Instance.new("Frame", container)
+    toast.Size = UDim2.new(1, 0, 0, 0) -- starts collapsed height
+    toast.ClipsDescendants = true
+    RegisterTheme(toast, { BackgroundColor3 = "SidebarBg" })
+    
+    local toastCorner = Instance.new("UICorner", toast)
+    toastCorner.CornerRadius = UDim.new(0, 6)
+    
+    local toastStroke = Instance.new("UIStroke", toast)
+    toastStroke.Thickness = 1
+    RegisterTheme(toastStroke, { Color = "StrokeColor" })
+    
+    local accentBar = Instance.new("Frame", toast)
+    accentBar.Size = UDim2.new(0, 4, 1, 0)
+    RegisterTheme(accentBar, { BackgroundColor3 = "Accent" })
+    
+    local title = Instance.new("TextLabel", toast)
+    title.Size = UDim2.new(1, -20, 0, 16)
+    title.Position = UDim2.new(0, 12, 0, 8)
+    title.BackgroundTransparency = 1
+    title.Text = titleText or "Notification"
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterTheme(title, { TextColor3 = "TextPrimary" })
+    RegisterFont(title, true)
+    RegisterText(title, 11)
+    
+    local desc = Instance.new("TextLabel", toast)
+    desc.Size = UDim2.new(1, -20, 1, -28)
+    desc.Position = UDim2.new(0, 12, 0, 24)
+    desc.BackgroundTransparency = 1
+    desc.Text = messageText or "System notification message."
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.TextYAlignment = Enum.TextYAlignment.Top
+    desc.TextWrapped = true
+    RegisterTheme(desc, { TextColor3 = "TextSecondary" })
+    RegisterFont(desc, false)
+    RegisterText(desc, 10)
+    
+    -- Animate expansion and slide-in
+    TweenService:Create(toast, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(1, 0, 0, 64) }):Play()
+    toast.BackgroundTransparency = 1
+    TweenService:Create(toast, TweenInfo.new(0.3), { BackgroundTransparency = 0.4 }):Play()
+    
+    task.delay(duration or 4, function()
+        local shrink = TweenService:Create(toast, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.new(1, 0, 0, 0) })
+        shrink:Play()
+        TweenService:Create(toast, TweenInfo.new(0.2), { BackgroundTransparency = 1 }):Play()
+        shrink.Completed:Connect(function()
+            toast:Destroy()
+        end)
     end)
 end
 
@@ -234,12 +330,16 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local successHui, hui = pcall(function() return gethui and gethui() end)
     ScreenGui.Parent = (successHui and hui) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
+    -- Clean Memory Leak preventative onDestroy listener
+    Janitor:Add(ScreenGui.Destroying:Connect(function()
+        Janitor:Cleanup()
+    end))
+
     local MainFrame = Instance.new("Frame")
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
     MainFrame.BackgroundTransparency = 1
     
-    -- Mengatur ukuran MainFrame ke 0 pada saat startup agar pop-out bekerja dengan benar
     MainFrame.Size = UDim2.new(0, 0, 0, 0)
     MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     MainFrame.Visible = false
@@ -254,7 +354,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local UiScale = Instance.new("UIScale", MainFrame)
     UiScale.Scale = Library.Settings.Scale
 
-    -- Variabel Penyimpanan Target Dimensi yang Akurat untuk Animasi
     local TargetSize = UDim2.new(0, 640, 0, 460)
     local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
 
@@ -271,7 +370,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TargetPosition = UDim2.new(0.5, -260, 0.5, -175)
         end
 
-        -- Jika UI sedang terbuka, terapkan ukuran target secara instan
         if Window.Visible then
             MainFrame.Size = TargetSize
             MainFrame.Position = TargetPosition
@@ -351,9 +449,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     TabListLayout.Padding = UDim.new(0, 4)
     TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Janitor:Add(TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         TabScroll.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y)
-    end)
+    end))
 
     -- Bottom User profile
     local UserCard = Instance.new("Frame", Sidebar)
@@ -473,9 +571,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
             ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
         end
+        Tab.ResizeCanvas = ResizeCanvas
 
-        LeftList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
-        RightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
+        Janitor:Add(LeftList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas))
+        Janitor:Add(RightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas))
 
         local TabBtn = Instance.new("TextButton", TabScroll)
         TabBtn.Size = UDim2.new(1, -10, 0, 32)
@@ -543,21 +642,21 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play()
         end
 
-        TabBtn.MouseButton1Click:Connect(SelectTab)
+        Janitor:Add(TabBtn.MouseButton1Click:Connect(SelectTab))
 
-        TabBtn.MouseEnter:Connect(function()
+        Janitor:Add(TabBtn.MouseEnter:Connect(function()
             if Window.ActiveTab ~= Tab then
                 TweenService:Create(TabLabel, TweenInfo.new(0.15), {TextColor3 = CurrentTheme.TextPrimary}):Play()
                 TweenService:Create(TabIcon, TweenInfo.new(0.15), {ImageColor3 = CurrentTheme.TextPrimary}):Play()
             end
-        end)
+        end))
 
-        TabBtn.MouseLeave:Connect(function()
+        Janitor:Add(TabBtn.MouseLeave:Connect(function()
             if Window.ActiveTab ~= Tab then
                 TweenService:Create(TabLabel, TweenInfo.new(0.15), {TextColor3 = CurrentTheme.TextSecondary}):Play()
                 TweenService:Create(TabIcon, TweenInfo.new(0.15), {ImageColor3 = CurrentTheme.TextSecondary}):Play()
             end
-        end)
+        end))
 
         -- PERBAIKAN LOGIKA: Masukkan ke Window.Tabs DULU sebelum memeriksa kondisinya!
         table.insert(Window.Tabs, Tab)
@@ -627,7 +726,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 SecFrame.Size = UDim2.new(1, 0, 0, contentHeight + 46)
             end
 
-            ContentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSectionSize)
+            Janitor:Add(ContentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSectionSize))
 
             local InsidePadding = Instance.new("UIPadding", Content)
             InsidePadding.PaddingLeft = UDim.new(0, 12)
@@ -746,7 +845,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end
                 end)
 
-                Switch.MouseButton1Click:Connect(function() SetState(not Toggle.State) end)
+                Janitor:Add(Switch.MouseButton1Click:Connect(function() SetState(not Toggle.State) end))
                 SetState(Toggle.State)
 
                 local ctrl = {}
@@ -791,12 +890,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
                 local listening = false
 
-                BindBtn.MouseButton1Click:Connect(function()
+                Janitor:Add(BindBtn.MouseButton1Click:Connect(function()
                     listening = true
                     BindBtn.Text = "..."
-                end)
+                end))
 
-                UserInputService.InputBegan:Connect(function(input)
+                Janitor:Add(UserInputService.InputBegan:Connect(function(input)
                     if listening then
                         if input.UserInputType == Enum.UserInputType.Keyboard then
                             listening = false
@@ -806,7 +905,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                             if callback then task.spawn(callback, input.KeyCode) end
                         end
                     end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -894,33 +993,33 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 end
 
                 local sliding = false
-                SliderBg.InputBegan:Connect(function(input)
+                Janitor:Add(SliderBg.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                         sliding = true
                         UpdateSliderFromMouse(input)
                     end
-                end)
+                end))
 
-                UserInputService.InputChanged:Connect(function(input)
+                Janitor:Add(UserInputService.InputChanged:Connect(function(input)
                     if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                         UpdateSliderFromMouse(input)
                     end
-                end)
+                end))
 
-                UserInputService.InputEnded:Connect(function(input)
+                Janitor:Add(UserInputService.InputEnded:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                         sliding = false
                     end
-                end)
+                end))
 
-                ValLabel.FocusLost:Connect(function(enterPressed)
+                Janitor:Add(ValLabel.FocusLost:Connect(function(enterPressed)
                     local num = tonumber(ValLabel.Text)
                     if num then
                         ApplyValue(num)
                     else
                         ValLabel.Text = tostring(Slider.Value)
                     end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1011,18 +1110,18 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         RegisterFont(OptBtn, false)
                         RegisterText(OptBtn, 10)
 
-                        OptBtn.MouseButton1Click:Connect(function()
+                        Janitor:Add(OptBtn.MouseButton1Click:Connect(function()
                             Dropdown.Value = opt
                             Library.Flags[flag] = opt
                             DisplayText.Text = tostring(opt)
                             ListFrame.Visible = false
                             Dropdown.Open = false
                             if callback then task.spawn(callback, opt) end
-                        end)
+                        end))
                     end
                 end
 
-                Trigger.MouseButton1Click:Connect(function()
+                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
@@ -1033,7 +1132,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     else
                         ListFrame.Visible = false
                     end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1141,7 +1240,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         RegisterFont(OptBtn, false)
                         RegisterText(OptBtn, 10)
 
-                        OptBtn.MouseButton1Click:Connect(function()
+                        Janitor:Add(OptBtn.MouseButton1Click:Connect(function()
                             local index = table.find(Dropdown.Selected, opt)
                             if index then
                                 table.remove(Dropdown.Selected, index)
@@ -1152,11 +1251,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                             UpdateDisplayText()
                             PopulateOptions()
                             if callback then task.spawn(callback, Dropdown.Selected) end
-                        end)
+                        end))
                     end
                 end
 
-                Trigger.MouseButton1Click:Connect(function()
+                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
@@ -1167,7 +1266,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     else
                         ListFrame.Visible = false
                     end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1230,19 +1329,19 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     if callback then task.spawn(callback, color) end
                 end
 
-                Preview.MouseButton1Click:Connect(function()
+                Janitor:Add(Preview.MouseButton1Click:Connect(function()
                     local randomColor = Color3.fromHSV(math.random(), 1, 1)
                     ApplyColor(randomColor)
-                end)
+                end))
 
-                HexInput.FocusLost:Connect(function()
+                Janitor:Add(HexInput.FocusLost:Connect(function()
                     local parsedColor = HexToColor3(HexInput.Text)
                     if parsedColor then
                         ApplyColor(parsedColor)
                     else
                         HexInput.Text = Color3ToHex(Picker.Value)
                     end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1265,9 +1364,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Btn, true)
                 RegisterText(Btn, 11)
 
-                Btn.MouseButton1Click:Connect(function()
+                Janitor:Add(Btn.MouseButton1Click:Connect(function()
                     if callback then task.spawn(callback) end
-                end)
+                end))
             end
 
             -- ========================================================
@@ -1304,7 +1403,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     Elem.Size = UDim2.new(1, 0, 0, textBounds.Y + 22)
                 end
                 
-                Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(ResizeParagraph)
+                Janitor:Add(Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(ResizeParagraph))
                 ResizeParagraph()
             end
 
@@ -1341,10 +1440,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(InputBox, false)
                 RegisterText(InputBox, 11)
 
-                InputBox.FocusLost:Connect(function(enterPressed)
+                Janitor:Add(InputBox.FocusLost:Connect(function(enterPressed)
                     Library.Flags[flag] = InputBox.Text
                     if callback then task.spawn(callback, InputBox.Text) end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1423,6 +1522,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 local encoded = HttpService:JSONEncode(dataToSave)
                 writefile(path .. ".json", encoded)
             end
+            
+            Library:CreateNotification("Config Saved", "Successfully saved configuration: " .. configName, 3)
         end
 
         local function LoadConfig(configName)
@@ -1452,6 +1553,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         end)
                     end
                 end
+                Library:CreateNotification("Config Loaded", "Successfully applied configuration: " .. configName, 3)
             end
         end
 
@@ -1461,6 +1563,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             local jsonPath = ConfigFolder .. "/" .. configName .. ".json"
             if isfile(luaPath) then delfile(luaPath) end
             if isfile(jsonPath) then delfile(jsonPath) end
+            Library:CreateNotification("Config Deleted", "Successfully deleted configuration: " .. configName, 3)
         end
 
         local function GetConfigsList()
@@ -1512,8 +1615,28 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
         end)
 
+        -- PREMIUM DIAGNOSTICS SECTION (DEVELOPER TOOLS)
+        local DiagnosticSec = BuiltInTab:CreateSection("Diagnostics")
+        local fpsLabel = DiagnosticSec:CreateParagraph("Performance Stats", "FPS: Calculating...\nMemory: Calculating...")
+        
+        local fpsCount = 0
+        local lastTime = os.clock()
+        Janitor:Add(RunService.RenderStepped:Connect(function()
+            fpsCount = fpsCount + 1
+            local now = os.clock()
+            if now - lastTime >= 1 then
+                local currentFps = fpsCount
+                local memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
+                pcall(function()
+                    fpsLabel:Set("FPS: " .. tostring(currentFps) .. "\nMemory Estimate: " .. memoryUsage)
+                end)
+                fpsCount = 0
+                lastTime = now
+            end
+        end))
+
         local ActionSec = BuiltInTab:CreateSection("Emergency Actions")
-        ActionSec:CreateButton("Destroy UI Permanently", function()
+        ActionSec:CreateButton("Destroy UI", function()
             ScreenGui:Destroy()
         end)
 
@@ -1562,6 +1685,52 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         ManageSec:CreateButton("Refresh File List", function()
             local newList = GetConfigsList()
             configDropdown:Refresh(newList, newList[1])
+        end)
+        
+        -- EXPORT/IMPORT STRINGS FOR EASY SHARE (CLIPBOARD)
+        local ShareSec = ConfigManagerTab:CreateSection("Share Config Codes")
+        ShareSec:CreateTextBox("Config Share Code", "Paste code here to import, or copy exported code...", "Sys_Share_Code")
+        
+        ShareSec:CreateButton("Export Current Config Code", function()
+            local dataToSave = {}
+            for flag, value in pairs(Library.Flags) do
+                if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
+                    if typeof(value) == "Color3" then
+                        dataToSave[flag] = {math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255)}
+                    elseif typeof(value) == "EnumItem" then
+                        dataToSave[flag] = tostring(value)
+                    else
+                        dataToSave[flag] = value
+                    end
+                end
+            end
+            local encoded = HttpService:JSONEncode(dataToSave)
+            setclipboard(encoded)
+            Library:CreateNotification("Config Exported", "Configuration copied to clipboard as share code!", 3)
+        end)
+        
+        ShareSec:CreateButton("Import Shared Code", function()
+            local rawCode = Library.Flags["Sys_Share_Code"]
+            if rawCode and rawCode ~= "" then
+                local success, decoded = pcall(function() return HttpService:JSONDecode(rawCode) end)
+                if success and typeof(decoded) == "table" then
+                    for flag, value in pairs(decoded) do
+                        if Library.Registry[flag] then
+                            pcall(function()
+                                if Library.Registry[flag].Type == "ColorPicker" and typeof(value) == "table" then
+                                    local r, g, b = value[1], value[2], value[3]
+                                    Library.Registry[flag].Control:Set(Color3.fromRGB(r, g, b))
+                                else
+                                    Library.Registry[flag].Control:Set(value)
+                                end
+                            end)
+                        end
+                    end
+                    Library:CreateNotification("Import Success", "Configuration successfully imported from share code!", 3)
+                else
+                    Library:CreateNotification("Import Failed", "Invalid share code format.", 3)
+                end
+            end
         end)
     end)
 
@@ -1633,14 +1802,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end
 
-    FloatingToggle.MouseButton1Click:Connect(ToggleGui)
+    Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
 
-    UserInputService.InputBegan:Connect(function(input, processed)
+    Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
         if input.KeyCode == Enum.KeyCode.Insert then
             ToggleGui()
         end
-    end)
+    end))
     
     function Window:Minimize()
         ToggleGui()
