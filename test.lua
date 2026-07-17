@@ -37,24 +37,28 @@ local function GetIcon(iconName)
         return iconName
     end
     
+    -- Protected implementation to guarantee no crashes on any executor
     if writefile and readfile and isfile and getcustomasset then
-        if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
-        if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
-        
-        local fileName = iconName .. ".png"
-        local localPath = "Compkiller_Configs/.icons/" .. fileName
-        
-        if isfile(localPath) then
-            return getcustomasset(localPath)
-        else
-            local url = "https://raw.githubusercontent.com/latte-soft/lucide-roblox/master/icons/compiled/256px/" .. fileName
-            local success, content = pcall(function()
-                return game:HttpGet(url)
-            end)
-            if success and content and #content > 0 then
-                pcall(writefile, localPath, content)
+        local success, assetPath = pcall(function()
+            if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
+            if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
+            
+            local fileName = iconName .. ".png"
+            local localPath = "Compkiller_Configs/.icons/" .. fileName
+            
+            if isfile(localPath) then
                 return getcustomasset(localPath)
+            else
+                local url = "https://raw.githubusercontent.com/latte-soft/lucide-roblox/master/icons/compiled/256px/" .. fileName
+                local content = game:HttpGet(url)
+                if content and #content > 0 then
+                    writefile(localPath, content)
+                    return getcustomasset(localPath)
+                end
             end
+        end)
+        if success and assetPath then
+            return assetPath
         end
     end
     
@@ -80,8 +84,8 @@ local function HexToColor3(hex)
     if #hex == 6 then
         local r = tonumber(hex:sub(1, 2), 16)
         local g = tonumber(hex:sub(3, 4), 16)
+        local b = tonumber(hex:sub(5, 6), 16)
         if r and g and b then
-            local b = tonumber(hex:sub(5, 6), 16)
             return Color3.fromRGB(r, g, b)
         end
     end
@@ -89,7 +93,10 @@ local function HexToColor3(hex)
 end
 
 local function Color3ToHex(color)
-    return string.format("#%02X%02X%02X", math.round(color.R * 255), math.round(color.G * 255), math.round(color.B * 255))
+    local r = math.clamp(math.floor(color.R * 255 + 0.5), 0, 255)
+    local g = math.clamp(math.floor(color.G * 255 + 0.5), 0, 255)
+    local b = math.clamp(math.floor(color.B * 255 + 0.5), 0, 255)
+    return string.format("#%02X%02X%02X", r, g, b)
 end
 
 -- ========================================================
@@ -699,7 +706,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         InlineBind.BackgroundTransparency = 0.5
                         InlineBind.Text = tostring(config.keybind)
                         
-                        -- FIXED: Sesuai dengan error di Developer Console, perataan teks horizontal dan vertikal yang benar diubah
+                        -- Sesuai perbaikan visual
                         InlineBind.TextXAlignment = Enum.TextXAlignment.Center
                         InlineBind.TextYAlignment = Enum.TextYAlignment.Center
                         
@@ -1372,7 +1379,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     end
 
     -- ========================================================
-    -- [[ AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
+    -- [[ 6. AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
     -- ========================================================
     task.spawn(function()
         task.wait(0.05)
