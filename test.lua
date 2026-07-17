@@ -238,6 +238,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
     MainFrame.BackgroundTransparency = 1
+    
+    -- Mengatur ukuran MainFrame ke 0 pada saat startup agar pop-out bekerja dengan benar
+    MainFrame.Size = UDim2.new(0, 0, 0, 0)
+    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     MainFrame.Visible = false
     
     local MainCorner = Instance.new("UICorner", MainFrame)
@@ -249,6 +253,35 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local UiScale = Instance.new("UIScale", MainFrame)
     UiScale.Scale = Library.Settings.Scale
+
+    -- Variabel Penyimpanan Target Dimensi yang Akurat untuk Animasi
+    local TargetSize = UDim2.new(0, 640, 0, 460)
+    local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+
+    local function ApplyUiSettings(mode, scale)
+        Library.Settings.Mode = mode
+        Library.Settings.Scale = scale
+        UiScale.Scale = scale
+        
+        if mode == "PC" then
+            TargetSize = UDim2.new(0, 640, 0, 460)
+            TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+        elseif mode == "Mobile" then
+            TargetSize = UDim2.new(0, 520, 0, 350)
+            TargetPosition = UDim2.new(0.5, -260, 0.5, -175)
+        end
+
+        -- Jika UI sedang terbuka, terapkan ukuran target secara instan
+        if Window.Visible then
+            MainFrame.Size = TargetSize
+            MainFrame.Position = TargetPosition
+        end
+        
+        for _, t in ipairs(Window.Tabs) do
+            t.ResizeCanvas()
+        end
+    end
+    ApplyUiSettings(Library.Settings.Mode, Library.Settings.Scale)
 
     -- Sidebar (Left Area)
     local Sidebar = Instance.new("Frame", MainFrame)
@@ -360,24 +393,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ContentArea.Size = UDim2.new(1, -170, 1, 0)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
     ContentArea.BackgroundTransparency = 1
-
-    local function ApplyUiSettings(mode, scale)
-        Library.Settings.Mode = mode
-        Library.Settings.Scale = scale
-        UiScale.Scale = scale
-        
-        if mode == "PC" then
-            MainFrame.Size = UDim2.new(0, 640, 0, 460)
-            MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
-        elseif mode == "Mobile" then
-            MainFrame.Size = UDim2.new(0, 520, 0, 350)
-            MainFrame.Position = UDim2.new(0.5, -260, 0.5, -175)
-        end
-        
-        for _, t in ipairs(Window.Tabs) do
-            t.ResizeCanvas()
-        end
-    end
 
     -- ========================================================
     -- [[ CATEGORY HEADER SYSTEM ]]
@@ -1498,7 +1513,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end)
 
         local ActionSec = BuiltInTab:CreateSection("Emergency Actions")
-        ActionSec:CreateButton("Destroy UI", function()
+        ActionSec:CreateButton("Destroy UI Permanently", function()
             ScreenGui:Destroy()
         end)
 
@@ -1579,11 +1594,29 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     MakeDraggable(FloatingToggle, FloatingToggle)
 
+    -- Simpan Ukuran Target Dimensi UI Asli untuk Animasi agar Tidak Mengecil ke 0,0,0,0 Permanen
+    local TargetSize = UDim2.new(0, 640, 0, 460)
+    local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+
     local function ToggleGui()
         Window.Visible = not Window.Visible
+        
+        -- Sesuaikan Target Ukuran Sebelum Dimulai Animasi
+        if Library.Settings.Mode == "PC" then
+            TargetSize = UDim2.new(0, 640, 0, 460)
+            TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+        else
+            TargetSize = UDim2.new(0, 500, 0, 340)
+            TargetPosition = UDim2.new(0.5, -250, 0.5, -170)
+        end
+
         if Window.Visible then
             MainFrame.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = MainFrame.Size, Position = MainFrame.Position}):Play()
+            -- Set ukuran ke 0 terlebih dahulu di tengah layar sebelum pop-out dimulai
+            MainFrame.Size = UDim2.new(0, 0, 0, 0)
+            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            
+            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = TargetSize, Position = TargetPosition}):Play()
             -- Ikon melayang mengecil/hilang ketika UI dibuka (seperti sistem toggle aslinya)
             TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
         else
