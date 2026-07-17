@@ -150,7 +150,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            TweenService:Create(item.Instance, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextSize = math.round(item.BaseSize * multiplier) }):Play()
+            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
         end)
     end
 end
@@ -434,6 +434,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         ColumnContainer.BackgroundTransparency = 1
 
         local LeftColumn = Instance.new("Frame", ColumnContainer)
+        LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
+        LeftColumn.Position = UDim2.new(0, 0, 0, 0)
         LeftColumn.BackgroundTransparency = 1
 
         local LeftList = Instance.new("UIListLayout", LeftColumn)
@@ -441,55 +443,21 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         LeftList.SortOrder = Enum.SortOrder.LayoutOrder
 
         local RightColumn = Instance.new("Frame", ColumnContainer)
+        RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
+        RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
         RightColumn.BackgroundTransparency = 1
 
         local RightList = Instance.new("UIListLayout", RightColumn)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
 
-        -- Dynamic Stack Layout (Fixed Overlap Loop on Mobile layouts)
         local function ResizeCanvas()
             local leftHeight = LeftList.AbsoluteContentSize.Y
             local rightHeight = RightList.AbsoluteContentSize.Y
-            local targetHeight
-            
-            if Library.Settings.Mode == "PC" then
-                targetHeight = math.max(leftHeight, rightHeight) + 30
-                
-                -- Verify exact layouts to prevent infinite refresh cycles
-                if LeftColumn.Size ~= UDim2.new(0.5, -6, 1, 0) then
-                    LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
-                    LeftColumn.Position = UDim2.new(0, 0, 0, 0)
-                    
-                    RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
-                    RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
-                    RightColumn.Visible = true
-                end
-            else -- Mobile stacked view layout
-                targetHeight = leftHeight + rightHeight + 42
-                
-                local newLeftSize = UDim2.new(1, 0, 0, leftHeight)
-                if LeftColumn.Size ~= newLeftSize then
-                    LeftColumn.Size = newLeftSize
-                    LeftColumn.Position = UDim2.new(0, 0, 0, 0)
-                end
-                
-                local newRightSize = UDim2.new(1, 0, 0, rightHeight)
-                local newRightPos = UDim2.new(0, 0, 0, leftHeight + 12)
-                if RightColumn.Size ~= newRightSize or RightColumn.Position ~= newRightPos then
-                    RightColumn.Size = newRightSize
-                    RightColumn.Position = newRightPos
-                    RightColumn.Visible = true
-                end
-            end
-            
-            local newCanvasSize = UDim2.new(0, 0, 0, targetHeight)
-            if TabPage.CanvasSize ~= newCanvasSize then
-                TabPage.CanvasSize = newCanvasSize
-                ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
-            end
+            local targetHeight = math.max(leftHeight, rightHeight) + 30
+            TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
+            ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
         end
-        Tab.ResizeCanvas = ResizeCanvas
 
         LeftList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
         RightList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(ResizeCanvas)
@@ -553,7 +521,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
             Window.ActiveTab = Tab
             TabPage.Visible = true
-            ResizeCanvas()
             
             TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.9}):Play()
             TweenService:Create(TabBtnAccent, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
@@ -577,14 +544,15 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
         end)
 
+        -- PERBAIKAN LOGIKA: Masukkan ke Window.Tabs DULU sebelum memeriksa kondisinya!
+        table.insert(Window.Tabs, Tab)
+
         if #Window.Tabs == 1 then
             task.spawn(function()
                 task.wait(0.1)
                 SelectTab()
             end)
         end
-
-        table.insert(Window.Tabs, Tab)
 
         -- ========================================================
         -- [[ SECTION CONTAINER CREATION ]]
@@ -1216,6 +1184,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Label, false)
                 RegisterText(Label, 11)
 
+                -- Rounded square preview warna
                 local Preview = Instance.new("TextButton", Elem)
                 Preview.Size = UDim2.new(0, 16, 0, 16)
                 Preview.Position = UDim2.new(1, -16, 0.5, -8)
@@ -1223,7 +1192,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Preview.BackgroundColor3 = Picker.Value
                 Instance.new("UICorner", Preview).CornerRadius = UDim.new(0, 4)
 
-                -- Hex Code RGB Text Input
+                -- TextBox Input Kode Hexadecimal (RGB)
                 local HexInput = Instance.new("TextBox", Elem)
                 HexInput.Size = UDim2.new(0, 60, 0, 18)
                 HexInput.Position = UDim2.new(1, -82, 0.5, -9)
@@ -1384,7 +1353,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     task.spawn(function()
         task.wait(0.05)
 
-        -- Complex Luau Table Serialization
+        -- Serialisasi Tabel Luau Kompleks
         local function serializeTable(val)
             if typeof(val) == "string" then
                 return string.format("%q", val)
@@ -1401,7 +1370,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return "nil"
         end
 
-        -- Loader configuration parser
+        -- Pembacaan Konfigurasi Lua format return table
         local function LoadLuaConfig(path)
             local content = readfile(path)
             local func, err = loadstring(content)
@@ -1499,7 +1468,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         -- Automatically create UI Settings category
         Window:CreateCategory("UI Settings")
         
-        -- Built-in preferences tab ("Setting" - Formerly "Config UI")
+        -- Built-in preferences tab ("Setting")
         local BuiltInTab = Window:CreateTab("Setting", "gear")
         
         local ConfigSec = BuiltInTab:CreateSection("Layout Preferences")
@@ -1516,23 +1485,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             UpdateTextSizes(sizePerc / 100)
         end)
 
-        -- Smooth Accent RGB Color Picker with hex code input
+        -- RGB Theme Accent Color Picker dengan dukungan Hex (Tembus langsung merubah semua elemen aksen cyan)
         ThemeSec:CreateColorPicker("Accent Color", CurrentTheme.Accent, "BuiltIn_AccentColor", function(color)
             CurrentTheme.Accent = color
             for _, item in ipairs(Library.ThemeRegistry) do
                 for prop, key in pairs(item.Properties) do
                     if key == "Accent" then
-                        pcall(function()
-                            TweenService:Create(item.Instance, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { [prop] = color }):Play()
-                        end)
+                        pcall(function() item.Instance[prop] = color end)
                     end
-                end
-            end
-            -- Instantly update selected tab icon color
-            if Window.ActiveTab then
-                local icon = Window.ActiveTab.Button:FindFirstChildOfClass("ImageLabel")
-                if icon then
-                    TweenService:Create(icon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { ImageColor3 = color }):Play()
                 end
             end
         end)
@@ -1599,13 +1559,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
-    FloatingToggle.Visible = true -- Starts visible before main UI appears
+    FloatingToggle.Visible = true -- Tampil dari awal (sebelum UI muncul)
     FloatingToggle.ClipsDescendants = true
     RegisterTheme(FloatingToggle, { BackgroundColor3 = "SidebarBg" })
 
-    -- Redesigned squircle rounded toggle
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
-    ToggleCorner.CornerRadius = UDim.new(0, 12)
+    ToggleCorner.CornerRadius = UDim.new(1, 0)
 
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1.5
@@ -1615,7 +1574,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ToggleIconImage.Size = UDim2.new(0.65, 0, 0.65, 0)
     ToggleIconImage.Position = UDim2.new(0.175, 0, 0.175, 0)
     ToggleIconImage.BackgroundTransparency = 1
-    ToggleIconImage.Image = FLOATING_ICON_DECAL -- Core decaling thumbnail support
+    ToggleIconImage.Image = "rbxassetid://10723375133"
     RegisterTheme(ToggleIconImage, { ImageColor3 = "Accent" })
 
     MakeDraggable(FloatingToggle, FloatingToggle)
@@ -1625,6 +1584,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         if Window.Visible then
             MainFrame.Visible = true
             TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = MainFrame.Size, Position = MainFrame.Position}):Play()
+            -- Ikon melayang mengecil/hilang ketika UI dibuka (seperti sistem toggle aslinya)
             TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
         else
             local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
@@ -1634,6 +1594,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     MainFrame.Visible = false
                 end
             end)
+            
+            -- Ikon melayang muncul kembali ketika UI ditutup
             TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
         end
     end
