@@ -1,7 +1,9 @@
--- Memuat UI Library utama dari file gg.txt Anda
+-- Loader Script (Execute this in your Executor)
+-- Make sure to replace the URL below with your raw GitHub link hosting the updated UI Library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Inisialisasi Window Utama (UI Utama disembunyikan saat startup, hanya ikon floating yang muncul di awal)
+-- Initialize Main Window
+-- (Main UI remains hidden at startup; only the rounded square floating toggle icon is visible)
 local Win = Library:CreateWindow("Universal Loader", "V2.6", {
     Mode = "PC",                       -- Set "PC" or "Mobile" initial layout responsive modes
     Scale = 1.0,                       -- Sizing Scale multiplier
