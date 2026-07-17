@@ -1,7 +1,8 @@
--- Sourced UI Library loader from raw Github gg.txt
+-- Loader Script (Execute this in your Executor)
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Initialise Window (UI remains hidden at launch, showing only the squircle floating toggle icon)
+-- Initialize Main Window
+-- (Main UI remains hidden at startup; only the rounded square floating toggle icon is visible)
 local Win = Library:CreateWindow("Universal Loader", "V2.6", {
     Mode = "PC",                       -- Set "PC" or "Mobile" initial layout responsive modes
     Scale = 1.0,                       -- Sizing Scale multiplier
