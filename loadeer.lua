@@ -2,7 +2,7 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
 -- Inisialisasi Window Utama (UI Utama disembunyikan saat startup, hanya ikon floating yang muncul di awal)
-local Win = Library:CreateWindow("Universal Loader", "V2.6", {
+local Win = Library:CreateWindow("Aimbot", "V2.6", {
     Mode = "PC",                       -- "PC" atau "Mobile"
     Scale = 1.0,                       -- Skala awal UI (1.0 = normal)
     TextSizeMultiplier = 1.0,          -- Skala font
