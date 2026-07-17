@@ -29,6 +29,36 @@ end
 -- ========================================================
 -- [[ DYNAMIC GITHUB LUCIDE ICON LOADER ]]
 -- ========================================================
+local GITHUB_ICON_DB_URL = "https://raw.githubusercontent.com/yofriend/roblox-fontawesome/main/icons.json"
+
+local IconMap = {
+    ["apple"] = "rbxassetid://10734741641",
+    ["user"] = "rbxassetid://10723374112",
+    ["gear"] = "rbxassetid://10734950309",
+    ["cog"] = "rbxassetid://10734950309",
+    ["folder"] = "rbxassetid://10734741211",
+    ["sliders"] = "rbxassetid://10734942250",
+    ["slider"] = "rbxassetid://10734942250",
+    ["info"] = "rbxassetid://10723415903"
+}
+
+task.spawn(function()
+    if not game.HttpGet then return end -- Safe wrapper check
+    local success, response = pcall(function()
+        return game:HttpGet(GITHUB_ICON_DB_URL)
+    end)
+    if success and response then
+        local successDecode, decoded = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+        if successDecode and typeof(decoded) == "table" then
+            for k, v in pairs(decoded) do
+                IconMap[string.lower(k)] = v
+            end
+        end
+    end
+end)
+
 local function GetIcon(iconName)
     if not iconName then return "" end
     iconName = iconName:lower()
@@ -40,8 +70,10 @@ local function GetIcon(iconName)
     -- Protected implementation to guarantee no crashes on any executor
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
-            if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
-            if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
+            if isfolder and makefolder then
+                if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
+                if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
+            end
             
             local fileName = iconName .. ".png"
             local localPath = "Compkiller_Configs/.icons/" .. fileName
@@ -49,6 +81,7 @@ local function GetIcon(iconName)
             if isfile(localPath) then
                 return getcustomasset(localPath)
             else
+                if not game.HttpGet then return nil end -- Safe HttpGet check
                 local url = "https://raw.githubusercontent.com/latte-soft/lucide-roblox/master/icons/compiled/256px/" .. fileName
                 local content = game:HttpGet(url)
                 if content and #content > 0 then
@@ -150,7 +183,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            TweenService:Create(item.Instance, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextSize = math.round(item.BaseSize * multiplier) }):Play()
+            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
         end)
     end
 end
@@ -1556,6 +1589,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         -- Pembacaan Konfigurasi Lua format return table
         local function LoadLuaConfig(path)
             local content = readfile(path)
+            if not loadstring then return nil end -- Safe loadstring check
             local func, err = loadstring(content)
             if func then
                 local success, tbl = pcall(func)
@@ -1727,7 +1761,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 pcall(function()
                     pingVal = math.round(LocalPlayer:GetNetworkPing() * 1000)
                 end)
-                local memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
+                local memoryUsage = "0.00 MB"
+                if collectgarbage then -- Safe collectgarbage check
+                    pcall(function()
+                        memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
+                    end)
+                end
                 pcall(function()
                     fpsLabel:Set("FPS: " .. tostring(currentFps) .. "\nPing: " .. tostring(pingVal) .. " ms\nMemory Estimate: " .. memoryUsage)
                     HudText.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. tostring(pingVal) .. " ms"
@@ -1805,8 +1844,20 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 end
             end
             local encoded = HttpService:JSONEncode(dataToSave)
-            setclipboard(encoded)
-            Library:CreateNotification("Config Exported", "Configuration copied to clipboard as share code!", 3)
+            
+            -- Safe Clipboard copy wrappers to prevent nil crashes
+            local clipSuccess = false
+            if setclipboard then
+                clipSuccess = pcall(function() setclipboard(encoded) end)
+            elseif toclipboard then
+                clipSuccess = pcall(function() toclipboard(encoded) end)
+            end
+            
+            if clipSuccess then
+                Library:CreateNotification("Config Exported", "Configuration copied to clipboard as share code!", 3)
+            else
+                Library:CreateNotification("Export Failed", "Your executor does not support clipboard copying.", 3)
+            end
         end)
         
         ShareSec:CreateButton("Import Shared Code", function()
