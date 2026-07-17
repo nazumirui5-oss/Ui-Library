@@ -80,8 +80,8 @@ local function HexToColor3(hex)
     if #hex == 6 then
         local r = tonumber(hex:sub(1, 2), 16)
         local g = tonumber(hex:sub(3, 4), 16)
-        local b = tonumber(hex:sub(5, 6), 16)
         if r and g and b then
+            local b = tonumber(hex:sub(5, 6), 16)
             return Color3.fromRGB(r, g, b)
         end
     end
@@ -698,7 +698,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         InlineBind.Size = UDim2.new(0, 18, 0, 18)
                         InlineBind.BackgroundTransparency = 0.5
                         InlineBind.Text = tostring(config.keybind)
-                        InlineBind.TextAlignment = Enum.TextAlignment.Center
+                        
+                        -- FIXED: Sesuai dengan error di Developer Console, perataan teks horizontal dan vertikal yang benar diubah
+                        InlineBind.TextXAlignment = Enum.TextXAlignment.Center
+                        InlineBind.TextYAlignment = Enum.TextYAlignment.Center
+                        
                         RegisterTheme(InlineBind, { TextColor3 = "TextSecondary", BackgroundColor3 = "SidebarBg" })
                         RegisterFont(InlineBind, true)
                         RegisterText(InlineBind, 9)
@@ -1368,7 +1372,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     end
 
     -- ========================================================
-    -- [[ 6. AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
+    -- [[ AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
     -- ========================================================
     task.spawn(function()
         task.wait(0.05)
