@@ -43,8 +43,8 @@ end
 -- ========================================================
 -- [[ CONFIGURABLE FLOATING ICON DECAL ]]
 -- ========================================================
--- Menggunakan format rbxthumb stabil untuk memuat decal kustom Anda
-local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=121466567819000&w=150&h=150"
+-- Menggunakan format rbxthumb stabil untuk memuat decal kustom 14-digit baru Anda
+local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=73673967116596&w=150&h=150"
 
 -- ========================================================
 -- [[ DYNAMIC GITHUB LUCIDE ICON LOADER ]]
@@ -59,8 +59,8 @@ local function GetIcon(iconName)
     
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
-            if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
-            if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
+            if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
+            if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
             
             local fileName = iconName .. ".png"
             local localPath = "Compkiller_Configs/.icons/" .. fileName
@@ -170,7 +170,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            item.Instance.TextSize = math.floor(item.BaseSize * multiplier + 0.5)
+            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
         end)
     end
 end
@@ -376,10 +376,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(HudText, true)
     RegisterText(HudText, 10)
 
-    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
+    -- Wadah Tombol Minimalkan Bulat Tumpul Diatas Batas Window (Hovering Minimize)
     local MinimizeContainer = Instance.new("Frame", MainFrame)
     MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeContainer.Position = UDim2.new(1, -34, 0, 12)
+    MinimizeContainer.Position = UDim2.new(1, -30, 0, -20) -- Digeser ke atas keluar batas secara rapi
     RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
 
     local MinCorner = Instance.new("UICorner", MinimizeContainer)
@@ -467,7 +467,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     LogoArea.BackgroundTransparency = 1
     MakeDraggable(LogoArea, MainFrame)
 
-    -- Logo Utama Pojok Kiri Atas (Menggunakan rbxthumb full color Anda tanpa tint aksen)
+    -- Logo Utama Pojok Kiri Atas (Menggunakan rbxthumb kustom baru Anda tanpa tint)
     local LogoIcon = Instance.new("ImageLabel", LogoArea)
     LogoIcon.Size = UDim2.new(0, 24, 0, 24)
     LogoIcon.Position = UDim2.new(0, 15, 0.5, -12)
@@ -759,10 +759,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ToggleIcon.Image = GetIcon("chevron-down")
             RegisterTheme(ToggleIcon, { ImageColor3 = "TextSecondary" })
 
-            local Content = Instance.new("Frame", SecFrame)
+            -- Menggunakan CanvasGroup agar transparansi memudar saat dilipat (tidak kaku)
+            local Content = Instance.new("CanvasGroup", SecFrame)
             Content.Size = UDim2.new(1, 0, 1, -34)
             Content.Position = UDim2.new(0, 0, 0, 34)
             Content.BackgroundTransparency = 1
+            Content.GroupTransparency = 0
 
             local ContentList = Instance.new("UIListLayout", Content)
             ContentList.Padding = UDim.new(0, 10)
@@ -797,14 +799,26 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 local ease = Enum.EasingStyle.Quad
                 
                 if Section.Collapsed then
-                    Content.Visible = false
+                    -- Animasi memudar sebelum ditutup
+                    TweenService:Create(Content, TweenInfo.new(0.15, ease), { GroupTransparency = 1 }):Play()
                     TweenService:Create(ToggleIcon, TweenInfo.new(duration, ease), { Rotation = -90 }):Play()
-                    TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, 34) }):Play()
+                    
+                    local shrink = TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, 34) })
+                    shrink:Play()
+                    shrink.Completed:Connect(function()
+                        if Section.Collapsed then
+                            Content.Visible = false
+                        end
+                    end)
                 else
                     Content.Visible = true
+                    Content.GroupTransparency = 1
                     local contentHeight = ContentList.AbsoluteContentSize.Y
+                    
                     TweenService:Create(ToggleIcon, TweenInfo.new(duration, ease), { Rotation = 0 }):Play()
                     TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, contentHeight + 46) }):Play()
+                    -- Animasi memudar saat dibuka
+                    TweenService:Create(Content, TweenInfo.new(duration, ease), { GroupTransparency = 0 }):Play()
                 end
                 
                 -- Smooth canvas sizing during slide
@@ -1925,10 +1939,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
 
-    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
+    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas (Di Luar Batas Atas Frame)
     local MinimizeContainer = Instance.new("Frame", MainFrame)
     MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeContainer.Position = UDim2.new(1, -34, 0, 12)
+    MinimizeContainer.Position = UDim2.new(1, -30, 0, -20) -- Diposisikan melayang rapi di luar batas atas frame
     RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
 
     local MinCorner = Instance.new("UICorner", MinimizeContainer)
