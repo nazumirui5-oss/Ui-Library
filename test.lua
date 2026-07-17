@@ -43,7 +43,7 @@ end
 -- ========================================================
 -- [[ CONFIGURABLE FLOATING ICON DECAL ]]
 -- ========================================================
--- Menggunakan ID decal kustom baru Anda dengan skema rbxthumb stabil
+-- Menggunakan format rbxthumb stabil untuk memuat decal kustom Anda
 local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=104436283956004&w=150&h=150"
 
 -- ========================================================
@@ -59,8 +59,8 @@ local function GetIcon(iconName)
     
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
-            if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
-            if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
+            if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
+            if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
             
             local fileName = iconName .. ".png"
             local localPath = "Compkiller_Configs/.icons/" .. fileName
@@ -349,11 +349,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     MainStroke.Thickness = 1.5
     RegisterTheme(MainStroke, { Color = "StrokeColor" })
 
-    -- PERFORMANCE Floating HUD di Pojok Kanan Atas Layar (Toggleable)
+    -- PERFORMANCE Floating HUD di Pojok Kanan Atas Layar (Lebar diperbesar 150px agar rapi)
     local HudFrame = Instance.new("Frame", ScreenGui)
     HudFrame.Name = "Nexus_Performance_HUD"
-    HudFrame.Size = UDim2.new(0, 130, 0, 24)
-    HudFrame.Position = UDim2.new(1, -140, 0, 10)
+    HudFrame.Size = UDim2.new(0, 150, 0, 24)
+    HudFrame.Position = UDim2.new(1, -160, 0, 10)
     HudFrame.BackgroundTransparency = 0.4
     HudFrame.Visible = false -- Tersembunyi dari awal
     RegisterTheme(HudFrame, { BackgroundColor3 = "SidebarBg" })
@@ -371,14 +371,16 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     HudText.Text = "FPS: Calculating... | Ping: Calculating..."
     HudText.TextXAlignment = Enum.TextXAlignment.Center
     HudText.TextYAlignment = Enum.TextYAlignment.Center
+    HudText.TextWrapped = false -- Mencegah teks turun baris meluap keluar kotak
+    HudText.ClipsDescendants = true
     RegisterTheme(HudText, { TextColor3 = "TextPrimary" })
     RegisterFont(HudText, true)
     RegisterText(HudText, 10)
 
-    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Luar Batas Atas Frame
+    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
     local MinimizeContainer = Instance.new("Frame", MainFrame)
     MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeContainer.Position = UDim2.new(1, -34, 0, -32) -- Dipertinggi melayang ke atas di luar batas frame
+    MinimizeContainer.Position = UDim2.new(1, -34, 0, -32)
     RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
 
     local MinCorner = Instance.new("UICorner", MinimizeContainer)
@@ -466,16 +468,16 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     LogoArea.BackgroundTransparency = 1
     MakeDraggable(LogoArea, MainFrame)
 
-    -- Logo Utama Pojok Kiri Atas (Menggunakan decal kustom Anda tanpa tint aksen)
+    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan diposisikan rapi
     local LogoIcon = Instance.new("ImageLabel", LogoArea)
-    LogoIcon.Size = UDim2.new(0, 24, 0, 24)
-    LogoIcon.Position = UDim2.new(0, 15, 0.5, -12)
+    LogoIcon.Size = UDim2.new(0, 32, 0, 32)
+    LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
     LogoIcon.BackgroundTransparency = 1
     LogoIcon.Image = FLOATING_ICON_DECAL
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
-    TitleLabel.Size = UDim2.new(1, -50, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 46, 0, 0)
+    TitleLabel.Size = UDim2.new(1, -60, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 52, 0, 0) -- Digeser sedikit ke kanan mencegah tabrakan
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = titleText or "COMPKILLER"
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -855,12 +857,20 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Layout.Padding = UDim.new(0, 6)
 
                 if config then
+                    -- Tombol Info Kustom untuk Menampilkan Modal Pop-up Interaktif
                     if config.info then
-                        local InfoIcon = Instance.new("ImageLabel", InlineList)
+                        local InfoIcon = Instance.new("ImageButton", InlineList)
                         InfoIcon.Size = UDim2.new(0, 14, 0, 14)
                         InfoIcon.BackgroundTransparency = 1
                         InfoIcon.Image = GetIcon("info")
                         RegisterTheme(InfoIcon, { ImageColor3 = "TextDark" })
+                        
+                        -- Mengikat event pengetukan ikon ke jendela modal informasi
+                        if typeof(config.info) == "string" then
+                            Janitor:Add(InfoIcon.MouseButton1Click:Connect(function()
+                                Library:ShowInfoModal(toggleText, config.info)
+                            end))
+                        end
                     end
 
                     if config.gear then
@@ -1493,6 +1503,15 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 
                 Janitor:Add(Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(ResizeParagraph))
                 ResizeParagraph()
+
+                -- Mengembalikan objek pengontrol paragraf yang valid dengan metode Set terpusat
+                local ctrl = {}
+                function ctrl:Set(val)
+                    paraDesc = val
+                    Desc.Text = val
+                    ResizeParagraph()
+                end
+                return ctrl
             end
 
             -- ========================================================
@@ -1864,7 +1883,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- ========================================================
     local FloatingToggle = Instance.new("TextButton", ScreenGui)
     FloatingToggle.Name = "Nexus_Floating_Toggler"
-    FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
+    FloatingToggle.Size = UDim2.new(0, 56, 0, 56) -- Diperbesar ukuran framenya
     FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
@@ -1881,8 +1900,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterTheme(ToggleStroke, { Color = "Accent" })
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
-    ToggleIconImage.Size = UDim2.new(0.65, 0, 0.65, 0)
-    ToggleIconImage.Position = UDim2.new(0.175, 0, 0.175, 0)
+    ToggleIconImage.Size = UDim2.new(0.7, 0, 0.7, 0) -- Diperbesar skala rasionya menjadi 70%
+    ToggleIconImage.Position = UDim2.new(0.15, 0, 0.15, 0)
     ToggleIconImage.BackgroundTransparency = 1
     -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint)
     ToggleIconImage.Image = FLOATING_ICON_DECAL
@@ -1924,7 +1943,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end)
             
             -- Ikon melayang muncul kembali ketika UI ditutup
-            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 56, 0, 56)}):Play()
         end
     end
 
@@ -1963,6 +1982,90 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     
     function Window:Minimize()
         ToggleGui()
+    end
+
+    -- ========================================================
+    -- [[ BACKEND: INTERACTIVE MODAL DIALOG MANAGER ]]
+    -- ========================================================
+    function Library:ShowInfoModal(infoTitle, infoText)
+        local oldModal = ScreenGui:FindFirstChild("Nexus_Info_Modal")
+        if oldModal then oldModal:Destroy() end
+        
+        local oldOverlay = ScreenGui:FindFirstChild("Nexus_Modal_Overlay")
+        if oldOverlay then oldOverlay:Destroy() end
+        
+        -- Lapisan Latar Belakang Gelap Transparan Premium
+        local Overlay = Instance.new("TextButton", ScreenGui)
+        Overlay.Name = "Nexus_Modal_Overlay"
+        Overlay.Size = UDim2.new(1, 0, 1, 0)
+        Overlay.BackgroundTransparency = 1
+        Overlay.BackgroundColor3 = Color3.fromRGB(10, 12, 15)
+        Overlay.Text = ""
+        Overlay.ZIndex = 99
+        
+        local ModalFrame = Instance.new("Frame", ScreenGui)
+        ModalFrame.Name = "Nexus_Info_Modal"
+        ModalFrame.BackgroundTransparency = 0.1
+        ModalFrame.ZIndex = 100
+        RegisterTheme(ModalFrame, { BackgroundColor3 = "SidebarBg" })
+        
+        local Corner = Instance.new("UICorner", ModalFrame)
+        Corner.CornerRadius = UDim.new(0, 8)
+        
+        local Stroke = Instance.new("UIStroke", ModalFrame)
+        Stroke.Thickness = 1.5
+        RegisterTheme(Stroke, { Color = "Accent" })
+        
+        local Title = Instance.new("TextLabel", ModalFrame)
+        Title.Size = UDim2.new(1, -40, 0, 30)
+        Title.Position = UDim2.new(0, 15, 0, 10)
+        Title.BackgroundTransparency = 1
+        Title.Text = infoTitle or "Information"
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+        RegisterTheme(Title, { TextColor3 = "TextPrimary" })
+        RegisterFont(Title, true)
+        RegisterText(Title, 13)
+        
+        local Desc = Instance.new("TextLabel", ModalFrame)
+        Desc.Size = UDim2.new(1, -30, 1, -80)
+        Desc.Position = UDim2.new(0, 15, 0, 45)
+        Desc.BackgroundTransparency = 1
+        Desc.Text = infoText or "No detailed description provided."
+        Desc.TextWrapped = true
+        Desc.TextXAlignment = Enum.TextXAlignment.Left
+        Desc.TextYAlignment = Enum.TextYAlignment.Top
+        RegisterTheme(Desc, { TextColor3 = "TextSecondary" })
+        RegisterFont(Desc, false)
+        RegisterText(Desc, 11)
+        
+        local CloseBtn = Instance.new("TextButton", ModalFrame)
+        CloseBtn.Size = UDim2.new(0, 80, 0, 26)
+        CloseBtn.Position = UDim2.new(0.5, -40, 1, -36)
+        CloseBtn.Text = "Close"
+        CloseBtn.AutoButtonColor = false
+        RegisterTheme(CloseBtn, { BackgroundColor3 = "Accent", TextColor3 = "WindowBg" })
+        Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
+        RegisterFont(CloseBtn, true)
+        RegisterText(CloseBtn, 11)
+        
+        local function CloseModal()
+            TweenService:Create(ModalFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0) }):Play()
+            local fade = TweenService:Create(Overlay, TweenInfo.new(0.2), { BackgroundTransparency = 1 })
+            fade:Play()
+            fade.Completed:Connect(function()
+                ModalFrame:Destroy()
+                Overlay:Destroy()
+            end)
+        end
+        
+        CloseBtn.MouseButton1Click:Connect(CloseModal)
+        Overlay.MouseButton1Click:Connect(CloseModal)
+        
+        -- Animasi Pembesaran Skala Melenting yang Premium
+        ModalFrame.Size = UDim2.new(0, 0, 0, 0)
+        ModalFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+        TweenService:Create(ModalFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(0, 320, 0, 180), Position = UDim2.new(0.5, -160, 0.5, -90) }):Play()
+        TweenService:Create(Overlay, TweenInfo.new(0.25), { BackgroundTransparency = 0.6 }):Play()
     end
 
     return Window
