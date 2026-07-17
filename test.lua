@@ -16,49 +16,39 @@ Library.FontRegistry = {}
 Library.ThemeCallbacks = {}
 
 -- ========================================================
--- [[ CONFIGURABLE CUSTOM DECAL THUMBNAIL ]]
+-- [[ CONNECTION TRACKER / JANITOR (MEMORY OPTIMIZER) ]]
 -- ========================================================
-local CUSTOM_DECAL_THUMB = "rbxthumb://type=Asset&id=121466567819000&w=420&h=420"
+local Janitor = { Connections = {} }
 
--- Main directory initialization
+function Janitor:Add(connection)
+    table.insert(self.Connections, connection)
+    return connection
+end
+
+function Janitor:Cleanup()
+    for _, conn in ipairs(self.Connections) do
+        if conn and conn.Disconnect then
+            pcall(function() conn:Disconnect() end)
+        end
+    end
+    self.Connections = {}
+end
+
+-- Create folder if supported
 local isFolderSupported = makefolder and isfolder
 if isFolderSupported and not isfolder("Compkiller_Configs") then
     makefolder("Compkiller_Configs")
 end
 
 -- ========================================================
+-- [[ CONFIGURABLE FLOATING ICON DECAL ]]
+-- ========================================================
+-- Menggunakan format rbxthumb stabil untuk memuat decal kustom Anda
+local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=121466567819000&w=150&h=150"
+
+-- ========================================================
 -- [[ DYNAMIC GITHUB LUCIDE ICON LOADER ]]
 -- ========================================================
-local GITHUB_ICON_DB_URL = "https://raw.githubusercontent.com/yofriend/roblox-fontawesome/main/icons.json"
-
-local IconMap = {
-    ["apple"] = "rbxassetid://10734741641",
-    ["user"] = "rbxassetid://10723374112",
-    ["gear"] = "rbxassetid://10734950309",
-    ["cog"] = "rbxassetid://10734950309",
-    ["folder"] = "rbxassetid://10734741211",
-    ["sliders"] = "rbxassetid://10734942250",
-    ["slider"] = "rbxassetid://10734942250",
-    ["info"] = "rbxassetid://10723415903"
-}
-
-task.spawn(function()
-    if not game.HttpGet then return end -- Safe wrapper check
-    local success, response = pcall(function()
-        return game:HttpGet(GITHUB_ICON_DB_URL)
-    end)
-    if success and response then
-        local successDecode, decoded = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        if successDecode and typeof(decoded) == "table" then
-            for k, v in pairs(decoded) do
-                IconMap[string.lower(k)] = v
-            end
-        end
-    end
-end)
-
 local function GetIcon(iconName)
     if not iconName then return "" end
     iconName = iconName:lower()
@@ -67,13 +57,10 @@ local function GetIcon(iconName)
         return iconName
     end
     
-    -- Protected implementation to guarantee no crashes on any executor
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
-            if isfolder and makefolder then
-                if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
-                if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
-            end
+            if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
+            if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
             
             local fileName = iconName .. ".png"
             local localPath = "Compkiller_Configs/.icons/" .. fileName
@@ -81,7 +68,6 @@ local function GetIcon(iconName)
             if isfile(localPath) then
                 return getcustomasset(localPath)
             else
-                if not game.HttpGet then return nil end -- Safe HttpGet check
                 local url = "https://raw.githubusercontent.com/latte-soft/lucide-roblox/master/icons/compiled/256px/" .. fileName
                 local content = game:HttpGet(url)
                 if content and #content > 0 then
@@ -126,6 +112,7 @@ local function HexToColor3(hex)
 end
 
 local function Color3ToHex(color)
+    -- Menggunakan math.floor pembulatan universal untuk menghindari crash di executor tertentu
     local r = math.clamp(math.floor(color.R * 255 + 0.5), 0, 255)
     local g = math.clamp(math.floor(color.G * 255 + 0.5), 0, 255)
     local b = math.clamp(math.floor(color.B * 255 + 0.5), 0, 255)
@@ -144,7 +131,7 @@ local Themes = {
         StrokeColor = Color3.fromRGB(38, 41, 49),
         Accent = Color3.fromRGB(0, 213, 239),
         TextPrimary = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(160, 165, 175), -- Neutral gray (replaces the old blue text)
+        TextSecondary = Color3.fromRGB(160, 165, 175), -- Abu-abu netral bebas biru default
         TextDark = Color3.fromRGB(110, 115, 125)
     }
 }
@@ -183,7 +170,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
+            item.Instance.TextSize = math.floor(item.BaseSize * multiplier + 0.5)
         end)
     end
 end
@@ -377,7 +364,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local HudStroke = Instance.new("UIStroke", HudFrame)
     HudStroke.Thickness = 1
-    RegisterTheme(HudStroke, { Color = "Accent" }) -- Mengikuti aksen warna secara serempak
+    RegisterTheme(HudStroke, { Color = "Accent" }) -- Mengikuti aksen warna
 
     local HudText = Instance.new("TextLabel", HudFrame)
     HudText.Size = UDim2.new(1, 0, 1, 0)
@@ -480,12 +467,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     LogoArea.BackgroundTransparency = 1
     MakeDraggable(LogoArea, MainFrame)
 
+    -- Logo Utama Pojok Kiri Atas (Menggunakan rbxthumb full color Anda tanpa tint aksen)
     local LogoIcon = Instance.new("ImageLabel", LogoArea)
     LogoIcon.Size = UDim2.new(0, 24, 0, 24)
     LogoIcon.Position = UDim2.new(0, 15, 0.5, -12)
     LogoIcon.BackgroundTransparency = 1
-    LogoIcon.Image = CUSTOM_DECAL_THUMB -- Menampilkan Decal Kustom Anda dalam format rbxthumb (resolusi tinggi)
-    -- Dilepas dari pewarnaan aksen agar gambar decal asli tampil dengan warna naturalnya
+    LogoIcon.Image = FLOATING_ICON_DECAL
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
     TitleLabel.Size = UDim2.new(1, -50, 1, 0)
@@ -1362,7 +1349,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     else
                         ListFrame.Visible = false
                     end
-                end))
+                end)
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1589,7 +1576,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         -- Pembacaan Konfigurasi Lua format return table
         local function LoadLuaConfig(path)
             local content = readfile(path)
-            if not loadstring then return nil end -- Safe loadstring check
             local func, err = loadstring(content)
             if func then
                 local success, tbl = pcall(func)
@@ -1608,7 +1594,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             for flag, value in pairs(Library.Flags) do
                 if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
                     if typeof(value) == "Color3" then
-                        dataToSave[flag] = {math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255)}
+                        dataToSave[flag] = {math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5)}
                     elseif typeof(value) == "EnumItem" then
                         dataToSave[flag] = tostring(value)
                     else
@@ -1759,14 +1745,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         task.spawn(function()
             while task.wait(1) do
                 pcall(function()
-                    pingVal = math.round(LocalPlayer:GetNetworkPing() * 1000)
+                    pingVal = math.floor(LocalPlayer:GetNetworkPing() * 1000 + 0.5)
                 end)
-                local memoryUsage = "0.00 MB"
-                if collectgarbage then -- Safe collectgarbage check
-                    pcall(function()
-                        memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
-                    end)
-                end
+                local memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
                 pcall(function()
                     fpsLabel:Set("FPS: " .. tostring(currentFps) .. "\nPing: " .. tostring(pingVal) .. " ms\nMemory Estimate: " .. memoryUsage)
                     HudText.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. tostring(pingVal) .. " ms"
@@ -1835,7 +1816,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             for flag, value in pairs(Library.Flags) do
                 if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
                     if typeof(value) == "Color3" then
-                        dataToSave[flag] = {math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255)}
+                        dataToSave[flag] = {math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5)}
                     elseif typeof(value) == "EnumItem" then
                         dataToSave[flag] = tostring(value)
                     else
@@ -1844,20 +1825,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 end
             end
             local encoded = HttpService:JSONEncode(dataToSave)
-            
-            -- Safe Clipboard copy wrappers to prevent nil crashes
-            local clipSuccess = false
-            if setclipboard then
-                clipSuccess = pcall(function() setclipboard(encoded) end)
-            elseif toclipboard then
-                clipSuccess = pcall(function() toclipboard(encoded) end)
-            end
-            
-            if clipSuccess then
-                Library:CreateNotification("Config Exported", "Configuration copied to clipboard as share code!", 3)
-            else
-                Library:CreateNotification("Export Failed", "Your executor does not support clipboard copying.", 3)
-            end
+            setclipboard(encoded)
+            Library:CreateNotification("Config Exported", "Configuration copied to clipboard as share code!", 3)
         end)
         
         ShareSec:CreateButton("Import Shared Code", function()
@@ -1910,8 +1879,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ToggleIconImage.Size = UDim2.new(0.65, 0, 0.65, 0)
     ToggleIconImage.Position = UDim2.new(0.175, 0, 0.175, 0)
     ToggleIconImage.BackgroundTransparency = 1
-    ToggleIconImage.Image = CUSTOM_DECAL_THUMB -- Menggunakan gambar decal kustom orisinal Anda tanpa filter warna
-    -- RegisterTheme dilepas agar warna asli dekal tetap terjaga
+    -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint)
+    ToggleIconImage.Image = FLOATING_ICON_DECAL
 
     MakeDraggable(FloatingToggle, FloatingToggle)
 
