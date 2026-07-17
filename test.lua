@@ -34,7 +34,7 @@ function Janitor:Cleanup()
     self.Connections = {}
 end
 
--- Config directory initialization
+-- Main save directory
 local isFolderSupported = makefolder and isfolder
 if isFolderSupported and not isfolder("Compkiller_Configs") then
     makefolder("Compkiller_Configs")
@@ -168,7 +168,7 @@ local function UpdateTextSizes(multiplier)
     Library.Settings.TextSizeMultiplier = multiplier
     for _, item in ipairs(Library.TextRegistry) do
         pcall(function()
-            TweenService:Create(item.Instance, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextSize = math.round(item.BaseSize * multiplier) }):Play()
+            item.Instance.TextSize = math.round(item.BaseSize * multiplier)
         end)
     end
 end
@@ -223,8 +223,6 @@ end
 -- ========================================================
 -- [[ BACKEND: PREMIUM TOAST NOTIFICATION MANAGER ]]
 -- ========================================================
-local NotificationPool = {}
-
 function Library:CreateNotification(titleText, messageText, duration)
     local screenGui = game:GetService("CoreGui"):FindFirstChild("Nexus_Compkiller_UI") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Nexus_Compkiller_UI")
     if not screenGui then return end
@@ -244,7 +242,7 @@ function Library:CreateNotification(titleText, messageText, duration)
     end
     
     local toast = Instance.new("Frame", container)
-    toast.Size = UDim2.new(1, 0, 0, 0) -- starts collapsed height
+    toast.Size = UDim2.new(1, 0, 0, 0)
     toast.ClipsDescendants = true
     RegisterTheme(toast, { BackgroundColor3 = "SidebarBg" })
     
@@ -281,7 +279,6 @@ function Library:CreateNotification(titleText, messageText, duration)
     RegisterFont(desc, false)
     RegisterText(desc, 10)
     
-    -- Animate expansion and slide-in
     TweenService:Create(toast, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(1, 0, 0, 64) }):Play()
     toast.BackgroundTransparency = 1
     TweenService:Create(toast, TweenInfo.new(0.3), { BackgroundTransparency = 0.4 }):Play()
@@ -672,7 +669,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         -- [[ SECTION CONTAINER CREATION ]]
         -- ========================================================
         function Tab:CreateSection(sectionName)
-            local Section = {}
+            local Section = { Collapsed = false }
             
             local targetColumn = LeftColumn
             if LeftList.AbsoluteContentSize.Y > RightList.AbsoluteContentSize.Y then
@@ -681,6 +678,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
             local SecFrame = Instance.new("Frame", targetColumn)
             SecFrame.Size = UDim2.new(1, 0, 0, 40)
+            SecFrame.ClipsDescendants = true
             RegisterTheme(SecFrame, { BackgroundColor3 = "SectionBg" })
 
             local SecCorner = Instance.new("UICorner", SecFrame)
@@ -722,8 +720,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ContentList.SortOrder = Enum.SortOrder.LayoutOrder
 
             local function UpdateSectionSize()
-                local contentHeight = ContentList.AbsoluteContentSize.Y
-                SecFrame.Size = UDim2.new(1, 0, 0, contentHeight + 46)
+                if not Section.Collapsed then
+                    local contentHeight = ContentList.AbsoluteContentSize.Y
+                    SecFrame.Size = UDim2.new(1, 0, 0, contentHeight + 46)
+                end
             end
 
             Janitor:Add(ContentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSectionSize))
@@ -732,6 +732,39 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             InsidePadding.PaddingLeft = UDim.new(0, 12)
             InsidePadding.PaddingRight = UDim.new(0, 12)
             InsidePadding.PaddingBottom = UDim.new(0, 12)
+
+            -- ========================================================
+            -- [[ ACCORDION COLLAPSE / EXPAND MECHANISM ]]
+            -- ========================================================
+            local HeaderBtn = Instance.new("TextButton", Header)
+            HeaderBtn.Size = UDim2.new(1, 0, 1, 0)
+            HeaderBtn.BackgroundTransparency = 1
+            HeaderBtn.Text = ""
+
+            local function ToggleSection()
+                Section.Collapsed = not Section.Collapsed
+                local duration = 0.25
+                local ease = Enum.EasingStyle.Quad
+                
+                if Section.Collapsed then
+                    Content.Visible = false
+                    TweenService:Create(ToggleIcon, TweenInfo.new(duration, ease), { Rotation = -90 }):Play()
+                    TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, 34) }):Play()
+                else
+                    Content.Visible = true
+                    local contentHeight = ContentList.AbsoluteContentSize.Y
+                    TweenService:Create(ToggleIcon, TweenInfo.new(duration, ease), { Rotation = 0 }):Play()
+                    TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, contentHeight + 46) }):Play()
+                end
+                
+                -- Smooth canvas sizing during slide
+                task.delay(duration, function()
+                    ResizeCanvas()
+                end)
+            end
+
+            Janitor:Add(HeaderBtn.MouseButton1Click:Connect(ToggleSection))
+            Janitor:Add(SecFrame:GetPropertyChangedSignal("Size"):Connect(ResizeCanvas))
 
             -- ========================================================
             -- [[ SECTION ELEMENT: DYNAMIC TOGGLE ]]
@@ -1408,7 +1441,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: TEXTBOX ]]
+            -- [[ SECTION ELEMENT: TEXTBOX (NO ELLIPSIS TRUNCATION) ]]
             -- ========================================================
             function Section:CreateTextBox(labelText, placeholderText, flag, callback)
                 local TextBoxElem = Instance.new("Frame", Content)
@@ -1430,6 +1463,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 InputBox.PlaceholderText = placeholderText or "Type here..."
                 InputBox.Text = ""
                 InputBox.ClearTextOnFocus = false
+                
+                -- Sesuai perbaikan visual input teks tanpa titik-titik (...)
+                InputBox.TextWrapped = false
+                InputBox.TextTruncate = Enum.TextTruncate.None
+                InputBox.ClipsDescendants = true
+                
                 RegisterTheme(InputBox, { BackgroundColor3 = "ElementBg", TextColor3 = "TextPrimary" })
                 Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
                 
@@ -1609,9 +1648,22 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             for _, item in ipairs(Library.ThemeRegistry) do
                 for prop, key in pairs(item.Properties) do
                     if key == "Accent" then
-                        pcall(function() item.Instance[prop] = color end)
+                        pcall(function()
+                            TweenService:Create(item.Instance, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { [prop] = color }):Play()
+                        end)
                     end
                 end
+            end
+            -- Instantly update selected tab icon color
+            if Window.ActiveTab then
+                local icon = Window.ActiveTab.Button:FindFirstChildOfClass("ImageLabel")
+                if icon then
+                    TweenService:Create(icon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { ImageColor3 = color }):Play()
+                end
+            end
+            -- Execute theme callbacks for dynamic toggle states
+            for _, cb in ipairs(Library.ThemeCallbacks) do
+                pcall(cb, color)
             end
         end)
 
@@ -1747,8 +1799,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     FloatingToggle.ClipsDescendants = true
     RegisterTheme(FloatingToggle, { BackgroundColor3 = "SidebarBg" })
 
+    -- Ikon melayang berbentuk squircle tumpul modern
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
-    ToggleCorner.CornerRadius = UDim.new(1, 0)
+    ToggleCorner.CornerRadius = UDim.new(0, 12)
 
     local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
     ToggleStroke.Thickness = 1.5
@@ -1803,6 +1856,19 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     end
 
     Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
+
+    -- Tombol Sembunyikan/Minimalkan Terpisah di Kanan Atas Window
+    local MinimizeBtn = Instance.new("TextButton", MainFrame)
+    MinimizeBtn.Size = UDim2.new(0, 24, 0, 24)
+    MinimizeBtn.Position = UDim2.new(1, -34, 0, 12)
+    MinimizeBtn.BackgroundTransparency = 1
+    MinimizeBtn.Text = "-"
+    MinimizeBtn.ZIndex = 10
+    RegisterTheme(MinimizeBtn, { TextColor3 = "TextSecondary" })
+    RegisterFont(MinimizeBtn, true)
+    RegisterText(MinimizeBtn, 20)
+
+    Janitor:Add(MinimizeBtn.MouseButton1Click:Connect(ToggleGui))
 
     Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
