@@ -13,13 +13,14 @@ Library.Registry = {}
 Library.ThemeRegistry = {}
 Library.TextRegistry = {}
 Library.FontRegistry = {}
+Library.ThemeCallbacks = {}
 
 -- ========================================================
 -- [[ CONFIGURABLE FLOATING ICON DECAL ]]
 -- ========================================================
-local FLOATING_ICON_DECAL = "rbxassetid://10723375133" -- Replace this ID with your custom decal image
+local FLOATING_ICON_DECAL = "rbxassetid://10723375133" -- Customize this asset ID for your floating toggle icon
 
--- Main save directory
+-- Main directory initialization
 local isFolderSupported = makefolder and isfolder
 if isFolderSupported and not isfolder("Compkiller_Configs") then
     makefolder("Compkiller_Configs")
@@ -120,6 +121,11 @@ local function RegisterTheme(instance, propertyMap)
             instance[prop] = CurrentTheme[key]
         end)
     end
+end
+
+local function RegisterThemeCallback(callback)
+    table.insert(Library.ThemeCallbacks, callback)
+    task.spawn(callback, CurrentTheme.Accent)
 end
 
 -- ========================================================
@@ -348,7 +354,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
     ContentArea.BackgroundTransparency = 1
 
-    -- Responsive PC vs Mobile Sizing & Alignment
     local function ApplyUiSettings(mode, scale)
         Library.Settings.Mode = mode
         Library.Settings.Scale = scale
@@ -358,11 +363,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             MainFrame.Size = UDim2.new(0, 640, 0, 460)
             MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
         elseif mode == "Mobile" then
-            MainFrame.Size = UDim2.new(0, 500, 0, 340)
-            MainFrame.Position = UDim2.new(0.5, -250, 0.5, -170)
+            MainFrame.Size = UDim2.new(0, 520, 0, 350)
+            MainFrame.Position = UDim2.new(0.5, -260, 0.5, -175)
         end
         
-        -- Force re-calculation of current tab heights and canvas layout
         for _, t in ipairs(Window.Tabs) do
             t.ResizeCanvas()
         end
@@ -436,35 +440,47 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
 
-        -- Dynamic Column and Canvas Resize (Responsive Alignment)
+        -- Dynamic Stack Layout (Fixed Overlap Loop on Mobile layouts)
         local function ResizeCanvas()
+            local leftHeight = LeftList.AbsoluteContentSize.Y
+            local rightHeight = RightList.AbsoluteContentSize.Y
             local targetHeight
+            
             if Library.Settings.Mode == "PC" then
-                local leftHeight = LeftList.AbsoluteContentSize.Y
-                local rightHeight = RightList.AbsoluteContentSize.Y
                 targetHeight = math.max(leftHeight, rightHeight) + 30
                 
-                LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
-                LeftColumn.Position = UDim2.new(0, 0, 0, 0)
-                
-                RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
-                RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
-                RightColumn.Visible = true
-            else -- Mobile stacked view to completely prevent overlaps
-                local leftHeight = LeftList.AbsoluteContentSize.Y
-                local rightHeight = RightList.AbsoluteContentSize.Y
-                
-                LeftColumn.Size = UDim2.new(1, 0, 0, leftHeight)
-                LeftColumn.Position = UDim2.new(0, 0, 0, 0)
-                
-                RightColumn.Size = UDim2.new(1, 0, 0, rightHeight)
-                RightColumn.Position = UDim2.new(0, 0, 0, leftHeight + 12)
-                RightColumn.Visible = true
-                
+                -- Verify exact layouts to prevent infinite refresh cycles
+                if LeftColumn.Size ~= UDim2.new(0.5, -6, 1, 0) then
+                    LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
+                    LeftColumn.Position = UDim2.new(0, 0, 0, 0)
+                    
+                    RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
+                    RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
+                    RightColumn.Visible = true
+                end
+            else -- Mobile stacked view layout
                 targetHeight = leftHeight + rightHeight + 42
+                
+                local newLeftSize = UDim2.new(1, 0, 0, leftHeight)
+                if LeftColumn.Size ~= newLeftSize then
+                    LeftColumn.Size = newLeftSize
+                    LeftColumn.Position = UDim2.new(0, 0, 0, 0)
+                end
+                
+                local newRightSize = UDim2.new(1, 0, 0, rightHeight)
+                local newRightPos = UDim2.new(0, 0, 0, leftHeight + 12)
+                if RightColumn.Size ~= newRightSize or RightColumn.Position ~= newRightPos then
+                    RightColumn.Size = newRightSize
+                    RightColumn.Position = newRightPos
+                    RightColumn.Visible = true
+                end
             end
-            TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
-            ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
+            
+            local newCanvasSize = UDim2.new(0, 0, 0, targetHeight)
+            if TabPage.CanvasSize ~= newCanvasSize then
+                TabPage.CanvasSize = newCanvasSize
+                ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
+            end
         end
         Tab.ResizeCanvas = ResizeCanvas
 
@@ -493,7 +509,15 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabIcon.Position = UDim2.new(0, 12, 0.5, -8)
         TabIcon.BackgroundTransparency = 1
         TabIcon.Image = GetIcon(iconInput)
-        RegisterTheme(TabIcon, { ImageColor3 = "TextSecondary" })
+        
+        -- Uniform theme transition callback
+        RegisterThemeCallback(function(color)
+            if Window.ActiveTab == Tab then
+                TweenService:Create(TabIcon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { ImageColor3 = color }):Play()
+            else
+                TabIcon.ImageColor3 = CurrentTheme.TextSecondary
+            end
+        end)
 
         local TabLabel = Instance.new("TextLabel", TabBtn)
         TabLabel.Size = UDim2.new(1, -40, 1, 0)
@@ -720,6 +744,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end
                     if callback then task.spawn(callback, state) end
                 end
+
+                -- Smooth dynamic Accent Updates for Toggle Active states
+                RegisterThemeCallback(function(color)
+                    if Toggle.State then
+                        TweenService:Create(Switch, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundColor3 = color }):Play()
+                    end
+                end)
 
                 Switch.MouseButton1Click:Connect(function() SetState(not Toggle.State) end)
                 SetState(Toggle.State)
@@ -1337,7 +1368,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     end
 
     -- ========================================================
-    -- [[ AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
+    -- [[ 6. AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
     -- ========================================================
     task.spawn(function()
         task.wait(0.05)
