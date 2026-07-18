@@ -35,13 +35,14 @@ end
 
 -- Create folder if supported
 local isFolderSupported = makefolder and isfolder
-if isFolderSupported and not isfolder("Compkiller_Configs") then
-    makefolder("Compkiller_Configs")
+if isFolderSupported and not isfolder("LouisHubConfig") then
+    makefolder("LouisHubConfig")
 end
 
 -- ========================================================
 -- [[ CONFIGURABLE FLOATING ICON DECAL ]]
 -- ========================================================
+-- Configured with your custom branding Asset ID using robust rbxthumb format
 local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=104436283956004&w=150&h=150"
 
 -- ========================================================
@@ -57,11 +58,11 @@ local function GetIcon(iconName)
     
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
-            if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
-            if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
+            if not isfolder("LouisHubConfig") then pcall(makefolder, "LouisHubConfig") end
+            if not isfolder("LouisHubConfig/.icons") then pcall(makefolder, "LouisHubConfig/.icons") end
             
             local fileName = iconName .. ".png"
-            local localPath = "Compkiller_Configs/.icons/" .. fileName
+            local localPath = "LouisHubConfig/.icons/" .. fileName
             
             if isfile(localPath) then
                 return getcustomasset(localPath)
@@ -88,7 +89,11 @@ local function GetIcon(iconName)
         ["folder"] = "rbxassetid://10734741211",
         ["sliders"] = "rbxassetid://10734942250",
         ["slider"] = "rbxassetid://10734942250",
-        ["info"] = "rbxassetid://10723415903"
+        ["info"] = "rbxassetid://10723415903",
+        ["chevron-down"] = "rbxassetid://10709790644",
+        ["chevrons-left"] = "rbxassetid://10709790644", -- fallback
+        ["chevrons-right"] = "rbxassetid://10709790644", -- fallback
+        ["shield"] = "rbxassetid://10723375133"
     }
     return Fallbacks[iconName] or "rbxassetid://10723375133"
 end
@@ -407,7 +412,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Tabs = {},
         ActiveTab = nil,
         Visible = false,
-        CategoryCount = 0
+        CategoryCount = 0,
+        SidebarCollapsed = false
     }
 
     local config = customConfig or {}
@@ -421,9 +427,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     }
 
     local cleanTitle = string.gsub(titleText or "Universal", "[%s%p]", "_")
-    local ConfigFolder = "Compkiller_Configs/" .. cleanTitle
-    if isFolderSupported and not isfolder(ConfigFolder) then
-        makefolder(ConfigFolder)
+    local ConfigFolder = "LouisHubConfig/" .. cleanTitle
+    if isFolderSupported and not isfolder("LouisHubConfig") then
+        makefolder("LouisHubConfig")
     end
 
     local ScreenGui = Instance.new("ScreenGui")
@@ -483,62 +489,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(HudText, true)
     RegisterText(HudText, 10)
 
-    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas (Tersambung sempurna/seamlesly nempel)
-    local MinimizeContainer = Instance.new("Frame", MainFrame)
-    MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeContainer.Position = UDim2.new(1, -34, 0, -23) -- Dempet/overlapping top border lurus nempel presisi
-    RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
-
-    local MinCorner = Instance.new("UICorner", MinimizeContainer)
-    MinCorner.CornerRadius = UDim.new(0, 6)
-
-    local MinStroke = Instance.new("UIStroke", MinimizeContainer)
-    MinStroke.Thickness = 1
-    RegisterTheme(MinStroke, { Color = "StrokeColor" })
-
-    local MinimizeBtn = Instance.new("TextButton", MinimizeContainer)
-    MinimizeBtn.Size = UDim2.new(1, 0, 1, 0)
-    MinimizeBtn.BackgroundTransparency = 1
-    MinimizeBtn.Text = "-"
-    MinimizeBtn.TextYAlignment = Enum.TextYAlignment.Center
-    RegisterTheme(MinimizeBtn, { TextColor3 = "TextSecondary" })
-    RegisterFont(MinimizeBtn, true)
-    RegisterText(MinimizeBtn, 18)
-
-    Janitor:Add(MinimizeBtn.MouseButton1Click:Connect(function()
-        ToggleGui()
-    end))
-
-    local UiScale = Instance.new("UIScale", MainFrame)
-    UiScale.Scale = Library.Settings.Scale
-
-    local TargetSize = UDim2.new(0, 640, 0, 460)
-    local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
-
-    local function ApplyUiSettings(mode, scale)
-        Library.Settings.Mode = mode
-        Library.Settings.Scale = scale
-        UiScale.Scale = scale
-        
-        if mode == "PC" then
-            TargetSize = UDim2.new(0, 640, 0, 460)
-            TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
-        elseif mode == "Mobile" then
-            TargetSize = UDim2.new(0, 520, 0, 350)
-            TargetPosition = UDim2.new(0.5, -260, 0.5, -175)
-        end
-
-        if Window.Visible then
-            MainFrame.Size = TargetSize
-            MainFrame.Position = TargetPosition
-        end
-        
-        for _, t in ipairs(Window.Tabs) do
-            t.ResizeCanvas()
-        end
-    end
-    ApplyUiSettings(Library.Settings.Mode, Library.Settings.Scale)
-
     -- Sidebar (Left Area)
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 170, 1, 0)
@@ -572,22 +522,22 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ContentBgMask.BorderSizePixel = 0
     RegisterTheme(ContentBgMask, { BackgroundColor3 = "WindowBg" })
 
-    -- Drag Handle Logo
+    -- Drag Handle Logo Area
     local LogoArea = Instance.new("Frame", Sidebar)
     LogoArea.Size = UDim2.new(1, 0, 0, 50)
     LogoArea.BackgroundTransparency = 1
     MakeDraggable(LogoArea, MainFrame)
 
-    -- Logo Utama Pojok Kiri Atas diperbesar rapi (32x32)
-    local LogoIcon = Instance.new("ImageLabel", LogoArea)
+    -- Logo Utama diperbesar (32x32) dan diubah menjadi ImageButton untuk meminimalkan UI
+    local LogoIcon = Instance.new("ImageButton", LogoArea)
     LogoIcon.Size = UDim2.new(0, 32, 0, 32)
     LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
     LogoIcon.BackgroundTransparency = 1
     LogoIcon.Image = FLOATING_ICON_DECAL
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
-    TitleLabel.Size = UDim2.new(1, -60, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 52, 0, 0) -- Digeser ke kanan mencegah tabrakan dengan logo
+    TitleLabel.Size = UDim2.new(1, -90, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 52, 0, 0) -- Digeser sedikit ke kanan mencegah tabrakan dengan logo
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = titleText or "COMPKILLER"
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -649,6 +599,109 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ContentArea.Size = UDim2.new(1, -170, 1, 0)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
     ContentArea.BackgroundTransparency = 1
+
+    local UiScale = Instance.new("UIScale", MainFrame)
+    UiScale.Scale = Library.Settings.Scale
+
+    local TargetSize = UDim2.new(0, 640, 0, 460)
+    local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+
+    -- ========================================================
+    -- [[ SIDEBAR COLLAPSE / EXPAND MECHANISM ]]
+    -- ========================================================
+    local CollapseBtn = Instance.new("ImageButton", LogoArea)
+    CollapseBtn.Size = UDim2.new(0, 16, 0, 16)
+    CollapseBtn.Position = UDim2.new(1, -26, 0.5, -8)
+    CollapseBtn.BackgroundTransparency = 1
+    CollapseBtn.Image = GetIcon("chevrons-left")
+    RegisterTheme(CollapseBtn, { ImageColor3 = "TextSecondary" })
+
+    local function SetSidebarCollapsed(collapsed)
+        Window.SidebarCollapsed = collapsed
+        local duration = 0.3
+        local ease = Enum.EasingStyle.Quad
+        local dir = Enum.EasingDirection.Out
+        
+        local activeWidth = collapsed and 60 or 170
+        
+        -- Smoothly tween Sidebar and Content Container widths
+        TweenService:Create(Sidebar, TweenInfo.new(duration, ease, dir), { Size = UDim2.new(0, activeWidth, 1, 0) }):Play()
+        TweenService:Create(SidebarMask, TweenInfo.new(duration, ease, dir), { Size = UDim2.new(0, 15, 1, 0), Position = UDim2.new(1, -15, 0, 0) }):Play()
+        
+        TweenService:Create(ContentBg, TweenInfo.new(duration, ease, dir), { Size = UDim2.new(1, -activeWidth, 1, 0), Position = UDim2.new(0, activeWidth, 0, 0) }):Play()
+        TweenService:Create(ContentBgMask, TweenInfo.new(duration, ease, dir), { Position = UDim2.new(0, 0, 0, 0) }):Play()
+        TweenService:Create(ContentArea, TweenInfo.new(duration, ease, dir), { Size = UDim2.new(1, -activeWidth, 1, 0), Position = UDim2.new(0, activeWidth, 0, 0) }):Play()
+        
+        -- Transition Logo Area
+        if collapsed then
+            TitleLabel.Visible = false
+            CollapseBtn.Image = GetIcon("chevrons-right")
+        else
+            TitleLabel.Visible = true
+            CollapseBtn.Image = GetIcon("chevrons-left")
+        end
+        
+        -- Transition Profile Card
+        if collapsed then
+            UsernameLabel.Visible = false
+            SubtextLabel.Visible = false
+            AvatarImg.Position = UDim2.new(0.5, -16, 0.5, -16)
+        else
+            UsernameLabel.Visible = true
+            SubtextLabel.Visible = true
+            AvatarImg.Position = UDim2.new(0, 5, 0.5, -16)
+        end
+        
+        -- Transition Tab Buttons
+        for _, tab in ipairs(Window.Tabs) do
+            local tabBtn = tab.Button
+            local tabIcon = tabBtn:FindFirstChildOfClass("ImageLabel")
+            local tabLabel = tabBtn:FindFirstChildOfClass("TextLabel")
+            
+            if collapsed then
+                if tabLabel then tabLabel.Visible = false end
+                if tabIcon then tabIcon.Position = UDim2.new(0.5, -8, 0.5, -8) end
+            else
+                if tabLabel then tabLabel.Visible = true end
+                if tabIcon then tabIcon.Position = UDim2.new(0, 12, 0.5, -8) end
+            end
+        end
+        
+        -- Transition Category Labels (hide them in compact mode)
+        for _, child in ipairs(TabScroll:GetChildren()) do
+            if child:IsA("Frame") and child.Name ~= "TabBtn" then
+                child.Visible = not collapsed
+            end
+        end
+    end
+
+    Janitor:Add(CollapseBtn.MouseButton1Click:Connect(function()
+        SetSidebarCollapsed(not Window.SidebarCollapsed)
+    end))
+
+    local function ApplyUiSettings(mode, scale)
+        Library.Settings.Mode = mode
+        Library.Settings.Scale = scale
+        UiScale.Scale = scale
+        
+        if mode == "PC" then
+            TargetSize = UDim2.new(0, 640, 0, 460)
+            TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+        elseif mode == "Mobile" then
+            TargetSize = UDim2.new(0, 520, 0, 350)
+            TargetPosition = UDim2.new(0.5, -260, 0.5, -175)
+        end
+
+        if Window.Visible then
+            MainFrame.Size = TargetSize
+            MainFrame.Position = TargetPosition
+        end
+        
+        for _, t in ipairs(Window.Tabs) do
+            t.ResizeCanvas()
+        end
+    end
+    ApplyUiSettings(Library.Settings.Mode, Library.Settings.Scale)
 
     -- ========================================================
     -- [[ CATEGORY HEADER SYSTEM ]]
@@ -739,6 +792,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabBtn.Position = UDim2.new(0, 5, 0, 0)
         TabBtn.BackgroundTransparency = 1
         TabBtn.Text = ""
+        TabBtn.Name = "TabBtn"
         TabBtn.AutoButtonColor = false
 
         local TabBtnCorner = Instance.new("UICorner", TabBtn)
@@ -837,6 +891,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             LockOverlay.Position = UDim2.new(0, 0, 0, 0)
             LockOverlay.BackgroundTransparency = 0.65 -- Exactly 65% transparency as requested
             LockOverlay.ZIndex = 99
+            
+            -- SAFE PREMIUM ENFORCEMENT: Menghalangi sentuhan mouse agar element di bawah tidak dapat diaktifkan
+            LockOverlay.Active = true 
+            
             RegisterTheme(LockOverlay, { BackgroundColor3 = "WindowBg" })
             
             local LockCorner = Instance.new("UICorner", LockOverlay)
@@ -870,8 +928,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     TweenService:Create(LockIcon, TweenInfo.new(0.3), { ImageTransparency = 1 }):Play()
                     TweenService:Create(LockText, TweenInfo.new(0.3), { TextTransparency = 1 }):Play()
                     task.delay(0.3, function()
-                        LockOverlay:Destroy()
-                        LockOverlay = nil
+                        if LockOverlay then
+                            LockOverlay:Destroy()
+                            LockOverlay = nil
+                        end
                     end)
                 end
             end
@@ -1692,6 +1752,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             -- [[ SECTION ELEMENT: BUTTON ]]
             -- ========================================================
             function Section:CreateButton(btnText, config, callback)
+                -- Dukungan deklarasi callback fleksibel
                 local realCallback = callback
                 local realConfig = config
                 if typeof(config) == "function" then
