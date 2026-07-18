@@ -192,8 +192,8 @@ local function MakeDraggable(dragTrigger, frameToMove)
     local dragging, dragInput, dragStart, startPos
     
     Janitor:Add(dragTrigger.InputBegan:Connect(function(input)
-        -- Prevent dragging completely if positions are locked
-        if Library.Settings and Library.Settings.LockPosition then return end
+        -- Kunci posisi serempak jika diaktifkan di tab Setting [1]
+        if Library.Settings.DragLocked then return end
         
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -211,7 +211,6 @@ local function MakeDraggable(dragTrigger, frameToMove)
     end))
     
     Janitor:Add(dragTrigger.InputChanged:Connect(function(input)
-        if Library.Settings and Library.Settings.LockPosition then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
@@ -219,10 +218,6 @@ local function MakeDraggable(dragTrigger, frameToMove)
     
     Janitor:Add(UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
-            if Library.Settings and Library.Settings.LockPosition then 
-                dragging = false 
-                return 
-            end
             local delta = input.Position - dragStart
             frameToMove.Position = UDim2.new(
                 startPos.X.Scale, startPos.X.Offset + delta.X,
@@ -432,7 +427,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         BoldFont = config.BoldFont or Enum.Font.GothamBold,
         TextSizeMultiplier = config.TextSizeMultiplier or 1.0,
         ExternalShape = "Round",
-        LockPosition = false
+        DragLocked = false -- Posisi seret awal dibuka (tidak dikunci)
     }
 
     local cleanTitle = string.gsub(titleText or "Universal", "[%s%p]", "_")
@@ -607,7 +602,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- ========================================================
     local CollapseBtn = Instance.new("ImageButton", Sidebar)
     CollapseBtn.Size = UDim2.new(0, 16, 0, 16)
-    -- Di reposisi rapi di bagian tengah vertikal sebelah kanan pembatas sidebar
+    -- Di reposisi rapi di bagian tengah vertikal sebelah kanan pembatas sidebar [1]
     CollapseBtn.Position = UDim2.new(1, -26, 0.5, -8)
     CollapseBtn.BackgroundTransparency = 1
     CollapseBtn.Image = GetIcon("chevrons-left")
@@ -728,11 +723,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterTheme(ToggleStroke, { Color = "Accent" })
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
-    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang (0.85)
+    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang (0.85) [1]
     ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
     ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
     ToggleIconImage.BackgroundTransparency = 1
-    -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint)
+    -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint) [1]
     ToggleIconImage.Image = FLOATING_ICON_DECAL
 
     MakeDraggable(FloatingToggle, FloatingToggle)
@@ -772,9 +767,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end
 
-    FloatingToggle.MouseButton1Click:Connect(ToggleGui)
+    Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
 
-    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan mengikat fungsi minimize UI kustom Anda
+    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan mengikat fungsi minimize UI kustom Anda [1]
     local LogoIcon = Instance.new("ImageButton", LogoArea)
     LogoIcon.Size = UDim2.new(0, 32, 0, 32)
     LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
@@ -791,6 +786,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ToggleGui()
         end
     end))
+
+    -- Welcome Notification yang otomatis berbunyi/muncul saat inisialisasi CreateWindow [1]
+    task.spawn(function()
+        task.wait(0.2)
+        Library:CreateNotification("Welcome to LouisHub", "UI Framework executed successfully. Press Insert to minimize.", 5)
+    end)
 
     -- ========================================================
     -- [[ CATEGORY HEADER SYSTEM ]]
@@ -993,7 +994,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             LockStroke.Thickness = 1.5
             RegisterTheme(LockStroke, { Color = "Accent" })
             
-            -- Ikon perisai (shield) tetap dipertahankan khusus untuk visual kunci frame premium
+            -- Ikon perisai (shield) tetap dipertahankan khusus untuk visual kunci frame premium [1]
             local LockIcon = Instance.new("ImageLabel", LockOverlay)
             LockIcon.Size = UDim2.new(0, 48, 0, 48)
             LockIcon.Position = UDim2.new(0.5, -24, 0.5, -34)
@@ -1109,7 +1110,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 local ease = Enum.EasingStyle.Quad
                 
                 if Section.Collapsed then
-                    -- Animasi menciut: Elemen di dalam meluncur masuk secara halus ke dalam kepala
+                    -- Animasi menciut: Elemen di dalam meluncur masuk secara halus ke dalam kepala [1]
                     local shrink = TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, 34) })
                     shrink:Play()
                     TweenService:Create(ToggleIcon, TweenInfo.new(duration, ease), { Rotation = -90 }):Play()
@@ -1375,7 +1376,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end
                 end))
 
-                -- Dukungan Pengisian Keybind via Virtual Keyboard Mobile (Menghindari Erors)
+                -- Dukungan Pengisian Keybind via Virtual Keyboard Mobile (Menghindari Erors) [1]
                 Janitor:Add(BindBtn.FocusLost:Connect(function()
                     if listening then
                         listening = false
@@ -1723,7 +1724,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         OptBtn.Size = UDim2.new(1, 0, 0, 20)
                         OptBtn.BackgroundTransparency = 1
                         OptBtn.Text = tostring(opt)
-                        RegisterTheme(OptBtn, { TextColor3 = (opt == Dropdown.Value and "Accent" or "TextSecondary") })
+                        RegisterTheme(OptBtn, { TextColor3 = (isSelected and "Accent" or "TextSecondary") })
                         RegisterFont(OptBtn, false)
                         RegisterText(OptBtn, 10)
 
@@ -1842,7 +1843,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             -- [[ SECTION ELEMENT: BUTTON ]]
             -- ========================================================
             function Section:CreateButton(btnText, config, callback)
-                -- Dukungan deklarasi callback fleksibel
                 local realCallback = callback
                 local realConfig = config
                 if typeof(config) == "function" then
@@ -2140,6 +2140,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         local ConfigSec = BuiltInTab:CreateSection("Layout Preferences")
         ConfigSec:CreateDropdown("Layout Mode", {"PC", "Mobile"}, Library.Settings.Mode, "BuiltIn_Mode", function(mode)
             ApplyUiSettings(mode, Library.Settings.Scale)
+            Library:CreateNotification("Layout Updated", "UI layout set to " .. mode .. " mode.", 4)
         end)
         
         ConfigSec:CreateSlider("UI Scale", 50, 150, math.floor(Library.Settings.Scale * 100), "BuiltIn_Scale", function(scalePerc)
@@ -2149,6 +2150,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         -- Toggle ON/OFF untuk menampilkan/menyembunyikan Floating Performance HUD
         ConfigSec:CreateToggle("Performance HUD", false, "BuiltIn_ShowHUD", {}, function(state)
             HudFrame.Visible = state
+        end)
+
+        -- Kunci Posisi Seret UI Serempak
+        ConfigSec:CreateToggle("Lock UI Dragging", false, "BuiltIn_LockDrag", {}, function(state)
+            Library.Settings.DragLocked = state
         end)
 
         -- Pemilihan Bentuk Tombol Eksternal di UI secara Dinamis
@@ -2285,6 +2291,52 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             local newList = GetConfigsList()
             configDropdown:Refresh(newList, newList[1])
         end)
+        
+        -- EXPORT/IMPORT STRINGS FOR EASY SHARE (CLIPBOARD)
+        local ShareSec = ConfigManagerTab:CreateSection("Share Config Codes")
+        ShareSec:CreateTextBox("Config Share Code", "Paste code here to import, or copy exported code...", "Sys_Share_Code")
+        
+        ShareSec:CreateButton("Export Current Config Code", function()
+            local dataToSave = {}
+            for flag, value in pairs(Library.Flags) do
+                if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
+                    if typeof(value) == "Color3" then
+                        dataToSave[flag] = {math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5)}
+                    elseif typeof(value) == "EnumItem" then
+                        dataToSave[flag] = tostring(value)
+                    else
+                        dataToSave[flag] = value
+                    end
+                end
+            end
+            local encoded = HttpService:JSONEncode(dataToSave)
+            setclipboard(encoded)
+            Library:CreateNotification("Config Exported", "Configuration copied to clipboard as share code!", 3)
+        end)
+        
+        ShareSec:CreateButton("Import Shared Code", function()
+            local rawCode = Library.Flags["Sys_Share_Code"]
+            if rawCode and rawCode ~= "" then
+                local success, decoded = pcall(function() return HttpService:JSONDecode(rawCode) end)
+                if success and typeof(decoded) == "table" then
+                    for flag, value in pairs(decoded) do
+                        if Library.Registry[flag] then
+                            pcall(function()
+                                if Library.Registry[flag].Type == "ColorPicker" and typeof(value) == "table" then
+                                    local r, g, b = value[1], value[2], value[3]
+                                    Library.Registry[flag].Control:Set(Color3.fromRGB(r, g, b))
+                                else
+                                    Library.Registry[flag].Control:Set(value)
+                                end
+                            end)
+                        end
+                    end
+                    Library:CreateNotification("Import Success", "Configuration successfully imported from share code!", 3)
+                else
+                    Library:CreateNotification("Import Failed", "Invalid share code format.", 3)
+                end
+            end
+        end)
     end)
 
     -- ========================================================
@@ -2376,10 +2428,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ToggleGui()
         end
     end))
-    
-    function Window:Minimize()
-        ToggleGui()
-    end
+
+    -- Welcome Notification yang otomatis berbunyi/muncul saat inisialisasi CreateWindow
+    task.spawn(function()
+        task.wait(0.2)
+        Library:CreateNotification("Welcome to LouisHub", "UI Framework executed successfully. Press Insert to minimize.", 5)
+    end)
 
     -- ========================================================
     -- [[ BACKEND: INTERACTIVE MODAL DIALOG MANAGER ]]
