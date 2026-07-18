@@ -1,5 +1,5 @@
 -- Loader Script (Execute this in your Executor)
--- Make sure to replace the URL below with your raw GitHub link hosting the updated UI Library (e.g., test.lua)
+-- Make sure to replace the URL below with your raw GitHub link hosting the updated UI Library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
 -- Initialize Main Window
@@ -15,13 +15,14 @@ local Win = Library:CreateWindow("Universal Loader", "V2.6", {
 -- Trigger a premium Toast Notification as a startup diagnostic showcase
 Library:CreateNotification("Nexus Diagnostics", "UI System initiated safely. Theme engine connected successfully.", 4)
 
+
 -- ========================================================
--- [[ BOILERPLATE CATEGORY AND TAB REFERENCE CREATIONS ]]
+-- [[ CATEGORY 1: STANDARD BOILERPLATE SHOWCASE ]]
 -- ========================================================
 Win:CreateCategory("Boilerplate")
 
 -- Custom Tab featuring dynamic Lucide "apple" icon downloading
-local ExampleTab = Win:CreateTab("Feature Tab", "apple")   
+local ExampleTab = Win:CreateTab("Feature Tab", "apple", false)   
 
 -- Section 1: left layout elements
 local Sec1 = ExampleTab:CreateSection("Left Section")
@@ -29,12 +30,13 @@ local Sec1 = ExampleTab:CreateSection("Left Section")
 -- 1. Toggle Switch (Featuring the new Interactive Info Modal system)
 Sec1:CreateToggle("Toggle Switch", false, "Toggle_Key1", { 
     info = "This is a detailed description of how this toggle works. Clicking the info icon opens this beautifully animated pop-up modal dialog box without clashing with other layout elements!", 
-    keybind = "E" 
+    keybind = "E",
+    external = { buttonType = "Toggle" } -- Turn on this pin in the UI to spawn an external dynamic Toggle button on mobile!
 }, function(state)
     print("Toggle State: ", state)
 end)
 
--- 2. Bind Button
+-- 2. Bind Button (PC Background inputs & Mobile text-input keycode typing compatible)
 Sec1:CreateKeybind("Select Keybind", Enum.KeyCode.LeftAlt, "Keybind_Key1", function(key)
     print("Keybind State: ", key.Name)
 end)
@@ -44,7 +46,7 @@ Sec1:CreateSlider("Numeric Slider", 0, 100, 50, "Slider_Key1", function(val)
     print("Slider Value: ", val)
 end)
 
--- 4. Color Picker (Supports hex code entry like #ffffff)
+-- 4. Color Picker (Supports hex code entry like #ffffff or ffffff)
 Sec1:CreateColorPicker("Color Selector", Color3.fromRGB(0, 213, 239), "Color_Key1", function(color)
     print("Selected Color (RGB): ", color)
 end)
@@ -68,10 +70,49 @@ Sec2:CreateTextBox("Custom Input Box", "Type something here...", "TextBox_Key1",
     print("TextBox Submitted: ", text)
 end)
 
--- 8. Command Button
-Sec2:CreateButton("Submit Settings", function()
+-- 8. Command Button (Featuring custom mobile floating clicker pin)
+Sec2:CreateButton("Submit Settings", {
+    external = { buttonType = "Click" } -- Turn on this pin in the UI to spawn an external dynamic Clicker button on mobile!
+}, function()
     print("Submit Button Clicked!")
 end)
 
 -- 9. Text Paragraph
 Sec2:CreateParagraph("Information Box", "This is an example paragraph template. You can write any help descriptions, instructions, or credits here.")
+
+
+-- ========================================================
+-- [[ CATEGORY 2: PREMIUM LOCKED TABS SHOWCASE ]]
+-- ========================================================
+Win:CreateCategory("Premium Member")
+
+-- ======================================================================================
+-- [[ PREMIUM TAB CONFIGURATION EXPLANATION (FOR HUMAN & AI INTERPRETATION) ]]
+-- ======================================================================================
+-- Format: Win:CreateTab("Tab Name", "IconName", isPremiumLocked)
+--
+-- The third argument (isPremiumLocked) is a boolean that controls the Premium Lock Overlay:
+--
+-- 1. Setting this argument to `true` (e.g., Win:CreateTab("Premium Features", "shield", true)):
+--    * This will LOCK the tab.
+--    * A dark, 65% semi-transparent overlay frame will cover the entire tab content [1].
+--    * It displays a lock icon and "PREMIUM MEMBER ONLY" text to restrict standard users [1].
+--    * You must call `PremiumTab:Unlock()` later in the code to unlock it dynamically [1].
+--
+-- 2. Setting this argument to `false` (e.g., Win:CreateTab("Premium Features", "shield", false)):
+--    * This will UNLOCK the tab immediately.
+--    * No lock overlay is created [1].
+--    * The tab is completely free and instantly accessible to any user upon script execution [1].
+-- ======================================================================================
+local PremiumTab = Win:CreateTab("Premium Features", "shield", true) -- Currently set to TRUE (locked on startup) [1]
+
+local PremSec = PremiumTab:CreateSection("Locked Content")
+PremSec:CreateToggle("Super Silent Aimbot", false, "Prem_Toggle1", {}, function(state)
+    print("Premium Feature Active: ", state)
+end)
+
+-- Creating a demonstration button in the free tab to show how to dynamically unlock the Premium Tab via loader API
+Sec1:CreateButton("Unlock Premium Tab Demo", function()
+    PremiumTab:Unlock() -- Smoothly fades away and destroys the lock overlay instantly [1]
+    Library:CreateNotification("Access Granted", "Premium features unlocked successfully!", 4)
+end)
