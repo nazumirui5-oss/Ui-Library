@@ -14,10 +14,9 @@ Library.ThemeRegistry = {}
 Library.TextRegistry = {}
 Library.FontRegistry = {}
 Library.ThemeCallbacks = {}
+Library.ExternalButtons = {}
 
--- ========================================================
--- [[ CONNECTION TRACKER / JANITOR (MEMORY OPTIMIZER) ]]
--- ========================================================
+-- Connection Tracker / Janitor for complete memory leak prevention
 local Janitor = { Connections = {} }
 
 function Janitor:Add(connection)
@@ -43,7 +42,6 @@ end
 -- ========================================================
 -- [[ CONFIGURABLE FLOATING ICON DECAL ]]
 -- ========================================================
--- Menggunakan format rbxthumb stabil untuk memuat decal kustom Anda
 local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=104436283956004&w=150&h=150"
 
 -- ========================================================
@@ -59,8 +57,8 @@ local function GetIcon(iconName)
     
     if writefile and readfile and isfile and getcustomasset then
         local success, assetPath = pcall(function()
-            if not isfolder("Compkiller_Configs") then makefolder("Compkiller_Configs") end
-            if not isfolder("Compkiller_Configs/.icons") then makefolder("Compkiller_Configs/.icons") end
+            if not isfolder("Compkiller_Configs") then pcall(makefolder, "Compkiller_Configs") end
+            if not isfolder("Compkiller_Configs/.icons") then pcall(makefolder, "Compkiller_Configs/.icons") end
             
             local fileName = iconName .. ".png"
             local localPath = "Compkiller_Configs/.icons/" .. fileName
@@ -130,7 +128,7 @@ local Themes = {
         StrokeColor = Color3.fromRGB(38, 41, 49),
         Accent = Color3.fromRGB(0, 213, 239),
         TextPrimary = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(160, 165, 175), -- Abu-abu netral bebas biru default
+        TextSecondary = Color3.fromRGB(160, 165, 175), -- Neutral grey to prevent blue tint leakage
         TextDark = Color3.fromRGB(110, 115, 125)
     }
 }
@@ -219,6 +217,113 @@ local function MakeDraggable(dragTrigger, frameToMove)
             )
         end
     end))
+end
+
+-- ========================================================
+-- [[ AUTOMATIC PC BACKGROUND KEYBIND LISTENER ]]
+-- ========================================================
+Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        for flag, item in pairs(Library.Registry) do
+            if item.Type == "Keybind" and Library.Flags[flag] == input.KeyCode then
+                if item.Callback then
+                    task.spawn(item.Callback, input.KeyCode)
+                end
+            end
+        end
+    end
+end))
+
+-- ========================================================
+-- [[ EXTERNAL FLOATING BUTTON MANAGER ]]
+-- ========================================================
+function Library:CreateExternalButton(text, buttonType, shape, flag, callback)
+    local screenGui = game:GetService("CoreGui"):FindFirstChild("Nexus_Compkiller_UI") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("Nexus_Compkiller_UI")
+    if not screenGui then return end
+
+    if Library.ExternalButtons[flag] then
+        Library.ExternalButtons[flag]:Destroy()
+        Library.ExternalButtons[flag] = nil
+    end
+
+    local ExtBtnFrame = Instance.new("Frame", screenGui)
+    ExtBtnFrame.Name = "External_" .. flag
+    ExtBtnFrame.BackgroundTransparency = 0.3
+    ExtBtnFrame.ZIndex = 50
+    RegisterTheme(ExtBtnFrame, { BackgroundColor3 = "SidebarBg" })
+    
+    -- Automatic Horizontal Scaling to prevent clipping regardless of text length
+    ExtBtnFrame.AutomaticSize = Enum.AutomaticSize.X
+    ExtBtnFrame.Size = UDim2.new(0, 0, 0, 30)
+    ExtBtnFrame.Position = UDim2.new(0.5, -40, 0.3, 0)
+    
+    local ExtCorner = Instance.new("UICorner", ExtBtnFrame)
+    
+    -- Dynamically apply the global UI setting shape choice
+    local activeShape = Library.Settings.ExternalShape or shape or "Round"
+    local function SetShapeCorner(val)
+        if val == "Circle" then
+            ExtCorner.CornerRadius = UDim.new(1, 0)
+        elseif val == "Round" then
+            ExtCorner.CornerRadius = UDim.new(0, 8)
+        else
+            ExtCorner.CornerRadius = UDim.new(0, 0)
+        end
+    end
+    SetShapeCorner(activeShape)
+    
+    local ExtStroke = Instance.new("UIStroke", ExtBtnFrame)
+    ExtStroke.Thickness = 1.3
+    RegisterTheme(ExtStroke, { Color = "Accent" })
+    
+    local Padding = Instance.new("UIPadding", ExtBtnFrame)
+    Padding.PaddingLeft = UDim.new(0, 12)
+    Padding.PaddingRight = UDim.new(0, 12)
+    
+    local ActBtn = Instance.new("TextButton", ExtBtnFrame)
+    ActBtn.Size = UDim2.new(1, 0, 1, 0)
+    ActBtn.BackgroundTransparency = 1
+    ActBtn.Text = text
+    RegisterTheme(ActBtn, { TextColor3 = "TextPrimary" })
+    RegisterFont(ActBtn, true)
+    RegisterText(ActBtn, 11)
+    
+    ActBtn.AutomaticSize = Enum.AutomaticSize.X
+    MakeDraggable(ExtBtnFrame, ExtBtnFrame)
+    
+    local state = false
+    if buttonType == "Toggle" then
+        Janitor:Add(ActBtn.MouseButton1Click:Connect(function()
+            state = not state
+            if state then
+                TweenService:Create(ExtStroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(255, 255, 255) }):Play()
+                TweenService:Create(ActBtn, TweenInfo.new(0.2), { TextColor3 = CurrentTheme.Accent }):Play()
+            else
+                TweenService:Create(ExtStroke, TweenInfo.new(0.2), { Color = CurrentTheme.Accent }):Play()
+                TweenService:Create(ActBtn, TweenInfo.new(0.2), { TextColor3 = CurrentTheme.TextPrimary }):Play()
+            end
+            if callback then task.spawn(callback, state) end
+        end))
+    else -- Clicker Type
+        Janitor:Add(ActBtn.MouseButton1Click:Connect(function()
+            TweenService:Create(ExtBtnFrame, TweenInfo.new(0.1), { BackgroundTransparency = 0.6 }):Play()
+            task.delay(0.1, function()
+                TweenService:Create(ExtBtnFrame, TweenInfo.new(0.1), { BackgroundTransparency = 0.3 }):Play()
+            end)
+            if callback then task.spawn(callback) end
+        end))
+    end
+    
+    Library.ExternalButtons[flag] = ExtBtnFrame
+    return ExtBtnFrame
+end
+
+function Library:DestroyExternalButton(flag)
+    if Library.ExternalButtons[flag] then
+        Library.ExternalButtons[flag]:Destroy()
+        Library.ExternalButtons[flag] = nil
+    end
 end
 
 -- ========================================================
@@ -311,7 +416,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         Scale = config.Scale or 1.0,
         Font = config.Font or Enum.Font.GothamMedium,
         BoldFont = config.BoldFont or Enum.Font.GothamBold,
-        TextSizeMultiplier = config.TextSizeMultiplier or 1.0
+        TextSizeMultiplier = config.TextSizeMultiplier or 1.0,
+        ExternalShape = "Round"
     }
 
     local cleanTitle = string.gsub(titleText or "Universal", "[%s%p]", "_")
@@ -377,10 +483,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(HudText, true)
     RegisterText(HudText, 10)
 
-    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
+    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas (Tersambung sempurna/seamlesly nempel)
     local MinimizeContainer = Instance.new("Frame", MainFrame)
     MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeContainer.Position = UDim2.new(1, -34, 0, -32)
+    MinimizeContainer.Position = UDim2.new(1, -34, 0, -23) -- Dempet/overlapping top border lurus nempel presisi
     RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
 
     local MinCorner = Instance.new("UICorner", MinimizeContainer)
@@ -398,6 +504,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterTheme(MinimizeBtn, { TextColor3 = "TextSecondary" })
     RegisterFont(MinimizeBtn, true)
     RegisterText(MinimizeBtn, 18)
+
+    Janitor:Add(MinimizeBtn.MouseButton1Click:Connect(function()
+        ToggleGui()
+    end))
 
     local UiScale = Instance.new("UIScale", MainFrame)
     UiScale.Scale = Library.Settings.Scale
@@ -468,7 +578,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     LogoArea.BackgroundTransparency = 1
     MakeDraggable(LogoArea, MainFrame)
 
-    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan diposisikan rapi
+    -- Logo Utama Pojok Kiri Atas diperbesar rapi (32x32)
     local LogoIcon = Instance.new("ImageLabel", LogoArea)
     LogoIcon.Size = UDim2.new(0, 32, 0, 32)
     LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
@@ -477,7 +587,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
     TitleLabel.Size = UDim2.new(1, -60, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 52, 0, 0) -- Digeser sedikit ke kanan mencegah tabrakan
+    TitleLabel.Position = UDim2.new(0, 52, 0, 0) -- Digeser ke kanan mencegah tabrakan dengan logo
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = titleText or "COMPKILLER"
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -576,7 +686,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- ========================================================
     -- [[ TAB CREATION METHOD ]]
     -- ========================================================
-    function Window:CreateTab(tabName, iconInput)
+    function Window:CreateTab(tabName, iconInput, isPremium)
         local Tab = {
             Sections = {},
             Button = nil,
@@ -714,6 +824,57 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 task.wait(0.1)
                 SelectTab()
             end)
+        end
+
+        -- ========================================================
+        -- [[ OVERLAY LOCK PREMIUM TAB TEMPLATE (STEP 2 & 11) ]]
+        -- ========================================================
+        local LockOverlay
+        if isPremium then
+            LockOverlay = Instance.new("Frame", TabPage)
+            LockOverlay.Name = "Premium_Lock_Overlay"
+            LockOverlay.Size = UDim2.new(1, 0, 1, 0)
+            LockOverlay.Position = UDim2.new(0, 0, 0, 0)
+            LockOverlay.BackgroundTransparency = 0.65 -- Exactly 65% transparency as requested
+            LockOverlay.ZIndex = 99
+            RegisterTheme(LockOverlay, { BackgroundColor3 = "WindowBg" })
+            
+            local LockCorner = Instance.new("UICorner", LockOverlay)
+            LockCorner.CornerRadius = UDim.new(0, 8)
+            
+            local LockStroke = Instance.new("UIStroke", LockOverlay)
+            LockStroke.Thickness = 1.5
+            RegisterTheme(LockStroke, { Color = "Accent" })
+            
+            local LockIcon = Instance.new("ImageLabel", LockOverlay)
+            LockIcon.Size = UDim2.new(0, 48, 0, 48)
+            LockIcon.Position = UDim2.new(0.5, -24, 0.5, -34)
+            LockIcon.BackgroundTransparency = 1
+            LockIcon.Image = GetIcon("shield")
+            RegisterTheme(LockIcon, { ImageColor3 = "Accent" })
+            
+            local LockText = Instance.new("TextLabel", LockOverlay)
+            LockText.Size = UDim2.new(1, 0, 0, 20)
+            LockText.Position = UDim2.new(0, 0, 0.5, 20)
+            LockText.BackgroundTransparency = 1
+            LockText.Text = "PREMIUM MEMBER ONLY"
+            LockText.TextXAlignment = Enum.TextXAlignment.Center
+            RegisterTheme(LockText, { TextColor3 = "TextPrimary" })
+            RegisterFont(LockText, true)
+            RegisterText(LockText, 12)
+            
+            -- API Method to unlock the premium tab directly from the loader
+            function Tab:Unlock()
+                if LockOverlay then
+                    TweenService:Create(LockOverlay, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+                    TweenService:Create(LockIcon, TweenInfo.new(0.3), { ImageTransparency = 1 }):Play()
+                    TweenService:Create(LockText, TweenInfo.new(0.3), { TextTransparency = 1 }):Play()
+                    task.delay(0.3, function()
+                        LockOverlay:Destroy()
+                        LockOverlay = nil
+                    end)
+                end
+            end
         end
 
         -- ========================================================
@@ -901,6 +1062,43 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         
                         local Corner = Instance.new("UICorner", InlineBind)
                         Corner.CornerRadius = UDim.new(0, 3)
+                        
+                        -- Auto trigger keybind on PC background keyboard inputs
+                        local kbCode = typeof(config.keybind) == "string" and Enum.KeyCode[config.keybind] or config.keybind
+                        if kbCode then
+                            Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
+                                if processed then return end
+                                if input.KeyCode == kbCode then
+                                    SetState(not Toggle.State)
+                                end
+                            end))
+                        end
+                    end
+
+                    -- DYNAMIC PIN SPARK SYSTEM (Pilihan Toggle Pembuat Tombol Melayang Eksternal)
+                    if config.external then
+                        local PinBtn = Instance.new("ImageButton", InlineList)
+                        PinBtn.Size = UDim2.new(0, 14, 0, 14)
+                        PinBtn.BackgroundTransparency = 1
+                        PinBtn.Image = GetIcon("shield")
+                        RegisterTheme(PinBtn, { ImageColor3 = "TextDark" })
+                        
+                        local pinActive = false
+                        Janitor:Add(PinBtn.MouseButton1Click:Connect(function()
+                            pinActive = not pinActive
+                            if pinActive then
+                                TweenService:Create(PinBtn, TweenInfo.new(0.2), { ImageColor3 = CurrentTheme.Accent }):Play()
+                                Library:CreateExternalButton(toggleText, config.external.buttonType or "Toggle", Library.Settings.ExternalShape, flag .. "_Ext", function(state)
+                                    pcall(function()
+                                        local elemCtrl = Library.Registry[flag].Control
+                                        elemCtrl:Set(state)
+                                    end)
+                                end)
+                            else
+                                TweenService:Create(PinBtn, TweenInfo.new(0.2), { ImageColor3 = CurrentTheme.TextDark }):Play()
+                                Library:DestroyExternalButton(flag .. "_Ext")
+                            end
+                        end))
                     end
                 end
 
@@ -934,6 +1132,22 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         TweenService:Create(Ball, TweenInfo.new(dur), {Position = UDim2.new(0, 2, 0.5, -5), BackgroundColor3 = CurrentTheme.TextDark}):Play()
                         TweenService:Create(Switch, TweenInfo.new(dur), {BackgroundColor3 = CurrentTheme.ElementBg}):Play()
                     end
+                    
+                    -- Sinkronisasi status eksternal
+                    if Library.ExternalButtons[flag .. "_Ext"] then
+                        local extBtn = Library.ExternalButtons[flag .. "_Ext"]:FindFirstChildOfClass("TextButton")
+                        local extStroke = Library.ExternalButtons[flag .. "_Ext"]:FindFirstChildOfClass("UIStroke")
+                        if extBtn and extStroke then
+                            if state then
+                                TweenService:Create(extStroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(255, 255, 255) }):Play()
+                                TweenService:Create(extBtn, TweenInfo.new(0.2), { TextColor3 = CurrentTheme.Accent }):Play()
+                            else
+                                TweenService:Create(extStroke, TweenInfo.new(0.2), { Color = CurrentTheme.Accent }):Play()
+                                TweenService:Create(extBtn, TweenInfo.new(0.2), { TextColor3 = CurrentTheme.TextPrimary }):Play()
+                            end
+                        end
+                    end
+                    
                     if callback then task.spawn(callback, state) end
                 end
 
@@ -954,7 +1168,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: KEYBIND ]]
+            -- [[ SECTION ELEMENT: KEYBIND (PC & MOBILE COMPATIBLE) ]]
             -- ========================================================
             function Section:CreateKeybind(bindText, defaultBind, flag, callback)
                 local Keybind = { Value = defaultBind or Enum.KeyCode.E }
@@ -974,10 +1188,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Label, false)
                 RegisterText(Label, 11)
 
-                local BindBtn = Instance.new("TextButton", Elem)
+                -- TextBox ramah Mobile sehingga nama Keybind dapat diketik secara manual
+                local BindBtn = Instance.new("TextBox", Elem)
                 BindBtn.Size = UDim2.new(0, 46, 0, 18)
                 BindBtn.Position = UDim2.new(1, -46, 0.5, -9)
                 BindBtn.Text = Keybind.Value.Name
+                BindBtn.ClearTextOnFocus = false
                 RegisterTheme(BindBtn, { BackgroundColor3 = "ElementBg", TextColor3 = "TextSecondary" })
                 Instance.new("UICorner", BindBtn).CornerRadius = UDim.new(0, 3)
                 RegisterFont(BindBtn, true)
@@ -989,19 +1205,41 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
                 local listening = false
 
-                Janitor:Add(BindBtn.MouseButton1Click:Connect(function()
+                Janitor:Add(BindBtn.Focused:Connect(function()
                     listening = true
                     BindBtn.Text = "..."
                 end))
 
+                -- Dukungan Pengisian Keybind via Fisik Keyboard PC
                 Janitor:Add(UserInputService.InputBegan:Connect(function(input)
                     if listening then
                         if input.UserInputType == Enum.UserInputType.Keyboard then
                             listening = false
+                            BindBtn:ReleaseFocus()
+                            
                             Keybind.Value = input.KeyCode
                             Library.Flags[flag] = input.KeyCode
                             BindBtn.Text = input.KeyCode.Name
                             if callback then task.spawn(callback, input.KeyCode) end
+                        end
+                    end
+                end))
+
+                -- Dukungan Pengisian Keybind via Virtual Keyboard Mobile (Menghindari Erors)
+                Janitor:Add(BindBtn.FocusLost:Connect(function()
+                    if listening then
+                        listening = false
+                        local rawText = string.gsub(BindBtn.Text, "%s+", "")
+                        local success, parsedCode = pcall(function()
+                            return Enum.KeyCode[rawText]
+                        end)
+                        if success and parsedCode then
+                            Keybind.Value = parsedCode
+                            Library.Flags[flag] = parsedCode
+                            BindBtn.Text = parsedCode.Name
+                            if callback then task.spawn(callback, parsedCode) end
+                        else
+                            BindBtn.Text = Keybind.Value.Name
                         end
                     end
                 end))
@@ -1220,7 +1458,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end
                 end
 
-                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
+                Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
@@ -1231,7 +1469,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     else
                         ListFrame.Visible = false
                     end
-                end))
+                end)
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1397,6 +1635,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Label, false)
                 RegisterText(Label, 11)
 
+                -- Rounded square preview warna
                 local Preview = Instance.new("TextButton", Elem)
                 Preview.Size = UDim2.new(0, 16, 0, 16)
                 Preview.Position = UDim2.new(1, -16, 0.5, -8)
@@ -1404,7 +1643,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Preview.BackgroundColor3 = Picker.Value
                 Instance.new("UICorner", Preview).CornerRadius = UDim.new(0, 4)
 
-                -- Hex Code RGB Text Input
+                -- TextBox Input Kode Hexadecimal (RGB)
                 local HexInput = Instance.new("TextBox", Elem)
                 HexInput.Size = UDim2.new(0, 60, 0, 18)
                 HexInput.Position = UDim2.new(1, -82, 0.5, -9)
@@ -1452,7 +1691,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             -- ========================================================
             -- [[ SECTION ELEMENT: BUTTON ]]
             -- ========================================================
-            function Section:CreateButton(btnText, callback)
+            function Section:CreateButton(btnText, config, callback)
+                local realCallback = callback
+                local realConfig = config
+                if typeof(config) == "function" then
+                    realCallback = config
+                    realConfig = nil
+                end
+
                 local Btn = Instance.new("TextButton", Content)
                 Btn.Size = UDim2.new(1, 0, 0, 30)
                 Btn.Text = btnText
@@ -1462,8 +1708,46 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Btn, true)
                 RegisterText(Btn, 11)
 
+                -- DYNAMIC PIN SPARK SYSTEM (Pilihan Pin Tombol Melayang Eksternal)
+                if realConfig and realConfig.external then
+                    local InlineList = Instance.new("Frame", Btn)
+                    InlineList.Size = UDim2.new(0, 20, 1, 0)
+                    InlineList.Position = UDim2.new(1, -26, 0, 0)
+                    InlineList.BackgroundTransparency = 1
+
+                    local Layout = Instance.new("UIListLayout", InlineList)
+                    Layout.FillDirection = Enum.FillDirection.Horizontal
+                    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+                    Layout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+                    local PinBtn = Instance.new("ImageButton", InlineList)
+                    PinBtn.Size = UDim2.new(0, 14, 0, 14)
+                    PinBtn.BackgroundTransparency = 1
+                    PinBtn.Image = GetIcon("shield")
+                    RegisterTheme(PinBtn, { ImageColor3 = "TextDark" })
+                    
+                    local pinActive = false
+                    Janitor:Add(PinBtn.MouseButton1Click:Connect(function()
+                        pinActive = not pinActive
+                        if pinActive then
+                            TweenService:Create(PinBtn, TweenInfo.new(0.2), { ImageColor3 = CurrentTheme.Accent }):Play()
+                            Library:CreateExternalButton(btnText, "Click", Library.Settings.ExternalShape, btnText .. "_Ext", function()
+                                if realCallback then task.spawn(realCallback) end
+                            end)
+                        else
+                            TweenService:Create(PinBtn, TweenInfo.new(0.2), { ImageColor3 = CurrentTheme.TextDark }):Play()
+                            Library:DestroyExternalButton(btnText .. "_Ext")
+                        end
+                    end))
+                end
+
+                -- Uniform button theme animation callback
+                RegisterThemeCallback(function(color)
+                    TweenService:Create(Btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundColor3 = color }):Play()
+                end)
+
                 Janitor:Add(Btn.MouseButton1Click:Connect(function()
-                    if callback then task.spawn(callback) end
+                    if realCallback then task.spawn(realCallback) end
                 end))
             end
 
@@ -1716,6 +2000,26 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             HudFrame.Visible = state
         end)
 
+        -- Pemilihan Bentuk Tombol Eksternal di UI secara Dinamis
+        ConfigSec:CreateDropdown("External Button Shape", {"Round", "Circle", "Sharp"}, Library.Settings.ExternalShape, "BuiltIn_ExternalShape", function(val)
+            Library.Settings.ExternalShape = val
+            for flag, btnFrame in pairs(Library.ExternalButtons) do
+                local extCorner = btnFrame:FindFirstChildOfClass("UICorner")
+                if extCorner then
+                    if val == "Circle" then
+                        extCorner.CornerRadius = UDim.new(1, 0)
+                    elseif val == "Round" then
+                        extCorner.CornerRadius = UDim.new(0, 8)
+                    else
+                        extCorner.CornerRadius = UDim.new(0, 0)
+                    end
+                end
+            end
+        end)
+
+        -- Ikon emoji info ℹ kustom
+        ConfigSec:CreateParagraph("ℹ Shape Preferences", "The External Button Shape preferences determine the visual corner geometry of floating action keypads spawned on your screen.")
+
         local ThemeSec = BuiltInTab:CreateSection("Theme & Typography")
         ThemeSec:CreateSlider("Text Size", 80, 150, math.floor(Library.Settings.TextSizeMultiplier * 100), "BuiltIn_Text", function(sizePerc)
             UpdateTextSizes(sizePerc / 100)
@@ -1883,7 +2187,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- ========================================================
     local FloatingToggle = Instance.new("TextButton", ScreenGui)
     FloatingToggle.Name = "Nexus_Floating_Toggler"
-    FloatingToggle.Size = UDim2.new(0, 56, 0, 56) -- Diperbesar ukuran framenya
+    FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
     FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
@@ -1900,8 +2204,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterTheme(ToggleStroke, { Color = "Accent" })
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
-    ToggleIconImage.Size = UDim2.new(0.7, 0, 0.7, 0) -- Diperbesar skala rasionya menjadi 70%
-    ToggleIconImage.Position = UDim2.new(0.15, 0, 0.15, 0)
+    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang
+    ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
+    ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
     ToggleIconImage.BackgroundTransparency = 1
     -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint)
     ToggleIconImage.Image = FLOATING_ICON_DECAL
@@ -1943,7 +2248,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end)
             
             -- Ikon melayang muncul kembali ketika UI ditutup
-            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 56, 0, 56)}):Play()
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
         end
     end
 
@@ -1952,7 +2257,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
     local MinimizeContainer = Instance.new("Frame", MainFrame)
     MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeContainer.Position = UDim2.new(1, -34, 0, -32)
+    MinimizeContainer.Position = UDim2.new(1, -34, 0, -23) -- Dempet/overlapping top border lurus nempel presisi
     RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
 
     local MinCorner = Instance.new("UICorner", MinimizeContainer)
