@@ -5,12 +5,11 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazum
 -- ========================================================
 -- [[ USER MEMBERSHIP CONFIGURATION (EASY TRUE/FALSE) ]]
 -- ========================================================
--- Change to 'true' for Premium/VIP loaders (instantly accessible Premium Tab)
--- Change to 'false' for Free loaders (Premium Tab is locked under a 65% transparency shield overlay)
+-- Change to 'true' for Premium/VIP loaders (instant unlock)
+-- Change to 'false' for Free loaders (locked overlay is enabled)
 local IS_PREMIUM_USER = false 
 
 -- Initialize Main Window
--- (Main UI remains hidden at startup; only the rounded square floating toggle icon is visible)
 local Win = Library:CreateWindow("LouisHub", "V2.6", {
     Mode = "PC",                       -- Set "PC" or "Mobile" initial layout responsive modes
     Scale = 1.0,                       -- Sizing Scale multiplier
@@ -19,30 +18,73 @@ local Win = Library:CreateWindow("LouisHub", "V2.6", {
     BoldFont = Enum.Font.GothamBold    -- Sourced bold text font
 })
 
--- ========================================================
--- [[ CATEGORY 1: FREE / GENERAL FITUR ]]
--- ========================================================
-Win:CreateCategory("General")
+-- Trigger a premium Toast Notification as a startup diagnostic showcase
+Library:CreateNotification("Nexus Diagnostics", "UI System initiated safely. Theme engine connected successfully.", 4)
 
--- Creating a free tab (isPremiumLocked = false)
-local MainTab = Win:CreateTab("Main", "user", false)
-local MainSection = MainTab:CreateSection("Combat")
 
--- 1. Toggle (Featuring dynamic info popup & custom mobile floating toggle pin)
-MainSection:CreateToggle("Aim Lock", false, "Aim_Key", { 
-    info = "Locks your crosshair onto the nearest enemy automatically. Fully optimized for responsive mobile gameplay!", 
+-- ========================================================
+-- [[ CATEGORY 1: STANDARD BOILERPLATE SHOWCASE ]]
+-- ========================================================
+Win:CreateCategory("Boilerplate")
+
+-- Custom Tab featuring dynamic Lucide "apple" icon downloading
+local ExampleTab = Win:CreateTab("Feature Tab", "apple", false)   
+
+-- Section 1: left layout elements
+local Sec1 = ExampleTab:CreateSection("Left Section")
+
+-- 1. Toggle Switch (Featuring dynamic info popup & custom mobile floating toggle pin)
+Sec1:CreateToggle("Toggle Switch", false, "Toggle_Key1", { 
+    info = "This is a detailed description of how this toggle works. Clicking the info icon opens this beautifully animated pop-up modal dialog box without clashing with other layout elements!", 
     keybind = "E",
     external = { buttonType = "Toggle" } -- Turn on this pin in the UI to spawn an external dynamic Toggle button on mobile!
 }, function(state)
-    print("Aim Lock Toggle: ", state)
+    print("Toggle State: ", state)
 end)
 
--- 2. Button (Featuring custom mobile floating clicker pin)
-MainSection:CreateButton("Manual Kill All", {
+-- 2. Bind Button (PC Background inputs & Mobile text-input keycode typing compatible)
+Sec1:CreateKeybind("Select Keybind", Enum.KeyCode.LeftAlt, "Keybind_Key1", function(key)
+    print("Keybind State: ", key.Name)
+end)
+
+-- 3. Slider (Supports direct input box typing)
+Sec1:CreateSlider("Numeric Slider", 0, 100, 50, "Slider_Key1", function(val)
+    print("Slider Value: ", val)
+end)
+
+-- 4. Color Picker (Supports hex code entry like #ffffff or ffffff)
+Sec1:CreateColorPicker("Color Selector", Color3.fromRGB(0, 213, 239), "Color_Key1", function(color)
+    print("Selected Color (RGB): ", color)
+end)
+
+
+-- Section 2: right layout elements
+local Sec2 = ExampleTab:CreateSection("Right Section")
+
+-- 5. Standard Dropdown Menu
+Sec2:CreateDropdown("Single Selection", {"Aimbot", "Rage", "Legit"}, "Aimbot", "Dropdown_Key1", function(option)
+    print("Dropdown Selected: ", option)
+end)
+
+-- 6. Multi Selection Menu
+Sec2:CreateMultiDropdown("Multi Selection", {"ESP Boxes", "ESP Lines", "ESP Names"}, {"ESP Boxes"}, "MultiDropdown_Key1", function(options)
+    print("Multi-Dropdown Selected: ", table.concat(options, ", "))
+end)
+
+-- 7. Standard Text Box (Supports horizontal scrolling & no ellipsis truncation)
+Sec2:CreateTextBox("Custom Input Box", "Type something here...", "TextBox_Key1", function(text)
+    print("TextBox Submitted: ", text)
+end)
+
+-- 8. Command Button (Featuring custom mobile floating clicker pin)
+Sec2:CreateButton("Submit Settings", {
     external = { buttonType = "Click" } -- Turn on this pin in the UI to spawn an external dynamic Clicker button on mobile!
 }, function()
-    print("Kill All Activated!")
+    print("Submit Button Clicked!")
 end)
+
+-- 9. Text Paragraph
+Sec2:CreateParagraph("Information Box", "This is an example paragraph template. You can write any help descriptions, instructions, or credits here.")
 
 
 -- ========================================================
@@ -52,15 +94,11 @@ Win:CreateCategory("Premium Member")
 
 -- Tab button displays a dynamic Lucide "crown" icon.
 -- The third argument (isPremiumLocked) uses 'not IS_PREMIUM_USER':
--- * If IS_PREMIUM_USER is true -> 'not' turns it false (Tab is created completely UNLOCKED)
--- * If IS_PREMIUM_USER is false -> 'not' turns it true (Tab is created locked with a 65% transparency shield overlay)
+-- * If IS_PREMIUM_USER is true -> 'not' turns it false (Tab is created completely UNLOCKED) [1]
+-- * If IS_PREMIUM_USER is false -> 'not' turns it true (Tab is created locked with a 65% transparency shield overlay) [1]
 local PremiumTab = Win:CreateTab("Premium Features", "crown", not IS_PREMIUM_USER) 
 
-local PremiumSection = PremiumTab:CreateSection("Combat Premium")
-
--- Premium Silent Aim toggle (Completely secured under the active lock overlay)
-PremiumSection:CreateToggle("Super Silent Aim", false, "Silent_Key", {
-    info = "Silently redirects all bullets to the target's head without manual aiming. Highly restricted!"
-}, function(state)
-    print("Silent Aim Toggle: ", state)
+local PremSec = PremiumTab:CreateSection("Locked Content")
+PremSec:CreateToggle("Super Silent Aimbot", false, "Prem_Toggle1", {}, function(state)
+    print("Premium Feature Active: ", state)
 end)
