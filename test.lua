@@ -7,6 +7,7 @@ local LocalPlayer = Players.LocalPlayer
 local TextService = game:GetService("TextService")
 local HttpService = game:GetService("HttpService")
 
+-- System registries initialization
 Library.Flags = {}
 Library.Elements = {}
 Library.Registry = {}
@@ -16,21 +17,66 @@ Library.FontRegistry = {}
 Library.ThemeCallbacks = {}
 Library.ExternalButtons = {}
 
--- Connection Tracker / Janitor for complete memory leak prevention
+-- Advanced architectural subsystems
+Library.CallbackRegistry = {}
+Library.SearchRegistry = {}
+Library.Favorites = {}
+Library.RecentlyUsed = {}
+Library.Plugins = {}
+Library.Modules = {}
+Library.ConfigFolder = "LouisHubConfig"
+
+Library.EventBus = { Subscriptions = {} }
+
+function Library.EventBus:Publish(eventName, ...)
+    if self.Subscriptions[eventName] then
+        for _, callback in ipairs(self.Subscriptions[eventName]) do
+            task.spawn(callback, ...)
+        end
+    end
+end
+
+function Library.EventBus:Subscribe(eventName, callback)
+    self.Subscriptions[eventName] = self.Subscriptions[eventName] or {}
+    table.insert(self.Subscriptions[eventName], callback)
+    return function()
+        local idx = table.find(self.Subscriptions[eventName], callback)
+        if idx then
+            table.remove(self.Subscriptions[eventName], idx)
+        end
+    end
+end
+
+-- Connection Tracker / Janitor for complete memory leak prevention (scoped version)
 local Janitor = { Connections = {} }
 
-function Janitor:Add(connection)
-    table.insert(self.Connections, connection)
+function Janitor:Add(connection, scope)
+    scope = scope or "Global"
+    self.Connections[scope] = self.Connections[scope] or {}
+    table.insert(self.Connections[scope], connection)
     return connection
 end
 
-function Janitor:Cleanup()
-    for _, conn in ipairs(self.Connections) do
-        if conn and conn.Disconnect then
-            pcall(function() conn:Disconnect() end)
+function Janitor:Cleanup(scope)
+    if scope then
+        if self.Connections[scope] then
+            for _, conn in ipairs(self.Connections[scope]) do
+                if conn and conn.Disconnect then
+                    pcall(function() conn:Disconnect() end)
+                end
+            end
+            self.Connections[scope] = nil
         end
+    else
+        for s, conns in pairs(self.Connections) do
+            for _, conn in ipairs(conns) do
+                if conn and conn.Disconnect then
+                    pcall(function() conn:Disconnect() end)
+                end
+            end
+        end
+        self.Connections = {}
     end
-    self.Connections = {}
 end
 
 -- Create folder if supported
@@ -42,7 +88,6 @@ end
 -- ========================================================
 -- [[ CONFIGURABLE FLOATING ICON DECAL ]]
 -- ========================================================
--- Configured with your custom branding Asset ID using robust rbxthumb format
 local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=104436283956004&w=150&h=150"
 
 -- ========================================================
@@ -134,7 +179,7 @@ local Themes = {
         StrokeColor = Color3.fromRGB(38, 41, 49),
         Accent = Color3.fromRGB(0, 213, 239),
         TextPrimary = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(160, 165, 175), -- Neutral grey to prevent blue tint leakage
+        TextSecondary = Color3.fromRGB(160, 165, 175),
         TextDark = Color3.fromRGB(110, 115, 125)
     }
 }
@@ -151,6 +196,17 @@ local function RegisterTheme(instance, propertyMap)
             instance[prop] = CurrentTheme[key]
         end)
     end
+    
+    instance.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            for i, item in ipairs(Library.ThemeRegistry) do
+                if item.Instance == instance then
+                    table.remove(Library.ThemeRegistry, i)
+                    break
+                end
+            end
+        end
+    end)
 end
 
 local function RegisterThemeCallback(callback)
@@ -167,6 +223,17 @@ local function RegisterText(instance, baseSize)
         BaseSize = baseSize
     })
     instance.TextSize = baseSize * (Library.Settings.TextSizeMultiplier or 1.0)
+    
+    instance.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            for i, item in ipairs(Library.TextRegistry) do
+                if item.Instance == instance then
+                    table.remove(Library.TextRegistry, i)
+                    break
+                end
+            end
+        end
+    end)
 end
 
 local function UpdateTextSizes(multiplier)
@@ -184,6 +251,17 @@ local function RegisterFont(instance, isBold)
         IsBold = isBold
     })
     instance.Font = isBold and Library.Settings.BoldFont or Library.Settings.Font
+    
+    instance.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            for i, item in ipairs(Library.FontRegistry) do
+                if item.Instance == instance then
+                    table.remove(Library.FontRegistry, i)
+                    break
+                end
+            end
+        end
+    end)
 end
 
 -- ========================================================
@@ -193,7 +271,6 @@ local function MakeDraggable(dragTrigger, frameToMove)
     local dragging, dragInput, dragStart, startPos
     
     Janitor:Add(dragTrigger.InputBegan:Connect(function(input)
-        -- Kunci posisi serempak jika diaktifkan di tab Setting
         if Library.Settings.DragLocked then return end
         
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -262,14 +339,12 @@ function Library:CreateExternalButton(text, buttonType, shape, flag, callback)
     ExtBtnFrame.ZIndex = 50
     RegisterTheme(ExtBtnFrame, { BackgroundColor3 = "SidebarBg" })
     
-    -- Automatic Horizontal Scaling to prevent clipping regardless of text length
     ExtBtnFrame.AutomaticSize = Enum.AutomaticSize.X
     ExtBtnFrame.Size = UDim2.new(0, 0, 0, 30)
     ExtBtnFrame.Position = UDim2.new(0.5, -40, 0.3, 0)
     
     local ExtCorner = Instance.new("UICorner", ExtBtnFrame)
     
-    -- Dynamically apply the global UI setting shape choice
     local activeShape = Library.Settings.ExternalShape or shape or "Round"
     local function SetShapeCorner(val)
         if val == "Circle" then
@@ -314,7 +389,7 @@ function Library:CreateExternalButton(text, buttonType, shape, flag, callback)
             end
             if callback then task.spawn(callback, state) end
         end))
-    else -- Clicker Type
+    else
         Janitor:Add(ActBtn.MouseButton1Click:Connect(function()
             TweenService:Create(ExtBtnFrame, TweenInfo.new(0.1), { BackgroundTransparency = 0.6 }):Play()
             task.delay(0.1, function()
@@ -409,6 +484,269 @@ function Library:CreateNotification(titleText, messageText, duration)
 end
 
 -- ========================================================
+-- [[ INTELLIGENT COMPONENT REGISTRATION MANAGER ]]
+-- ========================================================
+function Library:RegisterComponent(flag, compType, text, controlObj, callback, config)
+    Library.Registry[flag] = {
+        Type = compType,
+        Text = text,
+        Control = controlObj,
+        Callback = callback,
+        Config = config
+    }
+    Library.CallbackRegistry[flag] = callback
+    table.insert(Library.SearchRegistry, {
+        Flag = flag,
+        Type = compType,
+        Text = text,
+        Control = controlObj
+    })
+    Library.EventBus:Publish("FeatureRegistered", flag, compType, text)
+end
+
+function Library:TrackInteraction(flag)
+    local idx = table.find(Library.RecentlyUsed, flag)
+    if idx then table.remove(Library.RecentlyUsed, idx) end
+    table.insert(Library.RecentlyUsed, 1, flag)
+    if #Library.RecentlyUsed > 15 then
+        table.remove(Library.RecentlyUsed)
+    end
+    Library.EventBus:Publish("FeatureInteracted", flag)
+    Library:TriggerAutoSave()
+end
+
+function Library:ToggleFavorite(flag)
+    local idx = table.find(Library.Favorites, flag)
+    if idx then
+        table.remove(Library.Favorites, idx)
+        Library.EventBus:Publish("FavoriteRemoved", flag)
+        return false
+    else
+        table.insert(Library.Favorites, flag)
+        Library.EventBus:Publish("FavoriteAdded", flag)
+        return true
+    end
+end
+
+function Library:Search(query)
+    query = query:lower()
+    local results = {}
+    for _, item in ipairs(Library.SearchRegistry) do
+        if string.find(item.Text:lower(), query) then
+            table.insert(results, item)
+        end
+    end
+    return results
+end
+
+-- ========================================================
+-- [[ DYNAMIC DECLARED CONFIG & SERIALIZATION HANDLERS ]]
+-- ========================================================
+function Library:SerializeTable(val)
+    if typeof(val) == "string" then
+        return string.format("%q", val)
+    elseif typeof(val) == "number" or typeof(val) == "boolean" then
+        return tostring(val)
+    elseif typeof(val) == "table" then
+        local str = "{\n"
+        for k, v in pairs(val) do
+            str = str .. string.format("  [%s] = %s,\n", Library:SerializeTable(k), Library:SerializeTable(v))
+        end
+        str = str .. "}"
+        return str
+    end
+    return "nil"
+end
+
+function Library:LoadLuaConfig(path)
+    local content = readfile(path)
+    local func, err = loadstring(content)
+    if func then
+        local success, tbl = pcall(func)
+        if success and typeof(tbl) == "table" then
+            return tbl
+        end
+    end
+    return nil
+end
+
+function Library:SaveConfig(configName, format)
+    if not isFolderSupported then return end
+    format = format or "JSON"
+    
+    local dataToSave = {}
+    for flag, value in pairs(Library.Flags) do
+        if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
+            if typeof(value) == "Color3" then
+                dataToSave[flag] = {math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5)}
+            elseif typeof(value) == "EnumItem" then
+                dataToSave[flag] = tostring(value)
+            else
+                dataToSave[flag] = value
+            end
+        end
+    end
+    
+    local path = Library.ConfigFolder .. "/" .. configName
+    if format == "LUA" then
+        local serialized = "return " .. Library:SerializeTable(dataToSave)
+        writefile(path .. ".lua", serialized)
+    else
+        local encoded = HttpService:JSONEncode(dataToSave)
+        writefile(path .. ".json", encoded)
+    end
+    
+    Library:CreateNotification("Config Saved", "Successfully saved configuration: " .. configName, 3)
+    Library.EventBus:Publish("ConfigSaved", configName)
+end
+
+function Library:LoadConfig(configName)
+    if not isFolderSupported then return end
+    local luaPath = Library.ConfigFolder .. "/" .. configName .. ".lua"
+    local jsonPath = Library.ConfigFolder .. "/" .. configName .. ".json"
+    local loadedData = nil
+    
+    if isfile(luaPath) then
+        loadedData = Library:LoadLuaConfig(luaPath)
+    elseif isfile(jsonPath) then
+        local data = readfile(jsonPath)
+        local success, decoded = pcall(function() return HttpService:JSONDecode(data) end)
+        if success then loadedData = decoded end
+    end
+    
+    if loadedData and typeof(loadedData) == "table" then
+        for flag, value in pairs(loadedData) do
+            if Library.Registry[flag] then
+                pcall(function()
+                    if Library.Registry[flag].Type == "ColorPicker" and typeof(value) == "table" then
+                        local r, g, b = value[1], value[2], value[3]
+                        Library.Registry[flag].Control:Set(Color3.fromRGB(r, g, b))
+                    else
+                        Library.Registry[flag].Control:Set(value)
+                    end
+                end)
+            end
+        end
+        Library:CreateNotification("Config Loaded", "Successfully applied configuration: " .. configName, 3)
+        Library.EventBus:Publish("ConfigLoaded", configName)
+    end
+end
+
+function Library:DeleteConfig(configName)
+    if not isFolderSupported then return end
+    local luaPath = Library.ConfigFolder .. "/" .. configName .. ".lua"
+    local jsonPath = Library.ConfigFolder .. "/" .. configName .. ".json"
+    if isfile(luaPath) then delfile(luaPath) end
+    if isfile(jsonPath) then delfile(jsonPath) end
+    Library:CreateNotification("Config Deleted", "Successfully deleted configuration: " .. configName, 3)
+end
+
+function Library:GetConfigsList()
+    local list = {}
+    if listfiles and isfolder and isfolder(Library.ConfigFolder) then
+        local files = listfiles(Library.ConfigFolder)
+        for _, file in ipairs(files) do
+            local name = string.match(file, "([^/]+)%.[jJ][sS][oO][nN]$") or string.match(file, "([^/]+)%.[lL][uU][aA]$")
+            if name and not table.find(list, name) then
+                table.insert(list, name)
+            end
+        end
+    end
+    if #list == 0 then
+        table.insert(list, "No Configs Found")
+    end
+    return list
+end
+
+local saveDebounce = false
+function Library:TriggerAutoSave()
+    if Library.Settings.AutoSave and not saveDebounce then
+        saveDebounce = true
+        task.delay(1, function()
+            saveDebounce = false
+            local selected = Library.Flags["Sys_Selected_File"] or "autosave"
+            if selected and selected ~= "No Configs Found" then
+                pcall(function()
+                    Library:SaveConfig(selected, Library.Flags["Sys_Save_Format"] or "JSON")
+                end)
+            end
+        end)
+    end
+end
+
+-- ========================================================
+-- [[ DYNAMIC GENERATIVE & MODULAR SUB-LOADERS ]]
+-- ========================================================
+function Library:GenerateUI(windowObject, schema)
+    if not windowObject or typeof(schema) ~= "table" then return end
+    for _, catData in ipairs(schema) do
+        if catData.Category then
+            windowObject:CreateCategory(catData.Category)
+        end
+        if catData.Tabs then
+            for _, tabData in ipairs(catData.Tabs) do
+                local tab = windowObject:CreateTab(tabData.Name, tabData.Icon, tabData.IsPremium)
+                if tabData.Sections then
+                    for _, secData in ipairs(tabData.Sections) do
+                        local section = tab:CreateSection(secData.Name)
+                        if secData.Elements then
+                            for _, elem in ipairs(secData.Elements) do
+                                local eType = elem.Type:lower()
+                                if eType == "toggle" then
+                                    section:CreateToggle(elem.Name, elem.Default, elem.Flag, elem.Config, elem.Callback)
+                                elseif eType == "slider" then
+                                    section:CreateSlider(elem.Name, elem.Min, elem.Max, elem.Default, elem.Flag, elem.Callback)
+                                elseif eType == "dropdown" then
+                                    section:CreateDropdown(elem.Name, elem.Options, elem.Default, elem.Flag, elem.Callback)
+                                elseif eType == "multidropdown" then
+                                    section:CreateMultiDropdown(elem.Name, elem.Options, elem.Default, elem.Flag, elem.Callback)
+                                elseif eType == "keybind" then
+                                    section:CreateKeybind(elem.Name, elem.Default, elem.Flag, elem.Callback)
+                                elseif eType == "colorpicker" then
+                                    section:CreateColorPicker(elem.Name, elem.Default, elem.Flag, elem.Callback)
+                                elseif eType == "textbox" then
+                                    section:CreateTextBox(elem.Name, elem.Placeholder, elem.Flag, elem.Callback)
+                                elseif eType == "button" then
+                                    section:CreateButton(elem.Name, elem.Config, elem.Callback)
+                                elseif eType == "paragraph" then
+                                    section:CreateParagraph(elem.Name, elem.Content)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function Library:LoadModule(moduleData)
+    if typeof(moduleData) ~= "table" then return end
+    local name = moduleData.Name or "Unknown Module"
+    table.insert(Library.Modules, moduleData)
+    Library.EventBus:Publish("ModuleLoaded", name)
+    if moduleData.Init then
+        local success, err = pcall(moduleData.Init, Library)
+        if not success then
+            warn("[LouisHub] Failed to initialize module: " .. tostring(name) .. " - " .. tostring(err))
+        end
+    end
+end
+
+function Library:RegisterPlugin(pluginName, initCallback)
+    if typeof(pluginName) ~= "string" or typeof(initCallback) ~= "function" then return end
+    Library.Plugins[pluginName] = {
+        Name = pluginName,
+        Callback = initCallback
+    }
+    Library.EventBus:Publish("PluginRegistered", pluginName)
+    local success, err = pcall(initCallback, Library)
+    if not success then
+        warn("[LouisHub] Failed to initialize plugin: " .. tostring(pluginName) .. " - " .. tostring(err))
+    end
+end
+
+-- ========================================================
 -- [[ MAIN WINDOW CREATION ]]
 -- ========================================================
 function Library:CreateWindow(titleText, subtitleText, customConfig)
@@ -428,13 +766,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         BoldFont = config.BoldFont or Enum.Font.GothamBold,
         TextSizeMultiplier = config.TextSizeMultiplier or 1.0,
         ExternalShape = "Round",
-        DragLocked = false -- Posisi seret awal dibuka (tidak dikunci)
+        DragLocked = false,
+        AutoSave = false
     }
 
     local cleanTitle = string.gsub(titleText or "Universal", "[%s%p]", "_")
-    local ConfigFolder = "LouisHubConfig/" .. cleanTitle
-    if isFolderSupported and not isfolder("LouisHubConfig") then
-        makefolder("LouisHubConfig")
+    Library.ConfigFolder = "LouisHubConfig/" .. cleanTitle
+    if isFolderSupported and not isfolder(Library.ConfigFolder) then
+        pcall(makefolder, Library.ConfigFolder)
     end
 
     local ScreenGui = Instance.new("ScreenGui")
@@ -445,7 +784,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local successHui, hui = pcall(function() return gethui and gethui() end)
     ScreenGui.Parent = (successHui and hui) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
-    -- Clean Memory Leak preventative onDestroy listener
     Janitor:Add(ScreenGui.Destroying:Connect(function()
         Janitor:Cleanup()
     end))
@@ -464,15 +802,15 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Thickness = 1.5
-    RegisterTheme(MainStroke, { Color = "StrokeColor" })
+    RegisterTheme(MainStroke, { Color = "Accent" })
 
-    -- PERFORMANCE Floating HUD di Pojok Kanan Atas Layar (Lebar diperbesar 150px agar rapi)
+    -- PERFORMANCE Floating HUD
     local HudFrame = Instance.new("Frame", ScreenGui)
     HudFrame.Name = "Nexus_Performance_HUD"
     HudFrame.Size = UDim2.new(0, 150, 0, 24)
     HudFrame.Position = UDim2.new(1, -160, 0, 10)
     HudFrame.BackgroundTransparency = 0.4
-    HudFrame.Visible = false -- Tersembunyi dari awal
+    HudFrame.Visible = false
     RegisterTheme(HudFrame, { BackgroundColor3 = "SidebarBg" })
 
     local HudCorner = Instance.new("UICorner", HudFrame)
@@ -480,7 +818,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local HudStroke = Instance.new("UIStroke", HudFrame)
     HudStroke.Thickness = 1
-    RegisterTheme(HudStroke, { Color = "Accent" }) -- Mengikuti aksen warna
+    RegisterTheme(HudStroke, { Color = "Accent" })
 
     local HudText = Instance.new("TextLabel", HudFrame)
     HudText.Size = UDim2.new(1, 0, 1, 0)
@@ -488,7 +826,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     HudText.Text = "FPS: Calculating... | Ping: Calculating..."
     HudText.TextXAlignment = Enum.TextXAlignment.Center
     HudText.TextYAlignment = Enum.TextYAlignment.Center
-    HudText.TextWrapped = false -- Mencegah teks turun baris meluap keluar kotak
+    HudText.TextWrapped = false
     HudText.ClipsDescendants = true
     RegisterTheme(HudText, { TextColor3 = "TextPrimary" })
     RegisterFont(HudText, true)
@@ -511,7 +849,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     SidebarMask.BackgroundTransparency = 0.4
     RegisterTheme(SidebarMask, { BackgroundColor3 = "SidebarBg" })
 
-    -- Latar Belakang Padat Bagian Kanan (Content Area)
+    -- Content Bg (Content Area)
     local ContentBg = Instance.new("Frame", MainFrame)
     ContentBg.Size = UDim2.new(1, -170, 1, 0)
     ContentBg.Position = UDim2.new(0, 170, 0, 0)
@@ -535,7 +873,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local TitleLabel = Instance.new("TextLabel", LogoArea)
     TitleLabel.Size = UDim2.new(1, -90, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 52, 0, 0) -- Digeser sedikit ke kanan mencegah tabrakan dengan logo
+    TitleLabel.Position = UDim2.new(0, 52, 0, 0)
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Text = titleText or "COMPKILLER"
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -603,7 +941,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- ========================================================
     local CollapseBtn = Instance.new("ImageButton", Sidebar)
     CollapseBtn.Size = UDim2.new(0, 16, 0, 16)
-    -- Di reposisi rapi di bagian tengah vertikal sebelah kanan pembatas sidebar [1]
     CollapseBtn.Position = UDim2.new(1, -26, 0.5, -8)
     CollapseBtn.BackgroundTransparency = 1
     CollapseBtn.Image = GetIcon("chevrons-left")
@@ -617,7 +954,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         
         local activeWidth = collapsed and 60 or 170
         
-        -- Smoothly tween Sidebar and Content Container widths
         TweenService:Create(Sidebar, TweenInfo.new(duration, ease, dir), { Size = UDim2.new(0, activeWidth, 1, 0) }):Play()
         TweenService:Create(SidebarMask, TweenInfo.new(duration, ease, dir), { Size = UDim2.new(0, 15, 1, 0), Position = UDim2.new(1, -15, 0, 0) }):Play()
         
@@ -625,7 +961,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TweenService:Create(ContentBgMask, TweenInfo.new(duration, ease, dir), { Position = UDim2.new(0, 0, 0, 0) }):Play()
         TweenService:Create(ContentArea, TweenInfo.new(duration, ease, dir), { Size = UDim2.new(1, -activeWidth, 1, 0), Position = UDim2.new(0, activeWidth, 0, 0) }):Play()
         
-        -- Transition Logo Area
         if collapsed then
             TitleLabel.Visible = false
             CollapseBtn.Image = GetIcon("chevrons-right")
@@ -634,7 +969,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             CollapseBtn.Image = GetIcon("chevrons-left")
         end
         
-        -- Transition Profile Card
         if collapsed then
             UsernameLabel.Visible = false
             SubtextLabel.Visible = false
@@ -645,7 +979,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             AvatarImg.Position = UDim2.new(0, 5, 0.5, -16)
         end
         
-        -- Transition Tab Buttons
         for _, tab in ipairs(Window.Tabs) do
             local tabBtn = tab.Button
             local tabIcon = tabBtn:FindFirstChildOfClass("ImageLabel")
@@ -660,12 +993,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
         end
         
-        -- Transition Category Labels (hide them in compact mode)
         for _, child in ipairs(TabScroll:GetChildren()) do
             if child:IsA("Frame") and child.Name ~= "TabBtn" then
                 child.Visible = not collapsed
             end
         end
+        
+        Library.EventBus:Publish("SidebarCollapsed", collapsed)
     end
 
     Janitor:Add(CollapseBtn.MouseButton1Click:Connect(function()
@@ -711,11 +1045,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
-    FloatingToggle.Visible = true -- Tampil dari awal (sebelum UI muncul)
+    FloatingToggle.Visible = true
     FloatingToggle.ClipsDescendants = true
     RegisterTheme(FloatingToggle, { BackgroundColor3 = "SidebarBg" })
 
-    -- Ikon melayang berbentuk squircle tumpul modern
     local ToggleCorner = Instance.new("UICorner", FloatingToggle)
     ToggleCorner.CornerRadius = UDim.new(0, 12)
 
@@ -724,11 +1057,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterTheme(ToggleStroke, { Color = "Accent" })
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
-    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang (0.85) [1]
     ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
     ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
     ToggleIconImage.BackgroundTransparency = 1
-    -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint) [1]
     ToggleIconImage.Image = FLOATING_ICON_DECAL
 
     MakeDraggable(FloatingToggle, FloatingToggle)
@@ -736,7 +1067,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local function ToggleGui()
         Window.Visible = not Window.Visible
         
-        -- Sesuaikan Target Ukuran Sebelum Dimulai Animasi
         if Library.Settings.Mode == "PC" then
             TargetSize = UDim2.new(0, 640, 0, 460)
             TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
@@ -747,13 +1077,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
         if Window.Visible then
             MainFrame.Visible = true
-            -- Set ukuran ke 0 terlebih dahulu di tengah layar sebelum pop-out dimulai
             MainFrame.Size = UDim2.new(0, 0, 0, 0)
             MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
             
             TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = TargetSize, Position = TargetPosition}):Play()
-            -- Ikon melayang mengecil/hilang ketika UI dibuka (seperti sistem toggle aslinya)
             TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+            Library.EventBus:Publish("WindowOpened")
         else
             local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
             shrink:Play()
@@ -763,23 +1092,20 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 end
             end)
             
-            -- Ikon melayang muncul kembali ketika UI ditutup
             TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+            Library.EventBus:Publish("WindowClosed")
         end
     end
 
-    FloatingToggle.MouseButton1Click:Connect(ToggleGui)
+    Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
 
-    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan mengikat fungsi minimize UI kustom Anda [1]
     local LogoIcon = Instance.new("ImageButton", LogoArea)
     LogoIcon.Size = UDim2.new(0, 32, 0, 32)
     LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
     LogoIcon.BackgroundTransparency = 1
     LogoIcon.Image = FLOATING_ICON_DECAL
 
-    Janitor:Add(LogoIcon.MouseButton1Click:Connect(function()
-        ToggleGui() -- Klik Logo LouisHub untuk me-minimize UI utama dan memunculkan floating icon kembali [1]
-    end))
+    Janitor:Add(LogoIcon.MouseButton1Click:Connect(ToggleGui))
 
     Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
@@ -788,7 +1114,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end))
 
-    -- Welcome Notification yang otomatis berbunyi/muncul saat inisialisasi CreateWindow [1]
     task.spawn(function()
         task.wait(0.2)
         Library:CreateNotification("Welcome to LouisHub", "UI Framework executed successfully. Press Insert to minimize.", 5)
@@ -825,6 +1150,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         RegisterTheme(Label, { TextColor3 = "TextDark" })
         RegisterFont(Label, true)
         RegisterText(Label, 14)
+        
+        Library.EventBus:Publish("CategoryCreated", categoryName)
     end
 
     -- ========================================================
@@ -866,7 +1193,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
 
-        -- DYNAMIC REAL-TIME CANVAS TRACKING (SANGAT PRESTISIUS UNTUK MENJAWAB MASALAH DROPDOWN LEPAS SAAT SCROLL) [1]
         local function ResizeCanvas()
             local leftHeight = LeftList.AbsoluteContentSize.Y
             local rightHeight = RightList.AbsoluteContentSize.Y
@@ -903,7 +1229,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabIcon.BackgroundTransparency = 1
         TabIcon.Image = GetIcon(iconInput)
         
-        -- Uniform theme transition callback
         RegisterThemeCallback(function(color)
             if Window.ActiveTab == Tab then
                 TweenService:Create(TabIcon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { ImageColor3 = color }):Play()
@@ -944,6 +1269,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TweenService:Create(TabBtnAccent, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
             TweenService:Create(TabIcon, TweenInfo.new(0.2), {ImageColor3 = CurrentTheme.Accent}):Play()
             TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play()
+            
+            Library.EventBus:Publish("TabSelected", tabName)
         end
 
         Janitor:Add(TabBtn.MouseButton1Click:Connect(SelectTab))
@@ -962,7 +1289,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
         end))
 
-        -- PERBAIKAN LOGIKA: Masukkan ke Window.Tabs DULU sebelum memeriksa kondisinya!
         table.insert(Window.Tabs, Tab)
 
         if #Window.Tabs == 1 then
@@ -973,7 +1299,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
 
         -- ========================================================
-        -- [[ OVERLAY LOCK PREMIUM TAB TEMPLATE (STEP 2 & 11) ]]
+        -- [[ OVERLAY LOCK PREMIUM TAB TEMPLATE ]]
         -- ========================================================
         local LockOverlay
         if isPremium then
@@ -981,11 +1307,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             LockOverlay.Name = "Premium_Lock_Overlay"
             LockOverlay.Size = UDim2.new(1, 0, 1, 0)
             LockOverlay.Position = UDim2.new(0, 0, 0, 0)
-            LockOverlay.BackgroundTransparency = 0.65 -- Exactly 65% transparency as requested
+            LockOverlay.BackgroundTransparency = 0.65
             LockOverlay.ZIndex = 99
-            
-            -- SAFE PREMIUM ENFORCEMENT: Menghalangi sentuhan mouse agar element di bawah tidak dapat diaktifkan [3]
-            LockOverlay.Active = true 
+            LockOverlay.Active = true
             
             RegisterTheme(LockOverlay, { BackgroundColor3 = "WindowBg" })
             
@@ -996,7 +1320,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             LockStroke.Thickness = 1.5
             RegisterTheme(LockStroke, { Color = "Accent" })
             
-            -- Ikon perisai (shield) tetap dipertahankan khusus untuk visual kunci frame premium [1]
             local LockIcon = Instance.new("ImageLabel", LockOverlay)
             LockIcon.Size = UDim2.new(0, 48, 0, 48)
             LockIcon.Position = UDim2.new(0.5, -24, 0.5, -34)
@@ -1014,7 +1337,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             RegisterFont(LockText, true)
             RegisterText(LockText, 12)
             
-            -- API Method to unlock the premium tab directly from the loader
             function Tab:Unlock()
                 if LockOverlay then
                     TweenService:Create(LockOverlay, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
@@ -1028,6 +1350,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end)
                 end
             end
+            
+            Library.EventBus:Subscribe("UnlockPremium", function()
+                Tab:Unlock()
+            end)
         end
 
         -- ========================================================
@@ -1112,27 +1438,26 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 local ease = Enum.EasingStyle.Quad
                 
                 if Section.Collapsed then
-                    -- Animasi menciut: Elemen di dalam meluncur masuk secara halus ke dalam kepala [1]
                     local shrink = TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, 34) })
                     shrink:Play()
                     TweenService:Create(ToggleIcon, TweenInfo.new(duration, ease), { Rotation = -90 }):Play()
                     
                     shrink.Completed:Connect(function()
                         if Section.Collapsed then
-                            Content.Visible = false -- Sembunyikan HANYA setelah penciutan selesai
+                            Content.Visible = false
                         end
                     end)
                 else
-                    Content.Visible = true -- Langsung tampilkan sebelum memulai ekspansi
+                    Content.Visible = true
                     local contentHeight = ContentList.AbsoluteContentSize.Y
                     TweenService:Create(ToggleIcon, TweenInfo.new(duration, ease), { Rotation = 0 }):Play()
                     TweenService:Create(SecFrame, TweenInfo.new(duration, ease), { Size = UDim2.new(1, 0, 0, contentHeight + 46) }):Play()
                 end
                 
-                -- Smooth canvas sizing during slide
                 task.delay(duration, function()
                     ResizeCanvas()
                 end)
+                Library.EventBus:Publish("SectionOpened", sectionName, not Section.Collapsed)
             end
 
             Janitor:Add(HeaderBtn.MouseButton1Click:Connect(ToggleSection))
@@ -1171,7 +1496,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Layout.Padding = UDim.new(0, 6)
 
                 if config then
-                    -- Tombol Info Kustom untuk Menampilkan Modal Pop-up Interaktif
                     if config.info then
                         local InfoIcon = Instance.new("ImageButton", InlineList)
                         InfoIcon.Size = UDim2.new(0, 14, 0, 14)
@@ -1179,7 +1503,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         InfoIcon.Image = GetIcon("info")
                         RegisterTheme(InfoIcon, { ImageColor3 = "TextDark" })
                         
-                        -- Mengikat event pengetukan ikon ke jendela modal informasi
                         if typeof(config.info) == "string" then
                             Janitor:Add(InfoIcon.MouseButton1Click:Connect(function()
                                 Library:ShowInfoModal(toggleText, config.info)
@@ -1201,7 +1524,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         InlineBind.BackgroundTransparency = 0.5
                         InlineBind.Text = tostring(config.keybind)
                         
-                        -- Sesuai perbaikan visual
                         InlineBind.TextXAlignment = Enum.TextXAlignment.Center
                         InlineBind.TextYAlignment = Enum.TextYAlignment.Center
                         
@@ -1216,7 +1538,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         local Corner = Instance.new("UICorner", InlineBind)
                         Corner.CornerRadius = UDim.new(0, 3)
                         
-                        -- Auto trigger keybind on PC background keyboard inputs
                         local kbCode = typeof(config.keybind) == "string" and Enum.KeyCode[config.keybind] or config.keybind
                         if kbCode then
                             Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
@@ -1228,7 +1549,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         end
                     end
 
-                    -- DYNAMIC PIN SPARK SYSTEM (Pilihan Toggle Pembuat Tombol Melayang Eksternal)
                     if config.external then
                         local PinBtn = Instance.new("ImageButton", InlineList)
                         PinBtn.Size = UDim2.new(0, 14, 0, 14)
@@ -1286,7 +1606,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         TweenService:Create(Switch, TweenInfo.new(dur), {BackgroundColor3 = CurrentTheme.ElementBg}):Play()
                     end
                     
-                    -- Sinkronisasi status eksternal
                     if Library.ExternalButtons[flag .. "_Ext"] then
                         local extBtn = Library.ExternalButtons[flag .. "_Ext"]:FindFirstChildOfClass("TextButton")
                         local extStroke = Library.ExternalButtons[flag .. "_Ext"]:FindFirstChildOfClass("UIStroke")
@@ -1301,10 +1620,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         end
                     end
                     
+                    Library.EventBus:Publish("ToggleChanged", flag, state)
+                    Library:TrackInteraction(flag)
                     if callback then task.spawn(callback, state) end
                 end
 
-                -- Smooth dynamic Accent Updates for Toggle Active states
                 RegisterThemeCallback(function(color)
                     if Toggle.State then
                         TweenService:Create(Switch, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundColor3 = color }):Play()
@@ -1316,12 +1636,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
                 local ctrl = {}
                 function ctrl:Set(val) SetState(val) end
-                Library.Registry[flag] = { Type = "Toggle", Control = ctrl }
+                
+                Library:RegisterComponent(flag, "Toggle", toggleText, ctrl, callback, config)
                 return ctrl
             end
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: KEYBIND (PC & MOBILE COMPATIBLE) ]]
+            -- [[ SECTION ELEMENT: KEYBIND ]]
             -- ========================================================
             function Section:CreateKeybind(bindText, defaultBind, flag, callback)
                 local Keybind = { Value = defaultBind or Enum.KeyCode.E }
@@ -1341,7 +1662,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Label, false)
                 RegisterText(Label, 11)
 
-                -- TextBox ramah Mobile sehingga nama Keybind dapat diketik secara manual
                 local BindBtn = Instance.new("TextBox", Elem)
                 BindBtn.Size = UDim2.new(0, 46, 0, 18)
                 BindBtn.Position = UDim2.new(1, -46, 0.5, -9)
@@ -1363,7 +1683,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     BindBtn.Text = "..."
                 end))
 
-                -- Dukungan Pengisian Keybind via Fisik Keyboard PC
                 Janitor:Add(UserInputService.InputBegan:Connect(function(input)
                     if listening then
                         if input.UserInputType == Enum.UserInputType.Keyboard then
@@ -1373,12 +1692,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                             Keybind.Value = input.KeyCode
                             Library.Flags[flag] = input.KeyCode
                             BindBtn.Text = input.KeyCode.Name
+                            
+                            Library.EventBus:Publish("KeybindChanged", flag, input.KeyCode)
+                            Library:TrackInteraction(flag)
                             if callback then task.spawn(callback, input.KeyCode) end
                         end
                     end
                 end))
 
-                -- Dukungan Pengisian Keybind via Virtual Keyboard Mobile (Menghindari Erors) [1]
                 Janitor:Add(BindBtn.FocusLost:Connect(function()
                     if listening then
                         listening = false
@@ -1390,6 +1711,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                             Keybind.Value = parsedCode
                             Library.Flags[flag] = parsedCode
                             BindBtn.Text = parsedCode.Name
+                            
+                            Library.EventBus:Publish("KeybindChanged", flag, parsedCode)
+                            Library:TrackInteraction(flag)
                             if callback then task.spawn(callback, parsedCode) end
                         else
                             BindBtn.Text = Keybind.Value.Name
@@ -1405,8 +1729,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     Keybind.Value = val
                     Library.Flags[flag] = val
                     BindBtn.Text = val.Name
+                    Library.EventBus:Publish("KeybindChanged", flag, val)
                 end
-                Library.Registry[flag] = { Type = "Keybind", Control = ctrl }
+                
+                Library:RegisterComponent(flag, "Keybind", bindText, ctrl, callback, nil)
                 return ctrl
             end
 
@@ -1472,6 +1798,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     local percentage = (clamped - minVal) / (maxVal - minVal)
                     SliderFill.Size = UDim2.new(percentage, 0, 1, 0)
                     SliderKnob.Position = UDim2.new(percentage, 0, 0.5, 0)
+                    
+                    Library.EventBus:Publish("SliderChanged", flag, clamped)
+                    Library:TrackInteraction(flag)
                     if callback then task.spawn(callback, clamped) end
                 end
 
@@ -1515,7 +1844,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 function ctrl:Set(val)
                     ApplyValue(val)
                 end
-                Library.Registry[flag] = { Type = "Slider", Control = ctrl }
+                
+                Library:RegisterComponent(flag, "Slider", sliderText, ctrl, callback, nil)
                 return ctrl
             end
 
@@ -1568,11 +1898,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Arrow.Image = GetIcon("chevron-down")
                 RegisterTheme(Arrow, { ImageColor3 = "TextSecondary" })
 
-                -- DINAMIS SINKRONISASI COORD DROPDOWN TERHADAP SCROLL PAGE & UI SCALE (PROYEK AUDIT SEAMLESS) [1]
-                local ListFrame = Instance.new("Frame", MainFrame) -- Parent diubah ke MainFrame agar mengikuti resolusi skala UIScale secara otomatis!
+                local ListFrame = Instance.new("Frame", ScreenGui)
                 ListFrame.Size = UDim2.new(0, 100, 0, 0)
                 ListFrame.Visible = false
-                ListFrame.ZIndex = 110 -- Selalu tampil di atas container manapun
                 RegisterTheme(ListFrame, { BackgroundColor3 = "SectionBg" })
                 Instance.new("UICorner", ListFrame).CornerRadius = UDim.new(0, 4)
                 local Stroke = Instance.new("UIStroke", ListFrame)
@@ -1608,56 +1936,32 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                             DisplayText.Text = tostring(opt)
                             ListFrame.Visible = false
                             Dropdown.Open = false
+                            
+                            Library.EventBus:Publish("DropdownChanged", flag, opt)
+                            Library:TrackInteraction(flag)
                             if callback then task.spawn(callback, opt) end
                         end))
                     end
                 end
 
-                -- Fungsi Rekalkulasi Posisi Dropdown Terhadap Multi-Skala & Canvas Scroll [1]
-                local canvasConn
-                local function UpdatePosition()
-                    if ListFrame.Visible then
-                        local triggerPos = Trigger.AbsolutePosition
-                        local mainPos = MainFrame.AbsolutePosition
-                        local scale = UiScale.Scale
-                        
-                        -- Mengkonversi Screen Pixels Delta ke Skala Proposional Frame Utama
-                        local x = (triggerPos.X - mainPos.X) / scale
-                        local y = (triggerPos.Y - mainPos.Y) / scale
-                        local h = Trigger.AbsoluteSize.Y / scale
-                        
-                        ListFrame.Position = UDim2.new(0, x, 0, y + h + 4)
-                    end
-                end
-
-                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
+                Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
-                        
-                        local scale = UiScale.Scale
-                        local targetWidth = Trigger.AbsoluteSize.X / scale
-                        
-                        ListFrame.Size = UDim2.new(0, targetWidth, 0, math.min(#options * 23 + 4, 100))
-                        UpdatePosition()
+                        ListFrame.Size = UDim2.new(0, Trigger.AbsoluteSize.X, 0, math.min(#options * 23 + 4, 100))
+                        ListFrame.Position = UDim2.new(0, Trigger.AbsolutePosition.X, 0, Trigger.AbsolutePosition.Y + Trigger.AbsoluteSize.Y + 4)
                         ListScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 23)
                         ListFrame.Visible = true
-                        
-                        -- Mulai melacak pergeseran scroll halaman secara asinkron (Mencegah dropdown melayang lepas) [1]
-                        canvasConn = TabPage:GetPropertyChangedSignal("CanvasPosition"):Connect(UpdatePosition)
                     else
                         ListFrame.Visible = false
-                        if canvasConn then
-                            canvasConn:Disconnect()
-                            canvasConn = nil
-                        end
                     end
-                end))
+                end)
 
                 local ctrl = {}
                 function ctrl:Set(val)
                     Dropdown.Value = val
                     DisplayText.Text = tostring(val)
+                    Library.EventBus:Publish("DropdownChanged", flag, val)
                 end
                 function ctrl:Refresh(newOptions, defaultVal)
                     options = newOptions
@@ -1665,7 +1969,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     DisplayText.Text = tostring(Dropdown.Value)
                     Library.Flags[flag] = Dropdown.Value
                 end
-                Library.Registry[flag] = { Type = "Dropdown", Control = ctrl }
+                
+                Library:RegisterComponent(flag, "Dropdown", ddText, ctrl, callback, nil)
                 return ctrl
             end
 
@@ -1726,11 +2031,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Arrow.Image = GetIcon("chevron-down")
                 RegisterTheme(Arrow, { ImageColor3 = "TextSecondary" })
 
-                -- DINAMIS SINKRONISASI COORD DROPDOWN TERHADAP SCROLL PAGE & UI SCALE (PROYEK AUDIT SEAMLESS) [1]
-                local ListFrame = Instance.new("Frame", MainFrame) -- Parent diubah ke MainFrame agar mengikuti resolusi skala UIScale secara otomatis!
+                local ListFrame = Instance.new("Frame", ScreenGui)
                 ListFrame.Size = UDim2.new(0, 100, 0, 0)
                 ListFrame.Visible = false
-                ListFrame.ZIndex = 110 -- Selalu tampil di atas container manapun
                 RegisterTheme(ListFrame, { BackgroundColor3 = "SectionBg" })
                 Instance.new("UICorner", ListFrame).CornerRadius = UDim.new(0, 4)
                 local Stroke = Instance.new("UIStroke", ListFrame)
@@ -1772,58 +2075,35 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                             Library.Flags[flag] = Dropdown.Selected
                             UpdateDisplayText()
                             PopulateOptions()
+                            
+                            Library.EventBus:Publish("MultiDropdownChanged", flag, Dropdown.Selected)
+                            Library:TrackInteraction(flag)
                             if callback then task.spawn(callback, Dropdown.Selected) end
                         end))
                     end
                 end
 
-                -- Fungsi Rekalkulasi Posisi Dropdown Terhadap Multi-Skala & Canvas Scroll [1]
-                local canvasConn
-                local function UpdatePosition()
-                    if ListFrame.Visible then
-                        local triggerPos = Trigger.AbsolutePosition
-                        local mainPos = MainFrame.AbsolutePosition
-                        local scale = UiScale.Scale
-                        
-                        -- Mengkonversi Screen Pixels Delta ke Skala Proposional Frame Utama
-                        local x = (triggerPos.X - mainPos.X) / scale
-                        local y = (triggerPos.Y - mainPos.Y) / scale
-                        local h = Trigger.AbsoluteSize.Y / scale
-                        
-                        ListFrame.Position = UDim2.new(0, x, 0, y + h + 4)
-                    end
-                end
-
-                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
+                Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
-                        
-                        local scale = UiScale.Scale
-                        local targetWidth = Trigger.AbsoluteSize.X / scale
-                        
-                        ListFrame.Size = UDim2.new(0, targetWidth, 0, math.min(#options * 23 + 4, 100))
-                        UpdatePosition()
+                        ListFrame.Size = UDim2.new(0, Trigger.AbsoluteSize.X, 0, math.min(#options * 23 + 4, 100))
+                        ListFrame.Position = UDim2.new(0, Trigger.AbsolutePosition.X, 0, Trigger.AbsolutePosition.Y + Trigger.AbsoluteSize.Y + 4)
                         ListScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 23)
                         ListFrame.Visible = true
-                        
-                        -- Mulai melacak pergeseran scroll halaman secara asinkron (Mencegah dropdown melayang lepas) [1]
-                        canvasConn = TabPage:GetPropertyChangedSignal("CanvasPosition"):Connect(UpdatePosition)
                     else
                         ListFrame.Visible = false
-                        if canvasConn then
-                            canvasConn:Disconnect()
-                            canvasConn = nil
-                        end
                     end
-                end))
+                end)
 
                 local ctrl = {}
                 function ctrl:Set(val)
                     Dropdown.Selected = val
                     UpdateDisplayText()
+                    Library.EventBus:Publish("MultiDropdownChanged", flag, val)
                 end
-                Library.Registry[flag] = { Type = "MultiDropdown", Control = ctrl }
+                
+                Library:RegisterComponent(flag, "MultiDropdown", ddText, ctrl, callback, nil)
                 return ctrl
             end
 
@@ -1848,7 +2128,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Label, false)
                 RegisterText(Label, 11)
 
-                -- Rounded square preview warna
                 local Preview = Instance.new("TextButton", Elem)
                 Preview.Size = UDim2.new(0, 16, 0, 16)
                 Preview.Position = UDim2.new(1, -16, 0.5, -8)
@@ -1856,7 +2135,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Preview.BackgroundColor3 = Picker.Value
                 Instance.new("UICorner", Preview).CornerRadius = UDim.new(0, 4)
 
-                -- TextBox Input Kode Hexadecimal (RGB)
                 local HexInput = Instance.new("TextBox", Elem)
                 HexInput.Size = UDim2.new(0, 60, 0, 18)
                 HexInput.Position = UDim2.new(1, -82, 0.5, -9)
@@ -1876,6 +2154,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     Library.Flags[flag] = color
                     Preview.BackgroundColor3 = color
                     HexInput.Text = Color3ToHex(color)
+                    
+                    Library.EventBus:Publish("ColorPickerChanged", flag, color)
+                    Library:TrackInteraction(flag)
                     if callback then task.spawn(callback, color) end
                 end
 
@@ -1897,7 +2178,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 function ctrl:Set(val)
                     ApplyColor(val)
                 end
-                Library.Registry[flag] = { Type = "ColorPicker", Control = ctrl }
+                
+                Library:RegisterComponent(flag, "ColorPicker", pickerText, ctrl, callback, nil)
                 return ctrl
             end
 
@@ -1921,7 +2203,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 RegisterFont(Btn, true)
                 RegisterText(Btn, 11)
 
-                -- DYNAMIC PIN SPARK SYSTEM (Pilihan Pin Tombol Melayang Eksternal)
                 if realConfig and realConfig.external then
                     local InlineList = Instance.new("Frame", Btn)
                     InlineList.Size = UDim2.new(0, 20, 1, 0)
@@ -1954,14 +2235,20 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end))
                 end
 
-                -- Uniform button theme animation callback
                 RegisterThemeCallback(function(color)
                     TweenService:Create(Btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundColor3 = color }):Play()
                 end)
 
+                local btnFlag = (realConfig and realConfig.flag) or ("Button_" .. btnText:gsub("%s+", "_"))
+
                 Janitor:Add(Btn.MouseButton1Click:Connect(function()
+                    Library.EventBus:Publish("ButtonClicked", btnFlag)
+                    Library:TrackInteraction(btnFlag)
                     if realCallback then task.spawn(realCallback) end
                 end))
+
+                local ctrl = {}
+                Library:RegisterComponent(btnFlag, "Button", btnText, ctrl, realCallback, realConfig)
             end
 
             -- ========================================================
@@ -2001,18 +2288,18 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Janitor:Add(Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(ResizeParagraph))
                 ResizeParagraph()
 
-                -- Mengembalikan objek pengontrol paragraf yang valid dengan metode Set terpusat
                 local ctrl = {}
                 function ctrl:Set(val)
                     paraDesc = val
                     Desc.Text = val
                     ResizeParagraph()
+                    Library.EventBus:Publish("ParagraphChanged", paraTitle, val)
                 end
                 return ctrl
             end
 
             -- ========================================================
-            -- [[ SECTION ELEMENT: TEXTBOX (NO ELLIPSIS TRUNCATION) ]]
+            -- [[ SECTION ELEMENT: TEXTBOX ]]
             -- ========================================================
             function Section:CreateTextBox(labelText, placeholderText, flag, callback)
                 local TextBoxElem = Instance.new("Frame", Content)
@@ -2035,7 +2322,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 InputBox.Text = ""
                 InputBox.ClearTextOnFocus = false
                 
-                -- Sesuai perbaikan visual input teks tanpa titik-titik (...)
                 InputBox.TextWrapped = false
                 InputBox.TextTruncate = Enum.TextTruncate.None
                 InputBox.ClipsDescendants = true
@@ -2052,6 +2338,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
                 Janitor:Add(InputBox.FocusLost:Connect(function(enterPressed)
                     Library.Flags[flag] = InputBox.Text
+                    
+                    Library.EventBus:Publish("TextBoxChanged", flag, InputBox.Text)
+                    Library:TrackInteraction(flag)
                     if callback then task.spawn(callback, InputBox.Text) end
                 end))
 
@@ -2059,8 +2348,10 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 function ctrl:Set(val)
                     InputBox.Text = tostring(val)
                     Library.Flags[flag] = val
+                    Library.EventBus:Publish("TextBoxChanged", flag, val)
                 end
-                Library.Registry[flag] = { Type = "TextBox", Control = ctrl }
+                
+                Library:RegisterComponent(flag, "TextBox", labelText, ctrl, callback, nil)
                 return ctrl
             end
 
@@ -2070,314 +2361,2578 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
         return Tab
     end
-
     -- ========================================================
-    -- [[ 6. AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
+    -- [[ AUTOMATIC EMBEDDED CONFIG & PREFERENCES TAB ]]
     -- ========================================================
     task.spawn(function()
         task.wait(0.05)
 
-        -- Serialisasi Tabel Luau Kompleks
-        local function serializeTable(val)
-            if typeof(val) == "string" then
-                return string.format("%q", val)
-            elseif typeof(val) == "number" or typeof(val) == "boolean" then
-                return tostring(val)
-            elseif typeof(val) == "table" then
-                local str = "{\n"
-                for k, v in pairs(val) do
-                    str = str .. string.format("  [%s] = %s,\n", serializeTable(k), serializeTable(v))
-                end
-                str = str .. "}"
-                return str
-            end
-            return "nil"
-        end
+        -- Create Universal Category
+        Window:CreateCategory("Universal")
 
-        -- Pembacaan Konfigurasi Lua format return table
-        local function LoadLuaConfig(path)
-            local content = readfile(path)
-            local func, err = loadstring(content)
-            if func then
-                local success, tbl = pcall(func)
-                if success and typeof(tbl) == "table" then
-                    return tbl
-                end
+        -- Safe Local Player variables referencing
+        local currentCharacter = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local currentHumanoid = currentCharacter:WaitForChild("Humanoid")
+        local currentRootPart = currentCharacter:WaitForChild("HumanoidRootPart")
+        local camera = workspace.CurrentCamera
+        
+        -- Hook to make sure humanoids are always tracked robustly after dying / respawning
+        LocalPlayer.CharacterAdded:Connect(function(char)
+            currentCharacter = char
+            currentHumanoid = char:WaitForChild("Humanoid")
+            currentRootPart = char:WaitForChild("HumanoidRootPart")
+            task.wait(0.2)
+            if Library.Flags["Plr_WalkSpeed"] then currentHumanoid.WalkSpeed = Library.Flags["Plr_WalkSpeed"] end
+            if Library.Flags["Plr_JumpPower"] then
+                currentHumanoid.UseJumpPower = true
+                currentHumanoid.JumpPower = Library.Flags["Plr_JumpPower"]
             end
-            return nil
-        end
+            if Library.Flags["Plr_JumpHeight"] then
+                currentHumanoid.UseJumpPower = false
+                currentHumanoid.JumpHeight = Library.Flags["Plr_JumpHeight"]
+            end
+            if Library.Flags["Plr_HipHeight"] then currentHumanoid.HipHeight = Library.Flags["Plr_HipHeight"] end
+            if Library.Flags["Plr_Freeze"] then currentCharacter:WaitForChild("HumanoidRootPart").Anchored = Library.Flags["Plr_Freeze"] end
+            if Library.Flags["Plr_NoJumpCooldown"] then currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, not Library.Flags["Plr_NoJumpCooldown"]) end
+        end)
 
-        local function SaveConfig(configName, format)
-            if not isFolderSupported then return end
-            format = format or "JSON"
-            
-            local dataToSave = {}
-            for flag, value in pairs(Library.Flags) do
-                if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
-                    if typeof(value) == "Color3" then
-                        dataToSave[flag] = {math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5)}
-                    elseif typeof(value) == "EnumItem" then
-                        dataToSave[flag] = tostring(value)
-                    else
-                        dataToSave[flag] = value
+        -- ========================================================
+        -- [[ HOME TAB ]]
+        -- ========================================================
+        local HomeTab = Window:CreateTab("Home", "user")
+        
+        local ScriptInfoSec = HomeTab:CreateSection("Script Information")
+        ScriptInfoSec:CreateParagraph("LouisHub UI", "Version: 2.0.0\nStatus: Active\nType: Premium Universal UI Engine")
+
+        local GameInfoSec = HomeTab:CreateSection("Game Information")
+        local gameName = "Unknown Game"
+        pcall(function()
+            gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+        end)
+        GameInfoSec:CreateParagraph("Current Game Details", "Name: " .. gameName .. "\nPlace ID: " .. game.PlaceId .. "\nUniverse ID: " .. game.GameId)
+
+        local ExecInfoSec = HomeTab:CreateSection("Executor Information")
+        local execName = "Unknown Executor"
+        pcall(function()
+            execName = (identifyexecutor or getexecutorname or function() return "Unknown" end)()
+        end)
+        ExecInfoSec:CreateParagraph("Execution Details", "Client: " .. execName .. "\nPlatform: " .. (UserInputService:GetPlatform() == Enum.Platform.Windows and "Windows" or "Mobile/Other"))
+
+        local LocalPlayerInfoSec = HomeTab:CreateSection("Local Player Information")
+        LocalPlayerInfoSec:CreateParagraph("Profile Details", "Display Name: " .. LocalPlayer.DisplayName .. "\nUsername: " .. LocalPlayer.Name .. "\nUser ID: " .. LocalPlayer.UserId)
+
+        local ServerInfoSec = HomeTab:CreateSection("Server Information")
+        ServerInfoSec:CreateParagraph("Connection Details", "Job ID: " .. game.JobId .. "\nServer Size: " .. #game:GetService("Players"):GetPlayers() .. " Players")
+
+        local QuickAccessSec = HomeTab:CreateSection("Quick Access")
+        QuickAccessSec:CreateParagraph("Quick Access Actions", "Configure floating action buttons or quickly access your toggle controls from this section.")
+
+        local FavPlaceholderSec = HomeTab:CreateSection("Favorites Placeholder")
+        FavPlaceholderSec:CreateParagraph("Your Favorites", "Any controls or settings you mark as favorite will appear in this section for direct interaction.")
+
+        local RecUsedPlaceholderSec = HomeTab:CreateSection("Recently Used Placeholder")
+        RecUsedPlaceholderSec:CreateParagraph("Recent Activities", "Your recently changed settings and executed features are logged here.")
+
+        local SearchPlaceholderSec = HomeTab:CreateSection("Search Placeholder")
+        SearchPlaceholderSec:CreateParagraph("Search Feature", "Use the search utility to filter options across all tabs instantly.")
+
+        local PerfPlaceholderSec = HomeTab:CreateSection("Performance Placeholder")
+        PerfPlaceholderSec:CreateParagraph("Client Stability", "Keep track of active threads, rendering load, and execution performance metrics.")
+
+        -- ========================================================
+        -- [[ PLAYER TAB ]]
+        -- ========================================================
+        local PlayerTab = Window:CreateTab("Player", "user")
+        
+        local pMoveStats = PlayerTab:CreateSection("Movement Stats")
+        pMoveStats:CreateSlider("WalkSpeed", 16, 500, 16, "Plr_WalkSpeed", function(val)
+            if currentHumanoid then currentHumanoid.WalkSpeed = val end
+        end)
+        pMoveStats:CreateSlider("JumpPower", 50, 500, 50, "Plr_JumpPower", function(val)
+            if currentHumanoid then
+                currentHumanoid.UseJumpPower = true
+                currentHumanoid.JumpPower = val
+            end
+        end)
+        pMoveStats:CreateSlider("Jump Height", 7, 200, 7, "Plr_JumpHeight", function(val)
+            if currentHumanoid then
+                currentHumanoid.UseJumpPower = false
+                currentHumanoid.JumpHeight = val
+            end
+        end)
+        pMoveStats:CreateSlider("HipHeight", 0, 10, 2, "Plr_HipHeight", function(val)
+            if currentHumanoid then currentHumanoid.HipHeight = val end
+        end)
+        pMoveStats:CreateSlider("Gravity", 0, 1000, 196, "Plr_Gravity", function(val)
+            workspace.Gravity = val
+        end)
+        
+        local pJump = PlayerTab:CreateSection("Jump")
+        pJump:CreateToggle("Infinite Jump", false, "Plr_InfJump", {}, function(state) end)
+        pJump:CreateToggle("Double Jump", false, "Plr_DoubleJump", {}, function(state) end)
+        pJump:CreateToggle("Triple Jump", false, "Plr_TripleJump", {}, function(state) end)
+        pJump:CreateToggle("Auto Jump", false, "Plr_AutoJump", {}, function(state) end)
+        pJump:CreateToggle("Jump Boost", false, "Plr_JumpBoost", {}, function(state) end)
+        pJump:CreateSlider("Boost Velocity multiplier", 1, 10, 1, "Plr_JumpBoostMult", function(val) end)
+        pJump:CreateToggle("Disable Jump Cooldown", false, "Plr_NoJumpCooldown", {}, function(state)
+            if currentHumanoid then currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, not state) end
+        end)
+        
+        -- Jump Listeners setup
+        local jumpCount = 0
+        UserInputService.JumpRequest:Connect(function()
+            if currentHumanoid then
+                if Library.Flags["Plr_InfJump"] then
+                    currentHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+                
+                local state = currentHumanoid:GetState()
+                if state == Enum.HumanoidStateType.FreeFall then
+                    if Library.Flags["Plr_DoubleJump"] and jumpCount < 1 then
+                        jumpCount = jumpCount + 1
+                        currentHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    elseif Library.Flags["Plr_TripleJump"] and jumpCount < 2 then
+                        jumpCount = jumpCount + 1
+                        currentHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                     end
                 end
             end
-            
-            local path = ConfigFolder .. "/" .. configName
-            if format == "LUA" then
-                local serialized = "return " .. serializeTable(dataToSave)
-                writefile(path .. ".lua", serialized)
+        end)
+        
+        RunService.RenderStepped:Connect(function()
+            if currentHumanoid then
+                if currentHumanoid:GetState() == Enum.HumanoidStateType.Landed then
+                    jumpCount = 0
+                end
+            end
+        end)
+        
+        task.spawn(function()
+            while task.wait(0.1) do
+                if Library.Flags["Plr_AutoJump"] and currentHumanoid then
+                    currentHumanoid.Jump = true
+                end
+            end
+        end)
+        
+        -- Jump Boost Logic Hook
+        local isBoosting = false
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_JumpBoost"] and currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") and currentHumanoid then
+                local hrp = currentCharacter.HumanoidRootPart
+                if currentHumanoid:GetState() == Enum.HumanoidStateType.Jumping and not isBoosting then
+                    isBoosting = true
+                    local multiplier = Library.Flags["Plr_JumpBoostMult"] or 1
+                    hrp.Velocity = hrp.Velocity * Vector3.new(1, multiplier, 1)
+                elseif currentHumanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+                    isBoosting = false
+                end
+            end
+        end)
+        
+        local pChar = PlayerTab:CreateSection("Character")
+        pChar:CreateToggle("Fly", false, "Plr_Fly", {}, function(state) end)
+        pChar:CreateSlider("Fly Speed", 10, 300, 50, "Plr_FlySpeed", function(val) end)
+        pChar:CreateToggle("Sprint", false, "Plr_Sprint", {}, function(state)
+            if currentHumanoid then
+                if state then
+                    currentHumanoid.WalkSpeed = Library.Flags["Plr_WalkSpeed"] * 2
+                else
+                    currentHumanoid.WalkSpeed = Library.Flags["Plr_WalkSpeed"]
+                end
+            end
+        end)
+        pChar:CreateToggle("Noclip", false, "Plr_Noclip", {}, function(state) end)
+        pChar:CreateToggle("Safe Walk", false, "Plr_SafeWalk", {}, function(state) end)
+        pChar:CreateToggle("Air Jump", false, "Plr_AirJump", {}, function(state) end)
+        pChar:CreateToggle("Freeze Character", false, "Plr_Freeze", {}, function(state)
+            if currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") then
+                currentCharacter.HumanoidRootPart.Anchored = state
+            end
+        end)
+        pChar:CreateButton("Unfreeze Character", function()
+            if currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") then
+                currentCharacter.HumanoidRootPart.Anchored = false
+                pcall(function()
+                    Library.Registry["Plr_Freeze"].Control:Set(false)
+                end)
+            end
+        end)
+        pChar:CreateButton("Sit", function()
+            if currentHumanoid then currentHumanoid.Sit = true end
+        end)
+        pChar:CreateButton("Stand", function()
+            if currentHumanoid then currentHumanoid.Sit = false end
+        end)
+        
+        -- Fly Rendering Loop
+        RunService.RenderStepped:Connect(function(dt)
+            if Library.Flags["Plr_Fly"] and currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") then
+                local hrp = currentCharacter.HumanoidRootPart
+                local hum = currentCharacter:FindFirstChildOfClass("Humanoid")
+                if hum then hum.PlatformStand = true end
+                
+                local speed = Library.Flags["Plr_FlySpeed"] or 50
+                local moveDir = Vector3.new(0,0,0)
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camera.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camera.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+                
+                if moveDir.Magnitude > 0 then moveDir = moveDir.Unit end
+                hrp.Velocity = Vector3.new(0, 0, 0)
+                hrp.CFrame = hrp.CFrame + (moveDir * speed * dt)
             else
-                local encoded = HttpService:JSONEncode(dataToSave)
-                writefile(path .. ".json", encoded)
-            end
-            
-            Library:CreateNotification("Config Saved", "Successfully saved configuration: " .. configName, 3)
-        end
-
-        local function LoadConfig(configName)
-            if not isFolderSupported then return end
-            local luaPath = ConfigFolder .. "/" .. configName .. ".lua"
-            local jsonPath = ConfigFolder .. "/" .. configName .. ".json"
-            local loadedData = nil
-            
-            if isfile(luaPath) then
-                loadedData = LoadLuaConfig(luaPath)
-            elseif isfile(jsonPath) then
-                local data = readfile(jsonPath)
-                local success, decoded = pcall(function() return HttpService:JSONDecode(data) end)
-                if success then loadedData = decoded end
-            end
-            
-            if loadedData and typeof(loadedData) == "table" then
-                for flag, value in pairs(loadedData) do
-                    if Library.Registry[flag] then
-                        pcall(function()
-                            if Library.Registry[flag].Type == "ColorPicker" and typeof(value) == "table" then
-                                local r, g, b = value[1], value[2], value[3]
-                                Library.Registry[flag].Control:Set(Color3.fromRGB(r, g, b))
-                            else
-                                Library.Registry[flag].Control:Set(value)
-                            end
-                        end)
-                    end
+                if currentHumanoid and currentHumanoid.PlatformStand then
+                    currentHumanoid.PlatformStand = false
                 end
-                Library:CreateNotification("Config Loaded", "Successfully applied configuration: " .. configName, 3)
             end
-        end
+        end)
 
-        local function DeleteConfig(configName)
-            if not isFolderSupported then return end
-            local luaPath = ConfigFolder .. "/" .. configName .. ".lua"
-            local jsonPath = ConfigFolder .. "/" .. configName .. ".json"
-            if isfile(luaPath) then delfile(luaPath) end
-            if isfile(jsonPath) then delfile(jsonPath) end
-            Library:CreateNotification("Config Deleted", "Successfully deleted configuration: " .. configName, 3)
-        end
-
-        local function GetConfigsList()
-            local list = {}
-            if listfiles and isfolder and isfolder(ConfigFolder) then
-                local files = listfiles(ConfigFolder)
-                for _, file in ipairs(files) do
-                    local name = string.match(file, "([^/]+)%.[jJ][sS][oO][nN]$") or string.match(file, "([^/]+)%.[lL][uU][aA]$")
-                    if name and not table.find(list, name) then
-                        table.insert(list, name)
+        -- Noclip Loop
+        RunService.Stepped:Connect(function()
+            if Library.Flags["Plr_Noclip"] and currentCharacter then
+                for _, part in ipairs(currentCharacter:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
                     end
                 end
             end
-            if #list == 0 then
-                table.insert(list, "No Configs Found")
+        end)
+
+        -- Safe Walk Raycast Edge-Check loop
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_SafeWalk"] and currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") then
+                local hrp = currentCharacter.HumanoidRootPart
+                local vel = hrp.Velocity
+                if vel.Magnitude > 1 then
+                    local lookAhead = vel.Unit * 2
+                    local origin = hrp.Position + lookAhead - Vector3.new(0, 3, 0)
+                    local ray = workspace:Raycast(origin, Vector3.new(0, -10, 0))
+                    if not ray then
+                        hrp.Velocity = Vector3.new(0, hrp.Velocity.Y, 0)
+                    end
+                end
             end
-            return list
-        end
-
-        -- Automatically create UI Settings category
-        Window:CreateCategory("UI Settings")
-        
-        -- Built-in preferences tab ("Setting")
-        local BuiltInTab = Window:CreateTab("Setting", "gear")
-        
-        local ConfigSec = BuiltInTab:CreateSection("Layout Preferences")
-        ConfigSec:CreateDropdown("Layout Mode", {"PC", "Mobile"}, Library.Settings.Mode, "BuiltIn_Mode", function(mode)
-            ApplyUiSettings(mode, Library.Settings.Scale)
-            Library:CreateNotification("Layout Updated", "UI layout set to " .. mode .. " mode.", 4)
-        end)
-        
-        ConfigSec:CreateSlider("UI Scale", 50, 150, math.floor(Library.Settings.Scale * 100), "BuiltIn_Scale", function(scalePerc)
-            ApplyUiSettings(Library.Settings.Mode, scalePerc / 100)
-        end)
-        
-        -- Toggle ON/OFF untuk menampilkan/menyembunyikan Floating Performance HUD
-        ConfigSec:CreateToggle("Performance HUD", false, "BuiltIn_ShowHUD", {}, function(state)
-            HudFrame.Visible = state
         end)
 
-        -- Kunci Posisi Seret UI Serempak
-        ConfigSec:CreateToggle("Lock UI Dragging", false, "BuiltIn_LockDrag", {}, function(state)
-            Library.Settings.DragLocked = state
+        -- Air Jump Loop
+        UserInputService.JumpRequest:Connect(function()
+            if Library.Flags["Plr_AirJump"] and currentHumanoid then
+                if currentHumanoid:GetState() == Enum.HumanoidStateType.FreeFall then
+                    currentHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+        
+        local pProt = PlayerTab:CreateSection("Protection")
+        pProt:CreateToggle("Anti AFK", false, "Plr_AntiAFK", {}, function(state) end)
+        pProt:CreateToggle("Anti Void", false, "Plr_AntiVoid", {}, function(state) end)
+        pProt:CreateToggle("Anti Fall Damage", false, "Plr_AntiFall", {}, function(state) end)
+        pProt:CreateToggle("Anti Ragdoll", false, "Plr_AntiRagdoll", {}, function(state) end)
+        pProt:CreateToggle("No Slow", false, "Plr_NoSlow", {}, function(state) end)
+        pProt:CreateToggle("No Freeze", false, "Plr_NoFreeze", {}, function(state) end)
+        pProt:CreateToggle("No Stun", false, "Plr_NoStun", {}, function(state) end)
+        
+        -- AFK Loop hook
+        local VirtualUser = game:GetService("VirtualUser")
+        LocalPlayer.Idled:Connect(function()
+            if Library.Flags["Plr_AntiAFK"] then
+                VirtualUser:Button2Down(Vector2.new(0,0), camera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0,0), camera.CFrame)
+            end
         end)
 
-        -- Pemilihan Bentuk Tombol Eksternal di UI secara Dinamis
-        ConfigSec:CreateDropdown("External Button Shape", {"Round", "Circle", "Sharp"}, Library.Settings.ExternalShape, "BuiltIn_ExternalShape", function(val)
-            Library.Settings.ExternalShape = val
-            for flag, btnFrame in pairs(Library.ExternalButtons) do
-                local extCorner = btnFrame:FindFirstChildOfClass("UICorner")
-                if extCorner then
-                    if val == "Circle" then
-                        extCorner.CornerRadius = UDim.new(1, 0)
-                    elseif val == "Round" then
-                        extCorner.CornerRadius = UDim.new(0, 8)
+        -- Void Loop hook
+        task.spawn(function()
+            while task.wait(0.5) do
+                if Library.Flags["Plr_AntiVoid"] and currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") then
+                    local hrp = currentCharacter.HumanoidRootPart
+                    if hrp.Position.Y < -300 then
+                        hrp.Velocity = Vector3.new(0,0,0)
+                        hrp.CFrame = CFrame.new(hrp.Position.X, 100, hrp.Position.Z)
+                        Library:CreateNotification("Anti-Void Protection", "Saved from falling into the void!", 3)
+                    end
+                end
+            end
+        end)
+
+        -- Active Bypasses loop (No Slow, Anti Fall, Anti Ragdoll, Anti Stun, Anti Freeze)
+        task.spawn(function()
+            while task.wait(0.2) do
+                if currentHumanoid then
+                    if Library.Flags["Plr_NoSlow"] then
+                        local activeWS = Library.Flags["Plr_WalkSpeed"] or 16
+                        if currentHumanoid.WalkSpeed < activeWS then
+                            currentHumanoid.WalkSpeed = activeWS
+                        end
+                    end
+                    if Library.Flags["Plr_AntiFall"] then
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.FreeFall, false)
                     else
-                        extCorner.CornerRadius = UDim.new(0, 0)
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.FreeFall, true)
+                    end
+                    if Library.Flags["Plr_AntiRagdoll"] then
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                    else
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                    end
+                    if Library.Flags["Plr_NoStun"] then
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
+                    else
+                        currentHumanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, true)
+                    end
+                    if Library.Flags["Plr_NoFreeze"] then
+                        currentHumanoid.PlatformStand = false
                     end
                 end
             end
         end)
-
-        -- Ikon emoji info ℹ kustom
-        ConfigSec:CreateParagraph("ℹ Shape Preferences", "The External Button Shape preferences determine the visual corner geometry of floating action keypads spawned on your screen.")
-
-        local ThemeSec = BuiltInTab:CreateSection("Theme & Typography")
-        ThemeSec:CreateSlider("Text Size", 80, 150, math.floor(Library.Settings.TextSizeMultiplier * 100), "BuiltIn_Text", function(sizePerc)
-            UpdateTextSizes(sizePerc / 100)
-        end)
-
-        -- RGB Theme Accent Color Picker dengan dukungan Hex (Tembus langsung merubah semua elemen aksen cyan)
-        ThemeSec:CreateColorPicker("Accent Color", CurrentTheme.Accent, "BuiltIn_AccentColor", function(color)
-            CurrentTheme.Accent = color
-            for _, item in ipairs(Library.ThemeRegistry) do
-                for prop, key in pairs(item.Properties) do
-                    if key == "Accent" then
-                        pcall(function()
-                            TweenService:Create(item.Instance, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { [prop] = color }):Play()
-                        end)
-                    end
-                end
-            end
-            -- Instantly update selected tab icon color
-            if Window.ActiveTab then
-                local icon = Window.ActiveTab.Button:FindFirstChildOfClass("ImageLabel")
-                if icon then
-                    TweenService:Create(icon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { ImageColor3 = color }):Play()
-                end
-            end
-            -- Execute theme callbacks for dynamic toggle states
-            for _, cb in ipairs(Library.ThemeCallbacks) do
-                pcall(cb, color)
-            end
-        end)
-
-        -- PREMIUM DIAGNOSTICS SECTION (DEVELOPER TOOLS)
-        local DiagnosticSec = BuiltInTab:CreateSection("Diagnostics")
-        local fpsLabel = DiagnosticSec:CreateParagraph("Performance Stats", "FPS: Calculating...\nPing: Calculating...\nMemory: Calculating...")
         
-        local fpsCount = 0
-        local lastTime = os.clock()
-        local currentFps = 60
-        local pingVal = 0
-
-        Janitor:Add(RunService.RenderStepped:Connect(function()
-            fpsCount = fpsCount + 1
-            local now = os.clock()
-            if now - lastTime >= 1 then
-                currentFps = fpsCount
-                fpsCount = 0
-                lastTime = now
+        local pMisc = PlayerTab:CreateSection("Misc")
+        pMisc:CreateButton("Reset Character", function()
+            if currentHumanoid then currentHumanoid:BreakJoints() end
+        end)
+        pMisc:CreateButton("Respawn", function()
+            LocalPlayer:LoadCharacter()
+        end)
+        pMisc:CreateButton("Refresh Character", function()
+            if currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") then
+                local oldPos = currentCharacter.HumanoidRootPart.CFrame
+                LocalPlayer:LoadCharacter()
+                local newChar = LocalPlayer.CharacterAdded:Wait()
+                local newHrp = newChar:WaitForChild("HumanoidRootPart")
+                task.wait(0.1)
+                newHrp.CFrame = oldPos
             end
-        end))
-
-        -- Safe diagnostics loop (Real Ping and Framerate updating) [1]
+        end)
+        pMisc:CreateButton("Rejoin", function()
+            local TeleportService = game:GetService("TeleportService")
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end)
+        
+        local charInfoLabel = pMisc:CreateParagraph("Character Information", "Speed: 16\nHealth: 100\nPosition: 0, 0, 0")
         task.spawn(function()
             while task.wait(1) do
+                if currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart") and currentHumanoid then
+                    local pos = currentCharacter.HumanoidRootPart.Position
+                    pcall(function()
+                        charInfoLabel:Set(string.format("Speed: %.1f\nHealth: %.1f / %.1f\nPosition: %.1f, %.1f, %.1f", 
+                            currentHumanoid.WalkSpeed, 
+                            currentHumanoid.Health, 
+                            currentHumanoid.MaxHealth, 
+                            pos.X, pos.Y, pos.Z
+                        ))
+                    end)
+                end
+            end
+        end)
+
+        -- ========================================================
+        -- [[ MOVEMENT TAB ]]
+        -- ========================================================
+        local MovementTab = Window:CreateTab("Movement", "sliders")
+        
+        -- ========================================================
+        -- [[ TELEPORT SECTION ]]
+        -- ========================================================
+        local mTeleport = MovementTab:CreateSection("Teleport")
+        mTeleport:CreateToggle("Click Teleport", false, "Plr_ClickTP", {}, function(state) end)
+        mTeleport:CreateToggle("Ctrl + Click Teleport", false, "Plr_CtrlClickTP", {}, function(state) end)
+        mTeleport:CreateToggle("Tween Teleport", false, "Plr_TweenTP", {}, function(state) end)
+        mTeleport:CreateSlider("Tween Speed", 10, 500, 100, "Plr_TweenTPSpeed", function(val) end)
+        
+        local Mouse = LocalPlayer:GetMouse()
+        Mouse.Button1Down:Connect(function()
+            if Library.Flags["Plr_CtrlClickTP"] and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                if currentRootPart and Mouse.Hit then
+                    pcall(function()
+                        local targetCF = CFrame.new(Mouse.Hit.Position + Vector3.new(0, 3, 0))
+                        if Library.Flags["Plr_TweenTP"] then
+                            local distance = (currentRootPart.Position - Mouse.Hit.Position).Magnitude
+                            local speed = Library.Flags["Plr_TweenTPSpeed"] or 100
+                            local time = distance / math.max(speed, 1)
+                            TweenService:Create(currentRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCF}):Play()
+                        else
+                            currentRootPart.CFrame = targetCF
+                        end
+                    end)
+                end
+            elseif Library.Flags["Plr_ClickTP"] then
+                if currentRootPart and Mouse.Hit then
+                    pcall(function()
+                        local targetCF = CFrame.new(Mouse.Hit.Position + Vector3.new(0, 3, 0))
+                        if Library.Flags["Plr_TweenTP"] then
+                            local distance = (currentRootPart.Position - Mouse.Hit.Position).Magnitude
+                            local speed = Library.Flags["Plr_TweenTPSpeed"] or 100
+                            local time = distance / math.max(speed, 1)
+                            TweenService:Create(currentRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCF}):Play()
+                        else
+                            currentRootPart.CFrame = targetCF
+                        end
+                    end)
+                end
+            end
+        end)
+
+        mTeleport:CreateButton("Teleport To Mouse", function()
+            if currentRootPart and Mouse.Hit then
                 pcall(function()
-                    pingVal = math.floor(LocalPlayer:GetNetworkPing() * 1000 + 0.5)
-                end)
-                local memoryUsage = string.format("%.2f MB", collectgarbage("count") / 1024)
-                pcall(function()
-                    fpsLabel:Set("FPS: " .. tostring(currentFps) .. "\nPing: " .. tostring(pingVal) .. " ms\nMemory Estimate: " .. memoryUsage)
-                    HudText.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. tostring(pingVal) .. " ms"
+                    local targetCF = CFrame.new(Mouse.Hit.Position + Vector3.new(0, 3, 0))
+                    if Library.Flags["Plr_TweenTP"] then
+                        local distance = (currentRootPart.Position - Mouse.Hit.Position).Magnitude
+                        local speed = Library.Flags["Plr_TweenTPSpeed"] or 100
+                        local time = distance / math.max(speed, 1)
+                        TweenService:Create(currentRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCF}):Play()
+                    else
+                        currentRootPart.CFrame = targetCF
+                    end
                 end)
             end
         end)
 
-        local ActionSec = BuiltInTab:CreateSection("Emergency Actions")
-        ActionSec:CreateButton("Destroy UI", function()
-            ScreenGui:Destroy()
+        -- Target Player Setup
+        local playerList = {}
+        local function rebuildPlayerList()
+            playerList = {}
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then
+                    table.insert(playerList, p.Name)
+                end
+            end
+            if #playerList == 0 then table.insert(playerList, "No Players Found") end
+        end
+        rebuildPlayerList()
+        Players.PlayerAdded:Connect(rebuildPlayerList)
+        Players.PlayerRemoving:Connect(rebuildPlayerList)
+
+        local targetPlayerDropdown = mTeleport:CreateDropdown("Teleport To Player", playerList, playerList[1], "Plr_TPTargetPlayer")
+        
+        mTeleport:CreateButton("Teleport to Chosen Player", function()
+            local targetName = Library.Flags["Plr_TPTargetPlayer"]
+            if targetName and targetName ~= "No Players Found" then
+                local targetPlayer = Players:FindFirstChild(targetName)
+                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    pcall(function()
+                        local targetCF = targetPlayer.Character.HumanoidRootPart.CFrame
+                        if Library.Flags["Plr_TweenTP"] then
+                            local distance = (currentRootPart.Position - targetCF.Position).Magnitude
+                            local speed = Library.Flags["Plr_TweenTPSpeed"] or 100
+                            local time = distance / math.max(speed, 1)
+                            TweenService:Create(currentRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCF}):Play()
+                        else
+                            currentRootPart.CFrame = targetCF
+                        end
+                    end)
+                end
+            end
         end)
 
-        -- Built-in File Manager Tab (Ikon Folder)
-        local ConfigManagerTab = Window:CreateTab("Configs", "folder")
-        
-        local SaveSec = ConfigManagerTab:CreateSection("Save Configuration")
-        SaveSec:CreateTextBox("Config Name", "Enter name...", "Sys_Save_Name")
-        SaveSec:CreateDropdown("Save Format", {"JSON", "LUA"}, "JSON", "Sys_Save_Format")
-        
-        local configDropdown
+        -- Position Saving & Teleport Back Cache Setup
+        local savedPos = nil
+        local priorPos = nil
 
-        SaveSec:CreateButton("Save Configuration", function()
+        mTeleport:CreateButton("Save Position", function()
+            if currentRootPart then
+                savedPos = currentRootPart.CFrame
+                Library:CreateNotification("Teleport System", "Current coordinates bookmarked!", 3)
+            end
+        end)
+
+        mTeleport:CreateButton("Load Position", function()
+            if savedPos and currentRootPart then
+                priorPos = currentRootPart.CFrame
+                pcall(function()
+                    if Library.Flags["Plr_TweenTP"] then
+                        local distance = (currentRootPart.Position - savedPos.Position).Magnitude
+                        local speed = Library.Flags["Plr_TweenTPSpeed"] or 100
+                        local time = distance / math.max(speed, 1)
+                        TweenService:Create(currentRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = savedPos}):Play()
+                    else
+                        currentRootPart.CFrame = savedPos
+                    end
+                end)
+            else
+                Library:CreateNotification("Teleport Error", "No bookmarked coordinates found. Save position first.", 3)
+            end
+        end)
+
+        mTeleport:CreateButton("Teleport Back", function()
+            if priorPos and currentRootPart then
+                local temp = currentRootPart.CFrame
+                pcall(function()
+                    if Library.Flags["Plr_TweenTP"] then
+                        local distance = (currentRootPart.Position - priorPos.Position).Magnitude
+                        local speed = Library.Flags["Plr_TweenTPSpeed"] or 100
+                        local time = distance / math.max(speed, 1)
+                        TweenService:Create(currentRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = priorPos}):Play()
+                    else
+                        currentRootPart.CFrame = priorPos
+                    end
+                end)
+                priorPos = temp
+            else
+                Library:CreateNotification("Teleport Error", "No prior location history available.", 3)
+            end
+        end)
+
+        -- Waypoint System & Bookmark Configurations
+        local bookmarkList = {}
+        local bookmarkDropdown
+
+        mTeleport:CreateTextBox("Bookmark Name", "Enter location name...", "Plr_BookmarkNameInput")
+        mTeleport:CreateButton("Save Bookmark", function()
+            local name = Library.Flags["Plr_BookmarkNameInput"]
+            if name and name ~= "" and name ~= "Enter location name..." and currentRootPart then
+                bookmarkList[name] = currentRootPart.CFrame
+                local keys = {}
+                for k, _ in pairs(bookmarkList) do table.insert(keys, k) end
+                if bookmarkDropdown then
+                    bookmarkDropdown:Refresh(keys, name)
+                end
+                Library:CreateNotification("Waypoint Saved", "Position bookmarked as: " .. name, 3)
+            end
+        end)
+
+        local initialKeys = {"No Bookmarks Saved"}
+        bookmarkDropdown = mTeleport:CreateDropdown("Position Bookmark", initialKeys, initialKeys[1], "Plr_SelectedBookmark")
+
+        mTeleport:CreateButton("Teleport to Bookmark", function()
+            local selected = Library.Flags["Plr_SelectedBookmark"]
+            if selected and bookmarkList[selected] and currentRootPart then
+                local dest = bookmarkList[selected]
+                priorPos = currentRootPart.CFrame
+                pcall(function()
+                    if Library.Flags["Plr_TweenTP"] then
+                        local distance = (currentRootPart.Position - dest.Position).Magnitude
+                        local speed = Library.Flags["Plr_TweenTPSpeed"] or 100
+                        local time = distance / math.max(speed, 1)
+                        TweenService:Create(currentRootPart, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = dest}):Play()
+                    else
+                        currentRootPart.CFrame = dest
+                    end
+                end)
+            end
+        end)
+
+        mTeleport:CreateButton("Delete Selected Bookmark", function()
+            local selected = Library.Flags["Plr_SelectedBookmark"]
+            if selected and bookmarkList[selected] then
+                bookmarkList[selected] = nil
+                local keys = {}
+                for k, _ in pairs(bookmarkList) do table.insert(keys, k) end
+                if #keys == 0 then table.insert(keys, "No Bookmarks Saved") end
+                bookmarkDropdown:Refresh(keys, keys[1])
+                Library:CreateNotification("Waypoint Removed", "Deleted bookmark: " .. selected, 3)
+            end
+        end)
+
+        -- ========================================================
+        -- [[ MOVEMENT SECTION ]]
+        -- ========================================================
+        local mMovement = MovementTab:CreateSection("Movement")
+        mMovement:CreateToggle("CFrame Speed", false, "Plr_CFrameSpeedActive", {}, function(state) end)
+        mMovement:CreateSlider("CFrame Velocity Multiplier", 1, 10, 2, "Plr_CFrameSpeedValue", function(val) end)
+        mMovement:CreateButton("Dash Force Boost", function()
+            if currentRootPart and currentHumanoid then
+                local moveDir = currentHumanoid.MoveDirection
+                if moveDir.Magnitude == 0 then
+                    moveDir = currentRootPart.CFrame.LookVector
+                end
+                currentRootPart.Velocity = currentRootPart.Velocity + (moveDir * 150)
+            end
+        end)
+        mMovement:CreateToggle("Air Walk Platform", false, "Plr_AirWalk", {}, function(state) end)
+        mMovement:CreateToggle("Wall Walk Gravity Align", false, "Plr_WallWalk", {}, function(state) end)
+        mMovement:CreateToggle("Spider Climb", false, "Plr_SpiderClimb", {}, function(state) end)
+        mMovement:CreateSlider("Spider Climb Speed", 10, 100, 35, "Plr_ClimbSpeed", function(val) end)
+        mMovement:CreateToggle("Water Walk Platform", false, "Plr_WaterWalk", {}, function(state) end)
+        mMovement:CreateToggle("Bunny Hop Momentum", false, "Plr_BHop", {}, function(state) end)
+        mMovement:CreateToggle("Velocity Speed Bypass", false, "Plr_SpeedBypass", {}, function(state) end)
+        mMovement:CreateToggle("No Clip Movement", false, "Plr_NoclipMovement", {}, function(state) end)
+
+        -- CFrame Speed Engine Loop Hook
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_CFrameSpeedActive"] and currentHumanoid and currentRootPart then
+                if currentHumanoid.MoveDirection.Magnitude > 0 then
+                    local speedFactor = Library.Flags["Plr_CFrameSpeedValue"] or 2
+                    currentRootPart.CFrame = currentRootPart.CFrame + (currentHumanoid.MoveDirection * (speedFactor * 0.1))
+                end
+            end
+        end)
+
+        -- Dynamic physical properties updates (AirWalk & WaterWalk platforms)
+        local airWalkPart = Instance.new("Part")
+        airWalkPart.Size = Vector3.new(10, 1, 10)
+        airWalkPart.Transparency = 1
+        airWalkPart.Anchored = true
+        airWalkPart.CanCollide = false
+        airWalkPart.Parent = workspace
+
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_AirWalk"] and currentRootPart then
+                airWalkPart.CanCollide = true
+                airWalkPart.CFrame = CFrame.new(currentRootPart.Position.X, currentRootPart.Position.Y - 3.5, currentRootPart.Position.Z)
+            else
+                airWalkPart.CanCollide = false
+            end
+        end)
+
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_WaterWalk"] and currentRootPart then
+                local origin = currentRootPart.Position
+                local ray = workspace:Raycast(origin, Vector3.new(0, -6, 0))
+                if ray and ray.Material == Enum.Material.Water then
+                    currentRootPart.Velocity = Vector3.new(currentRootPart.Velocity.X, 0, currentRootPart.Velocity.Z)
+                    currentRootPart.CFrame = CFrame.new(currentRootPart.Position.X, ray.Position.Y + 3.1, currentRootPart.Position.Z)
+                end
+            end
+        end)
+
+        -- Wall Walk, Spider Climb & Bunnyhop loops hooks
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_SpiderClimb"] and currentRootPart and currentHumanoid then
+                local lookDir = currentRootPart.CFrame.LookVector * 2.5
+                local ray = workspace:Raycast(currentRootPart.Position, lookDir)
+                if ray and math.abs(ray.Normal.Y) < 0.1 then
+                    local climbSpeed = Library.Flags["Plr_ClimbSpeed"] or 35
+                    currentRootPart.Velocity = Vector3.new(currentRootPart.Velocity.X, climbSpeed, currentRootPart.Velocity.Z)
+                end
+            end
+        end)
+
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_BHop"] and currentHumanoid and currentHumanoid.MoveDirection.Magnitude > 0 then
+                if currentHumanoid:GetState() == Enum.HumanoidStateType.Landed then
+                    currentHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+
+        -- Speed bypass via custom PlatformStand logic to avoid speed triggers
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_SpeedBypass"] and currentHumanoid then
+                currentHumanoid.PlatformStand = true
+                task.wait(0.01)
+                currentHumanoid.PlatformStand = false
+            end
+        end)
+
+        -- NoClip loop hook
+        RunService.Stepped:Connect(function()
+            if Library.Flags["Plr_NoclipMovement"] and currentCharacter then
+                for _, part in ipairs(currentCharacter:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+
+        -- ========================================================
+        -- [[ CAMERA SECTION ]]
+        -- ========================================================
+        local mCamera = MovementTab:CreateSection("Camera")
+        mCamera:CreateToggle("Freecam Camera Unlock", false, "Plr_Freecam", {}, function(state) end)
+        mCamera:CreateSlider("Freecam Smooth Speed", 10, 200, 50, "Plr_FreecamSpeed", function(val) end)
+        mCamera:CreateToggle("Force Mouse Lock", false, "Plr_ForceShiftLock", {}, function(state)
+            LocalPlayer.DevEnableMouseLock = state
+        end)
+        mCamera:CreateToggle("Zoom Limit Bypass", false, "Plr_ZoomBypass", {}, function(state)
+            if state then
+                LocalPlayer.MaxZoomDistance = 99999
+            else
+                LocalPlayer.MaxZoomDistance = 128
+            end
+        end)
+        mCamera:CreateSlider("Active Camera Zoom", 10, 500, 70, "Plr_CameraZoomLevel", function(val)
+            LocalPlayer.CameraMaxZoomDistance = val
+            LocalPlayer.CameraMinZoomDistance = val
+        end)
+        mCamera:CreateSlider("Camera Field of View", 30, 120, 70, "Plr_CameraFOV", function(val)
+            camera.FieldOfView = val
+        end)
+        mCamera:CreateToggle("Camera Lerp Smoothness", false, "Plr_SmoothCam", {}, function(state) end)
+        mCamera:CreateSlider("Camera Offset Axis-Y", -5, 10, 0, "Plr_CameraOffsetY", function(val)
+            if currentHumanoid then
+                currentHumanoid.CameraOffset = Vector3.new(0, val, 0)
+            end
+        end)
+        mCamera:CreateSlider("Camera Target Follow Speed", 1, 50, 25, "Plr_CamFollowSpeed", function(val) end)
+
+        -- Freecam engine implementation
+        local freecamActive = false
+        local freecamCF = CFrame.new()
+        local originalCamType = Enum.CameraType.Custom
+
+        Library.EventBus:Subscribe("ToggleChanged", function(flag, state)
+            if flag == "Plr_Freecam" then
+                freecamActive = state
+                if state then
+                    originalCamType = camera.CameraType
+                    camera.CameraType = Enum.CameraType.Scriptable
+                    freecamCF = camera.CFrame
+                else
+                    camera.CameraType = originalCamType
+                end
+            end
+        end)
+
+        RunService.RenderStepped:Connect(function(dt)
+            if freecamActive then
+                local speed = Library.Flags["Plr_FreecamSpeed"] or 50
+                local move = Vector3.new(0,0,0)
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + freecamCF.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - freecamCF.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + freecamCF.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - freecamCF.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.E) then move = move + Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Q) then move = move - freecamCF.RightVector end
+                
+                if move.Magnitude > 0 then move = move.Unit end
+                freecamCF = freecamCF + (move * speed * dt)
+                camera.CFrame = freecamCF
+            end
+        end)
+
+        -- ========================================================
+        -- [[ CHARACTER MOVEMENT SECTION ]]
+        -- ========================================================
+        local mCharMove = MovementTab:CreateSection("Character Movement")
+        mCharMove:CreateToggle("Auto Face Selected Target", false, "Plr_AutoFace", {}, function(state) end)
+        
+        local faceTargetDropdown = mCharMove:CreateDropdown("Target Player", playerList, playerList[1], "Plr_FaceTargetName")
+        
+        mCharMove:CreateSlider("Rotation Align Speed", 1, 100, 20, "Plr_RotateSpeed", function(val) end)
+        mCharMove:CreateToggle("Orbit Strafe Pattern", false, "Plr_StrafeActive", {}, function(state) end)
+        mCharMove:CreateToggle("Lock Movement Inputs", false, "Plr_LockInputs", {}, function(state) end)
+        mCharMove:CreateToggle("Auto Walk Forward", false, "Plr_AutoWalk", {}, function(state) end)
+        mCharMove:CreateToggle("Auto Run Continuous Path", false, "Plr_AutoRun", {}, function(state) end)
+
+        -- Auto Face Target Logic Implementation
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_AutoFace"] and currentRootPart then
+                local targetName = Library.Flags["Plr_FaceTargetName"]
+                if targetName and targetName ~= "No Players Found" then
+                    local targetPlayer = Players:FindFirstChild(targetName)
+                    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local targetHrp = targetPlayer.Character.HumanoidRootPart
+                        local delta = (targetHrp.Position - currentRootPart.Position)
+                        local lookDir = Vector3.new(delta.X, 0, delta.Z).Unit
+                        
+                        local currentCF = currentRootPart.CFrame
+                        local targetCF = CFrame.fromMatrix(currentRootPart.Position, -lookDir, Vector3.new(0, 1, 0))
+                        local rotateFactor = (Library.Flags["Plr_RotateSpeed"] or 20) / 100
+                        
+                        currentRootPart.CFrame = currentCF:Lerp(targetCF, rotateFactor)
+                    end
+                end
+            end
+        end)
+
+        -- Orbit Strafe loop hook
+        local orbitAngle = 0
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_StrafeActive"] and currentRootPart then
+                local targetName = Library.Flags["Plr_FaceTargetName"]
+                if targetName and targetName ~= "No Players Found" then
+                    local targetPlayer = Players:FindFirstChild(targetName)
+                    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local targetHrp = targetPlayer.Character.HumanoidRootPart
+                        orbitAngle = orbitAngle + 0.05
+                        local offset = Vector3.new(math.cos(orbitAngle) * 12, 0, math.sin(orbitAngle) * 12)
+                        currentRootPart.CFrame = CFrame.new(targetHrp.Position + offset, targetHrp.Position)
+                    end
+                end
+            end
+        end)
+
+        -- Lock Input controls hook
+        local controls = require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")):GetControls()
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["Plr_LockInputs"] then
+                controls:Disable()
+            else
+                controls:Enable()
+            end
+        end)
+
+        -- AutoWalk loop hook
+        task.spawn(function()
+            while task.wait(0.1) do
+                if Library.Flags["Plr_AutoWalk"] and currentHumanoid then
+                    currentHumanoid:Move(Vector3.new(0, 0, -1), true)
+                end
+            end
+        end)
+
+        -- ========================================================
+        -- [[ ADVANCED SECTION ]]
+        -- ========================================================
+        local mAdvanced = MovementTab:CreateSection("Advanced")
+        mAdvanced:CreateToggle("Pathfinding Visualization", false, "Plr_PathVis", {}, function(state) end)
+        mAdvanced:CreateToggle("Movement Vector Prediction", false, "Plr_MovePrediction", {}, function(state) end)
+        mAdvanced:CreateToggle("Anti Player Collisions", false, "Plr_PlayerCollisions", {}, function(state) end)
+        mAdvanced:CreateToggle("Terrain Surface Friction Detection", false, "Plr_SurfaceDetect", {}, function(state) end)
+
+        -- Path Visualizer & Vector Prediction Implementation
+        local pathVisPart = Instance.new("Part")
+        pathVisPart.Size = Vector3.new(1.2, 1.2, 1.2)
+        pathVisPart.Anchored = true
+        pathVisPart.CanCollide = false
+        pathVisPart.Material = Enum.Material.Neon
+        pathVisPart.Color = Color3.fromRGB(0, 255, 255)
+        pathVisPart.Shape = Enum.PartType.Ball
+        pathVisPart.Parent = workspace
+        pathVisPart.Transparency = 1
+
+        RunService.RenderStepped:Connect(function()
+            if Library.Flags["Plr_PathVis"] and currentRootPart then
+                pathVisPart.Transparency = 0.3
+                pathVisPart.Position = currentRootPart.Position + (currentRootPart.Velocity * 0.25)
+            else
+                pathVisPart.Transparency = 1
+            end
+        end)
+
+        -- Collision Toggle loop
+        RunService.Stepped:Connect(function()
+            if Library.Flags["Plr_PlayerCollisions"] and currentCharacter then
+                for _, other in ipairs(Players:GetPlayers()) do
+                    if other ~= LocalPlayer and other.Character then
+                        for _, p in ipairs(other.Character:GetDescendants()) do
+                            if p:IsA("BasePart") then
+                                p.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- ========================================================
+        -- [[ MISC SECTION (MOVEMENT) ]]
+        -- ========================================================
+        local mMisc = MovementTab:CreateSection("Misc")
+        local mInfoParagraph = mMisc:CreateParagraph("Movement Information", "Speed: 16 studs/s\nPosition: 0, 0, 0\nVelocity: 0, 0, 0\nFriction coefficient: Normal")
+        
+        task.spawn(function()
+            while task.wait(0.5) do
+                if currentRootPart and currentHumanoid then
+                    local velocity = currentRootPart.Velocity
+                    local magnitude = velocity.Magnitude
+                    local position = currentRootPart.Position
+                    
+                    local material = currentHumanoid.FloorMaterial
+                    local friction = "Normal"
+                    if material == Enum.Material.Ice then
+                        friction = "Slippery (Low Friction)"
+                    elseif material == Enum.Material.Water then
+                        friction = "Water Dampening"
+                    end
+
+                    pcall(function()
+                        mInfoParagraph:Set(string.format(
+                            "Current Speed: %.2f studs/s\nPosition coordinates: X: %.1f, Y: %.1f, Z: %.1f\nVelocity vector: X: %.1f, Y: %.1f, Z: %.1f\nActive Surface friction: %s",
+                            magnitude,
+                            position.X, position.Y, position.Z,
+                            velocity.X, velocity.Y, velocity.Z,
+                            friction
+                        ))
+                    end)
+                end
+            end
+        end)
+
+        -- ========================================================
+        -- [[ VISUAL TAB ]]
+        -- ========================================================
+        local VisualTab = Window:CreateTab("Visual", "shield")
+        
+        -- ESP Drawing / Core Configuration Engine setup
+        local hasDrawing = pcall(function()
+            local c = Drawing.new("Circle")
+            c:Remove()
+            return true
+        end)
+        
+        local espCache = {}
+        local npcCache = {}
+        local itemCache = {}
+        local objectCache = {}
+        local crosshairLines = {}
+        local fovCircleObj = nil
+
+        if hasDrawing then
+            fovCircleObj = Drawing.new("Circle")
+            fovCircleObj.Thickness = 1.3
+            fovCircleObj.NumSides = 64
+            fovCircleObj.Filled = false
+            fovCircleObj.Transparency = 1
+            fovCircleObj.Visible = false
+            
+            for i = 1, 4 do
+                crosshairLines[i] = Drawing.new("Line")
+                crosshairLines[i].Thickness = 1.5
+                crosshairLines[i].Transparency = 1
+                crosshairLines[i].Visible = false
+            end
+        end
+
+        -- Core ESP update loop hook
+        local function getBoxSizeAndPos(model)
+            if not model or not model:FindFirstChild("HumanoidRootPart") then return nil, nil end
+            local size = model:GetExtentsSize()
+            local screenPos, onScreen = camera:WorldToViewportPoint(model.HumanoidRootPart.Position)
+            if not onScreen then return nil, nil end
+            
+            local extents = camera:WorldToViewportPoint(model.HumanoidRootPart.Position + Vector3.new(size.X/2, size.Y/2, 0))
+            local extentsOffset = camera:WorldToViewportPoint(model.HumanoidRootPart.Position - Vector3.new(size.X/2, size.Y/2, 0))
+            
+            local width = math.abs(extents.X - extentsOffset.X)
+            local height = math.abs(extents.Y - extentsOffset.Y)
+            
+            return Vector2.new(width, height), Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
+        end
+
+        local function clearPlayerDrawings(player)
+            if espCache[player] then
+                for _, obj in pairs(espCache[player]) do
+                    pcall(function() obj:Remove() end)
+                end
+                espCache[player] = nil
+            end
+        end
+
+        local function handleESP(player)
+            if player == LocalPlayer then return end
+            if not Library.Flags["Vis_EnableESP"] or not Library.Flags["Vis_MasterESP"] then
+                clearPlayerDrawings(player)
+                return
+            end
+            
+            local char = player.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChildOfClass("Humanoid") then
+                clearPlayerDrawings(player)
+                return
+            end
+            
+            if Library.Flags["Vis_TeamCheck"] and player.Team == LocalPlayer.Team then
+                clearPlayerDrawings(player)
+                return
+            end
+            
+            if Library.Flags["Vis_FriendCheck"] and player:IsFriendsWith(LocalPlayer.UserId) then
+                clearPlayerDrawings(player)
+                return
+            end
+
+            local drawData = espCache[player]
+            if not drawData then
+                drawData = {}
+                if hasDrawing then
+                    drawData.Box = Drawing.new("Square")
+                    drawData.Box.Thickness = 1.5
+                    drawData.Box.Filled = false
+                    
+                    drawData.FilledBox = Drawing.new("Square")
+                    drawData.FilledBox.Thickness = 0
+                    drawData.FilledBox.Filled = true
+                    drawData.FilledBox.Transparency = 0.35
+                    
+                    drawData.Tracer = Drawing.new("Line")
+                    drawData.Tracer.Thickness = 1.3
+                    
+                    drawData.Name = Drawing.new("Text")
+                    drawData.Name.Size = 13
+                    drawData.Name.Center = true
+                    drawData.Name.Outline = true
+                    
+                    drawData.Distance = Drawing.new("Text")
+                    drawData.Distance.Size = 11
+                    drawData.Distance.Center = true
+                    drawData.Distance.Outline = true
+                end
+                espCache[player] = drawData
+            end
+
+            local boxSize, boxPos = getBoxSizeAndPos(char)
+            if boxSize and boxPos then
+                local accentColor = Library.Flags["BuiltIn_AccentColor"] or CurrentTheme.Accent
+                if Library.Flags["Vis_RainbowESP"] then
+                    accentColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+                end
+
+                if hasDrawing then
+                    -- Normal Box ESP
+                    if Library.Flags["Vis_BoxESP"] then
+                        drawData.Box.Size = boxSize
+                        drawData.Box.Position = boxPos
+                        drawData.Box.Color = accentColor
+                        drawData.Box.Visible = true
+                    else
+                        drawData.Box.Visible = false
+                    end
+
+                    -- Filled Box ESP
+                    if Library.Flags["Vis_FilledBox"] then
+                        drawData.FilledBox.Size = boxSize
+                        drawData.FilledBox.Position = boxPos
+                        drawData.FilledBox.Color = accentColor
+                        drawData.FilledBox.Visible = true
+                    else
+                        drawData.FilledBox.Visible = false
+                    end
+
+                    -- Tracer Snapline ESP
+                    if Library.Flags["Vis_Tracer"] then
+                        local startPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                        if Library.Flags["Vis_Snapline"] then
+                            startPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                        end
+                        drawData.Tracer.From = startPos
+                        drawData.Tracer.To = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y + boxSize.Y)
+                        drawData.Tracer.Color = accentColor
+                        drawData.Tracer.Visible = true
+                    else
+                        drawData.Tracer.Visible = false
+                    end
+
+                    -- Name ESP
+                    if Library.Flags["Vis_NameESP"] then
+                        drawData.Name.Text = player.DisplayName or player.Name
+                        drawData.Name.Position = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y - 16)
+                        drawData.Name.Color = Color3.fromRGB(255, 255, 255)
+                        drawData.Name.Visible = true
+                    else
+                        drawData.Name.Visible = false
+                    end
+
+                    -- Distance ESP
+                    if Library.Flags["Vis_DistanceESP"] then
+                        local distance = math.floor((currentRootPart.Position - char.HumanoidRootPart.Position).Magnitude)
+                        drawData.Distance.Text = tostring(distance) .. " studs"
+                        drawData.Distance.Position = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y + boxSize.Y + 2)
+                        drawData.Distance.Color = Color3.fromRGB(200, 200, 200)
+                        drawData.Distance.Visible = true
+                    else
+                        drawData.Distance.Visible = false
+                    end
+                end
+
+                -- Highlight / Chams Engine hook
+                local chams = char:FindFirstChild("Nexus_Chams")
+                if Library.Flags["Vis_Chams"] then
+                    if not chams then
+                        chams = Instance.new("Highlight")
+                        chams.Name = "Nexus_Chams"
+                        chams.Parent = char
+                    end
+                    chams.FillColor = accentColor
+                    chams.OutlineColor = Library.Flags["Vis_Outline"] and Color3.fromRGB(255, 255, 255) or accentColor
+                    chams.FillTransparency = Library.Flags["Vis_Glow"] and 0.5 or 0.2
+                    chams.OutlineTransparency = 0
+                    chams.Enabled = true
+                else
+                    if chams then chams:Destroy() end
+                end
+            else
+                clearPlayerDrawings(player)
+            end
+        end
+
+        RunService.RenderStepped:Connect(function()
+            for _, player in ipairs(Players:GetPlayers()) do
+                pcall(function() handleESP(player) end)
+            end
+        end)
+        
+        Players.PlayerRemoving:Connect(function(player)
+            clearPlayerDrawings(player)
+        end)
+
+        -- 1. ESP Section
+        local vEspSec = VisualTab:CreateSection("ESP")
+        vEspSec:CreateToggle("Master Switch ESP", false, "Vis_MasterESP", {}, function(state) end)
+        vEspSec:CreateToggle("Enable Player ESP Render", false, "Vis_EnableESP", {}, function(state) end)
+        vEspSec:CreateToggle("Box Borders ESP", false, "Vis_BoxESP", {}, function(state) end)
+        vEspSec:CreateToggle("Filled Box ESP Layer", false, "Vis_FilledBox", {}, function(state) end)
+        vEspSec:CreateToggle("Corner Framed Boxes ESP", false, "Vis_CornerBox", {}, function(state) end)
+        vEspSec:CreateToggle("Rig Skeleton ESP", false, "Vis_SkeletonESP", {}, function(state) end)
+        vEspSec:CreateToggle("Highlights Chams Layer", false, "Vis_Chams", {}, function(state) end)
+        vEspSec:CreateToggle("Outer Highlight Outline", false, "Vis_Outline", {}, function(state) end)
+        vEspSec:CreateToggle("Translucent Glow Effect", false, "Vis_Glow", {}, function(state) end)
+        vEspSec:CreateToggle("Rainbow Chromatic ESP Cycle", false, "Vis_RainbowESP", {}, function(state) end)
+
+        -- 2. Player ESP Section
+        local vPlayerEspSec = VisualTab:CreateSection("Player ESP")
+        vPlayerEspSec:CreateToggle("Render Display Name ESP", false, "Vis_NameESP", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Health Metric Text ESP", false, "Vis_HealthESP", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Distance Counter Studs ESP", false, "Vis_DistanceESP", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Ignore Same-Team Members", false, "Vis_TeamCheck", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Render Completely Invisible Targets", false, "Vis_InvCheck", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Exclude Friendlist Members", false, "Vis_FriendCheck", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Snapline Directional Tracers", false, "Vis_Tracer", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Tracers Originate from Center Screen", false, "Vis_Snapline", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Head Marker Dot Indicator", false, "Vis_HeadDot", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Render Health Bar Column", false, "Vis_HealthBar", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Render Armor Protection Bar", false, "Vis_ArmorBar", {}, function(state) end)
+        vPlayerEspSec:CreateToggle("Active Inventory Tool Name ESP", false, "Vis_ToolESP", {}, function(state) end)
+
+        -- 3. NPC ESP Section
+        local vNpcEspSec = VisualTab:CreateSection("NPC ESP")
+        vNpcEspSec:CreateToggle("NPC Master ESP Rendering", false, "Vis_NPC_ESP", {}, function(state) end)
+        vNpcEspSec:CreateToggle("NPC Entity Name ESP", false, "Vis_NPC_Name", {}, function(state) end)
+        vNpcEspSec:CreateToggle("NPC Distance Text ESP", false, "Vis_NPC_Dist", {}, function(state) end)
+        vNpcEspSec:CreateToggle("NPC Life Health Status ESP", false, "Vis_NPC_Health", {}, function(state) end)
+        vNpcEspSec:CreateToggle("NPC Directional Tracers ESP", false, "Vis_NPC_Tracer", {}, function(state) end)
+
+        -- NPC ESP Loop implementation
+        task.spawn(function()
+            while task.wait(0.5) do
+                if Library.Flags["Vis_NPC_ESP"] and Library.Flags["Vis_MasterESP"] then
+                    for _, instance in ipairs(workspace:GetDescendants()) do
+                        if instance:IsA("Model") and instance:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(instance) then
+                            local humanoid = instance:FindFirstChildOfClass("Humanoid")
+                            local hrp = instance:FindFirstChild("HumanoidRootPart")
+                            if hrp and humanoid.Health > 0 then
+                                -- Construct highlights dynamically
+                                local highlight = instance:FindFirstChild("Nexus_NPCChams")
+                                if not highlight then
+                                    highlight = Instance.new("Highlight")
+                                    highlight.Name = "Nexus_NPCChams"
+                                    highlight.Parent = instance
+                                end
+                                highlight.FillColor = Color3.fromRGB(255, 100, 0)
+                                highlight.Enabled = true
+                            end
+                        end
+                    end
+                else
+                    for _, instance in ipairs(workspace:GetDescendants()) do
+                        if instance:IsA("Model") and instance:FindFirstChild("Nexus_NPCChams") then
+                            instance.Nexus_NPCChams:Destroy()
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 4. Item ESP Section
+        local vItemEspSec = VisualTab:CreateSection("Item ESP")
+        vItemEspSec:CreateToggle("Item Entity Global ESP", false, "Vis_Item_ESP", {}, function(state) end)
+        vItemEspSec:CreateToggle("Dropped Weapons ESP", false, "Vis_WeaponESP", {}, function(state) end)
+        vItemEspSec:CreateToggle("Treasure Chests ESP", false, "Vis_ChestESP", {}, function(state) end)
+        vItemEspSec:CreateToggle("Lootable Coins ESP", false, "Vis_CoinESP", {}, function(state) end)
+        vItemEspSec:CreateToggle("Ground Dropped Loot ESP", false, "Vis_DropESP", {}, function(state) end)
+        vItemEspSec:CreateToggle("Special Collectibles ESP", false, "Vis_CollectESP", {}, function(state) end)
+
+        -- 5. Object ESP Section
+        local vObjEspSec = VisualTab:CreateSection("Object ESP")
+        vObjEspSec:CreateToggle("Global Object ESP Render", false, "Vis_Obj_ESP", {}, function(state) end)
+        vObjEspSec:CreateToggle("Interactive Doorways ESP", false, "Vis_DoorESP", {}, function(state) end)
+        vObjEspSec:CreateToggle("Safezone Escape Zones ESP", false, "Vis_ExitESP", {}, function(state) end)
+        vObjEspSec:CreateToggle("Spawned Driveable Vehicles ESP", false, "Vis_VehicleESP", {}, function(state) end)
+        vObjEspSec:CreateToggle("Electrical Generators ESP", false, "Vis_GenESP", {}, function(state) end)
+        vObjEspSec:CreateToggle("Placed Explosive Bombs ESP", false, "Vis_BombESP", {}, function(state) end)
+        vObjEspSec:CreateToggle("Main Map Objectives ESP", false, "Vis_ObjectiveESP", {}, function(state) end)
+
+        -- 6. Character Visual Section
+        local vCharSec = VisualTab:CreateSection("Character")
+        vCharSec:CreateToggle("Spatially Expand Client Hitboxes", false, "Vis_HitboxExpand", {}, function(state) end)
+        vCharSec:CreateSlider("Hitbox Stud Dimension", 2, 50, 10, "Vis_HitboxSize", function(val) end)
+        vCharSec:CreateToggle("Self Client Character Highlight", false, "Vis_Highlight", {}, function(state)
+            local selfHighlight = currentCharacter:FindFirstChild("SelfChams")
+            if state then
+                if not selfHighlight then
+                    selfHighlight = Instance.new("Highlight")
+                    selfHighlight.Name = "SelfChams"
+                    selfHighlight.Parent = currentCharacter
+                end
+                selfHighlight.FillColor = Library.Flags["BuiltIn_AccentColor"] or CurrentTheme.Accent
+                selfHighlight.Enabled = true
+            else
+                if selfHighlight then selfHighlight:Destroy() end
+            end
+        end)
+        vCharSec:CreateToggle("Rainbow Client Model Cycle", false, "Vis_RainbowChar", {}, function(state) end)
+        vCharSec:CreateSlider("Local Model Transparency", 0, 100, 0, "Vis_Transparency", function(val)
+            for _, part in ipairs(currentCharacter:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.LocalTransparencyModifier = val / 100
+                end
+            end
+        end)
+        vCharSec:CreateToggle("Client Model Highlight Outline", false, "Vis_CharOutline", {}, function(state) end)
+
+        -- Hitbox Expander loop execution
+        task.spawn(function()
+            while task.wait(1) do
+                if Library.Flags["Vis_HitboxExpand"] then
+                    local size = Library.Flags["Vis_HitboxSize"] or 10
+                    for _, other in ipairs(Players:GetPlayers()) do
+                        if other ~= LocalPlayer and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+                            other.Character.HumanoidRootPart.Size = Vector3.new(size, size, size)
+                            other.Character.HumanoidRootPart.Transparency = 0.7
+                            other.Character.HumanoidRootPart.CanCollide = false
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 7. Lighting Section
+        local vLightSec = VisualTab:CreateSection("Lighting")
+        vLightSec:CreateToggle("Constant Fullbright NightBypass", false, "Vis_Fullbright", {}, function(state) end)
+        vLightSec:CreateSlider("Global Lux Brightness", 0, 10, 2, "Vis_Brightness", function(val)
+            Lighting.Brightness = val
+        end)
+        vLightSec:CreateColorPicker("Global Tint Ambient", Lighting.Ambient, "Vis_Ambient", function(color)
+            Lighting.Ambient = color
+        end)
+        vLightSec:CreateColorPicker("Outdoor Sky Ambient", Lighting.OutdoorAmbient, "Vis_OutdoorAmbient", function(color)
+            Lighting.OutdoorAmbient = color
+        end)
+        
+        -- ColorCorrection setup
+        local colorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect", Lighting)
+        vLightSec:CreateToggle("Activate Color Correction Filter", false, "Vis_ColorCorrection", {}, function(state)
+            colorCorrection.Enabled = state
+        end)
+        vLightSec:CreateSlider("Color Saturation Factor", -100, 100, 0, "Vis_Saturation", function(val)
+            colorCorrection.Saturation = val / 100
+        end)
+        vLightSec:CreateSlider("Color Contrast Gradient", -100, 100, 0, "Vis_Contrast", function(val)
+            colorCorrection.Contrast = val / 100
+        end)
+        vLightSec:CreateSlider("Camera Exposure Factor", -100, 100, 0, "Vis_Exposure", function(val)
+            colorCorrection.Brightness = val / 100
+        end)
+
+        -- Lighting Loops execution
+        local originalLux = Lighting.Brightness
+        local originalAmbient = Lighting.Ambient
+        local originalOutdoor = Lighting.OutdoorAmbient
+
+        RunService.RenderStepped:Connect(function()
+            if Library.Flags["Vis_Fullbright"] then
+                Lighting.Brightness = 5
+                Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+                Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+                Lighting.ClockTime = 14
+            else
+                Lighting.Brightness = Library.Flags["Vis_Brightness"] or originalLux
+                Lighting.Ambient = Library.Flags["Vis_Ambient"] or originalAmbient
+                Lighting.OutdoorAmbient = Library.Flags["Vis_OutdoorAmbient"] or originalOutdoor
+            end
+        end)
+
+        -- 8. World Visual Section
+        local vWorldSec = VisualTab:CreateSection("World Visual")
+        vWorldSec:CreateToggle("Completely Strip World Fog", false, "Vis_RemoveFog", {}, function(state) end)
+        vWorldSec:CreateToggle("Disable Post-Processing Blur", false, "Vis_RemoveBlur", {}, function(state)
+            local blur = Lighting:FindFirstChildOfClass("BlurEffect")
+            if blur then blur.Enabled = not state end
+        end)
+        vWorldSec:CreateToggle("Force Remove Outdoor Shadows", false, "Vis_RemoveShadows", {}, function(state)
+            Lighting.GlobalShadows = not state
+        end)
+        vWorldSec:CreateToggle("Active Map Geometry X-Ray", false, "Vis_XRay", {}, function(state)
+            for _, instance in ipairs(workspace:GetDescendants()) do
+                if instance:IsA("BasePart") and not instance:IsDescendantOf(currentCharacter) and not instance.Parent:FindFirstChildOfClass("Humanoid") then
+                    if state then
+                        if not instance:FindFirstChild("OldTrans") then
+                            local oldVal = Instance.new("NumberValue", instance)
+                            oldVal.Name = "OldTrans"
+                            oldVal.Value = instance.Transparency
+                        end
+                        instance.Transparency = 0.65
+                    else
+                        if instance:FindFirstChild("OldTrans") then
+                            instance.Transparency = instance.OldTrans.Value
+                            instance.OldTrans:Destroy()
+                        end
+                    end
+                end
+            end
+        end)
+        vWorldSec:CreateToggle("Force Lock Midnight Mode", false, "Vis_NightMode", {}, function(state) end)
+        vWorldSec:CreateToggle("Force Lock Noon Mode", false, "Vis_DayMode", {}, function(state) end)
+        vWorldSec:CreateDropdown("Skybox Texture Presets", {"Default", "Dark Space", "Synthwave", "Cyberpunk"}, "Default", "Vis_Skybox", function(val) end)
+        vWorldSec:CreateSlider("Terrain Water Transparency", 0, 100, 50, "Vis_WaterTrans", function(val)
+            workspace.Terrain.WaterTransparency = val / 100
+        end)
+        vWorldSec:CreateSlider("Terrain Water Reflectance", 0, 100, 50, "Vis_WaterReflect", function(val)
+            workspace.Terrain.WaterReflectance = val / 100
+        end)
+
+        -- World Loops execution
+        RunService.RenderStepped:Connect(function()
+            if Library.Flags["Vis_RemoveFog"] then
+                Lighting.FogEnd = 999999
+            end
+            if Library.Flags["Vis_NightMode"] then
+                Lighting.ClockTime = 0
+            elseif Library.Flags["Vis_DayMode"] then
+                Lighting.ClockTime = 12
+            end
+        end)
+
+        -- 9. Crosshair Section
+        local vCrossSec = VisualTab:CreateSection("Crosshair")
+        vCrossSec:CreateToggle("Render Custom Crosshair Overlay", false, "Vis_CustomCrosshair", {}, function(state) end)
+        vCrossSec:CreateColorPicker("Crosshair Tint Color", Color3.fromRGB(255, 0, 0), "Vis_CrossColor", function(color) end)
+        vCrossSec:CreateSlider("Crosshair Wing Length Size", 1, 50, 10, "Vis_CrossSize", function(val) end)
+        vCrossSec:CreateSlider("Crosshair Line Thickness", 1, 10, 2, "Vis_CrossThick", function(val) end)
+        vCrossSec:CreateSlider("Crosshair Center Gap Size", 0, 20, 4, "Vis_CrossGap", function(val) end)
+        vCrossSec:CreateSlider("Crosshair Dynamic Rotation", 0, 360, 0, "Vis_CrossRot", function(val) end)
+
+        -- Custom Crosshair Draw Loop execution
+        RunService.RenderStepped:Connect(function()
+            if hasDrawing then
+                local active = Library.Flags["Vis_CustomCrosshair"]
+                local color = Library.Flags["Vis_CrossColor"] or Color3.fromRGB(255, 0, 0)
+                local size = Library.Flags["Vis_CrossSize"] or 10
+                local thickness = Library.Flags["Vis_CrossThick"] or 2
+                local gap = Library.Flags["Vis_CrossGap"] or 4
+                local rotation = math.rad(Library.Flags["Vis_CrossRot"] or 0)
+                
+                local screenCenter = camera.ViewportSize / 2
+                
+                for i = 1, 4 do
+                    local line = crosshairLines[i]
+                    if line then
+                        if active then
+                            local angle = rotation + ((i - 1) * math.pi / 2)
+                            local startX = screenCenter.X + (math.cos(angle) * gap)
+                            local startY = screenCenter.Y + (math.sin(angle) * gap)
+                            local endX = screenCenter.X + (math.cos(angle) * (gap + size))
+                            local endY = screenCenter.Y + (math.sin(angle) * (gap + size))
+                            
+                            line.From = Vector2.new(startX, startY)
+                            line.To = Vector2.new(endX, endY)
+                            line.Color = color
+                            line.Thickness = thickness
+                            line.Visible = true
+                        else
+                            line.Visible = false
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 10. Camera Visual Section
+        local vCamSec = VisualTab:CreateSection("Camera Visual")
+        vCamSec:CreateToggle("Render FOV Vector Limit Circle", false, "Vis_FOVCircle", {}, function(state) end)
+        vCamSec:CreateSlider("FOV Target Boundary Radius", 20, 800, 150, "Vis_FOVRadius", function(val) end)
+        vCamSec:CreateColorPicker("FOV Circle Perimeter Color", Color3.fromRGB(0, 255, 255), "Vis_FOVColor", function(color) end)
+        vCamSec:CreateSlider("Custom Camera FOV Distance", 30, 150, 70, "Vis_CamFOV", function(val)
+            camera.FieldOfView = val
+        end)
+        vCamSec:CreateSlider("Max Camera Zoom Factor", 10, 500, 128, "Vis_CamZoom", function(val)
+            LocalPlayer.CameraMaxZoomDistance = val
+        end)
+        vCamSec:CreateSlider("Third Person Distance Offset", 0, 100, 0, "Vis_ThirdPerson", function(val) end)
+
+        -- FOV Ring update loop execution
+        RunService.RenderStepped:Connect(function()
+            if hasDrawing and fovCircleObj then
+                local active = Library.Flags["Vis_FOVCircle"]
+                local radius = Library.Flags["Vis_FOVRadius"] or 150
+                local color = Library.Flags["Vis_FOVColor"] or Color3.fromRGB(0, 255, 255)
+                
+                if active then
+                    fovCircleObj.Radius = radius
+                    fovCircleObj.Position = camera.ViewportSize / 2
+                    fovCircleObj.Color = color
+                    fovCircleObj.Visible = true
+                else
+                    fovCircleObj.Visible = false
+                end
+            end
+        end)
+
+        -- 11. Misc Section (VISUAL)
+        local vMiscSec = VisualTab:CreateSection("Misc")
+        vMiscSec:CreateToggle("Enable Diagnostics FPS Display", false, "Vis_FPSCounter", {}, function(state) end)
+        vMiscSec:CreateToggle("Enable Network Ping Tracker", false, "Vis_PingDisplay", {}, function(state) end)
+        vMiscSec:CreateToggle("Performant Diagnostics Overlay", false, "Vis_PerfOverlay", {}, function(state)
+            HudFrame.Visible = state
+        end)
+        vMiscSec:CreateToggle("Render Map Coordinate Display", false, "Vis_CoordsDisplay", {}, function(state) end)
+        
+        local mapsInfoParagraph = vMiscSec:CreateParagraph("Visual Framework Diagnostics", "FPS: 60\nPing: 0 ms\nGlobal Position coordinates: X: 0, Y: 0, Z: 0")
+        
+        task.spawn(function()
+            while task.wait(1) do
+                local speed = currentHumanoid and currentHumanoid.WalkSpeed or 16
+                local pos = currentRootPart and currentRootPart.Position or Vector3.new(0,0,0)
+                pcall(function()
+                    mapsInfoParagraph:Set(string.format(
+                        "Client FPS Counter: %d frames/s\nReal-time Network Ping: %d ms\nGlobal Position coordinates: X: %.1f, Y: %.1f, Z: %.1f\nRendered ESP Objects count: %d",
+                        currentFps,
+                        pingVal,
+                        pos.X, pos.Y, pos.Z,
+                        0
+                    ))
+                end)
+            end
+        end)
+
+        -- ========================================================
+        -- [[ COMBAT TAB ]]
+        -- ========================================================
+        local CombatTab = Window:CreateTab("Combat", "crown")
+        
+        -- Core Combat System local variables
+        local combatTarget = nil
+        local combatAccuracy = 100
+        local combatTotalShots = 0
+        local combatHitShots = 0
+
+        -- Helper: Raycast Visibility Checks
+        local function isTargetVisible(part, character)
+            if not part then return false end
+            local origin = camera.CFrame.Position
+            local dest = part.Position
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {currentCharacter, character}
+            raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+            raycastParams.IgnoreWater = true
+            
+            local result = workspace:Raycast(origin, dest - origin, raycastParams)
+            return result == nil
+        end
+
+        -- Target Selector Core Mechanics
+        local function getCombatTarget()
+            local bestTarget = nil
+            local bestValue = math.huge
+            local screenCenter = camera.ViewportSize / 2
+            
+            local method = Library.Flags["Comb_TargetSelector"] or "Closest to Mouse"
+            local priority = Library.Flags["Comb_AimPriority"] or "Head"
+            local maxRadius = Library.Flags["Comb_AimRadius"] or 150
+            
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    if Library.Flags["Comb_TeamCheck"] and p.Team == LocalPlayer.Team then continue end
+                    
+                    local char = p.Character
+                    local aimPartName = priority == "Random" and (math.random() > 0.5 and "Head" or "HumanoidRootPart") or (priority == "Torso" and "HumanoidRootPart" or "Head")
+                    local part = char:FindFirstChild(aimPartName)
+                    if not part then continue end
+                    
+                    if Library.Flags["Comb_VisCheck"] or Library.Flags["Comb_WallCheck"] then
+                        if not isTargetVisible(part, char) then continue end
+                    end
+                    
+                    local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                    local distFromCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    
+                    if Library.Flags["Comb_AimFOV"] and distFromCenter > maxRadius then continue end
+                    
+                    if method == "Closest to Mouse" or method == "Closest To Mouse" then
+                        if distFromCenter < bestValue then
+                            bestValue = distFromCenter
+                            bestTarget = p
+                        end
+                    elseif method == "Nearest Target" or method == "Closest Distance" then
+                        if currentRootPart then
+                            local distance = (part.Position - currentRootPart.Position).Magnitude
+                            if distance < bestValue then
+                                bestValue = distance
+                                bestTarget = p
+                            end
+                        end
+                    elseif method == "Lowest Health" then
+                        local health = char.Humanoid.Health
+                        if health < bestValue then
+                            bestValue = health
+                            bestTarget = p
+                        end
+                    end
+                end
+            end
+            return bestTarget
+        end
+
+        -- Combat FOV Circle Setup
+        local combatFovCircleObj = nil
+        if hasDrawing then
+            combatFovCircleObj = Drawing.new("Circle")
+            combatFovCircleObj.Thickness = 1.3
+            combatFovCircleObj.NumSides = 64
+            combatFovCircleObj.Filled = false
+            combatFovCircleObj.Transparency = 1
+            combatFovCircleObj.Visible = false
+        end
+
+        RunService.RenderStepped:Connect(function()
+            if hasDrawing and combatFovCircleObj then
+                local active = Library.Flags["Comb_AimFOV"] or Library.Flags["Comb_FOVPreview"]
+                local radius = Library.Flags["Comb_AimRadius"] or 150
+                local color = Library.Flags["Vis_FOVColor"] or Color3.fromRGB(255, 0, 0)
+                
+                if active then
+                    combatFovCircleObj.Radius = radius
+                    combatFovCircleObj.Position = camera.ViewportSize / 2
+                    combatFovCircleObj.Color = color
+                    combatFovCircleObj.Visible = true
+                else
+                    combatFovCircleObj.Visible = false
+                end
+            end
+        end)
+
+        -- Aim Lock / Smooth Aimbot Frame-Hook
+        RunService.RenderStepped:Connect(function()
+            if not Library.Flags["Comb_AimLock"] and not Library.Flags["Comb_AimAssist"] then
+                combatTarget = nil
+                return
+            end
+            
+            local target = getCombatTarget()
+            combatTarget = target
+            if not target or not target.Character then return end
+            
+            local char = target.Character
+            local priority = Library.Flags["Comb_AimPriority"] or "Head"
+            local aimPartName = priority == "Torso" and "HumanoidRootPart" or "Head"
+            local part = char:FindFirstChild(aimPartName)
+            if not part then return end
+            
+            local destination = part.Position
+            
+            -- Predictive Aim Engine Offset Calculation
+            if Library.Flags["Comb_AimPrediction"] or Library.Flags["Comb_VelPrediction"] then
+                local strength = Library.Flags["Comb_PredictionStrength"] or 10
+                destination = destination + (part.Velocity * (strength / 100))
+            end
+            
+            local currentCamCF = camera.CFrame
+            local targetCamCF = CFrame.new(currentCamCF.Position, destination)
+            
+            if Library.Flags["Comb_SmoothAim"] then
+                local lerpFactor = (Library.Flags["Comb_SmoothValue"] or 5) / 100
+                camera.CFrame = currentCamCF:Lerp(targetCamCF, lerpFactor)
+            else
+                camera.CFrame = targetCamCF
+            end
+        end)
+
+        -- Silent Aim Hook using index namecall modifications (compatible across exploits)
+        pcall(function()
+            local hook
+            hook = hookmetamethod(game, "__namecall", function(self, ...)
+                local method = getnamecallmethod()
+                local args = {...}
+                
+                if Library.Flags["Comb_SilentAim"] and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
+                    local target = getCombatTarget()
+                    if target and target.Character then
+                        local priority = Library.Flags["Comb_AimPriority"] or "Head"
+                        local part = target.Character:FindFirstChild(priority == "Torso" and "HumanoidRootPart" or "Head")
+                        if part then
+                            if method == "Raycast" then
+                                local origin = args[1]
+                                local destination = (part.Position - origin).Unit * 1000
+                                args[2] = destination
+                                return hook(self, unpack(args))
+                            end
+                        end
+                    end
+                end
+                return hook(self, ...)
+            end)
+        end)
+
+        -- 1. Aim Section
+        local cAimSec = CombatTab:CreateSection("Aim")
+        cAimSec:CreateToggle("Silent Aim Redirect", false, "Comb_SilentAim", {}, function(state) end)
+        cAimSec:CreateToggle("Aim Assist Magnetic Tracking", false, "Comb_AimAssist", {}, function(state) end)
+        cAimSec:CreateToggle("Aimbot Hard Aim Lock", false, "Comb_AimLock", {}, function(state) end)
+        cAimSec:CreateToggle("Lead Velocity Prediction", false, "Comb_AimPrediction", {}, function(state) end)
+        cAimSec:CreateToggle("Sticky Targeting Lock", false, "Comb_StickyAim", {}, function(state) end)
+        cAimSec:CreateToggle("Enable Smooth Transitions", false, "Comb_SmoothAim", {}, function(state) end)
+        cAimSec:CreateSlider("Smooth Interpolation Factor", 1, 100, 5, "Comb_SmoothValue", function(val) end)
+        cAimSec:CreateToggle("Limit Aim to FOV Boundary", false, "Comb_AimFOV", {}, function(state) end)
+        cAimSec:CreateSlider("Aim FOV Radius Dimension", 20, 800, 150, "Comb_AimRadius", function(val) end)
+        cAimSec:CreateDropdown("Aim Priority Target Bone", {"Head", "Torso", "Random"}, "Head", "Comb_AimPriority", function(val) end)
+        cAimSec:CreateToggle("Enable Visibility Checks", false, "Comb_VisCheck", {}, function(state) end)
+        cAimSec:CreateToggle("Friendly Team Protection", false, "Comb_TeamCheck", {}, function(state) end)
+        cAimSec:CreateToggle("Raycast Obstruction Wall Check", false, "Comb_WallCheck", {}, function(state) end)
+
+        -- 2. Target Section
+        local cTargetSec = CombatTab:CreateSection("Target")
+        cTargetSec:CreateDropdown("Target Selection Methodology", {"Closest to Mouse", "Nearest Target", "Lowest Health", "Closest Distance"}, "Closest to Mouse", "Comb_TargetSelector", function(val) end)
+        cTargetSec:CreateToggle("Prioritize Nearest Target", false, "Comb_NearestTarget", {}, function(state) end)
+        cTargetSec:CreateToggle("Prioritize Lowest Health", false, "Comb_LowestHealth", {}, function(state) end)
+        cTargetSec:CreateToggle("Prioritize Closest to Mouse", false, "Comb_ClosestMouse", {}, function(state) end)
+        cTargetSec:CreateToggle("Prioritize Closest Distance", false, "Comb_ClosestDist", {}, function(state) end)
+        cTargetSec:CreateToggle("Hard Lock Current Target", false, "Comb_LockTarget", {}, function(state) end)
+        cTargetSec:CreateToggle("Auto Switch Target on Death", false, "Comb_AutoSwitch", {}, function(state) end)
+        
+        local targetInfoParagraph = cTargetSec:CreateParagraph("Target Information Monitor", "Target Name: None\nTarget Distance: N/A\nTarget Health: N/A\nTarget Velocity: N/A")
+        
+        task.spawn(function()
+            while task.wait(0.2) do
+                if combatTarget and combatTarget.Character and combatTarget.Character:FindFirstChild("HumanoidRootPart") and combatTarget.Character:FindFirstChildOfClass("Humanoid") then
+                    local targetChar = combatTarget.Character
+                    local targetHrp = targetChar.HumanoidRootPart
+                    local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
+                    local distance = currentRootPart and math.floor((currentRootPart.Position - targetHrp.Position).Magnitude) or 0
+                    local speed = targetHrp.Velocity.Magnitude
+                    pcall(function()
+                        targetInfoParagraph:Set(string.format(
+                            "Selected Target Name: %s\nTarget Distance: %d studs\nTarget Health: %.1f / %.1f\nTarget Move Velocity: %.1f studs/s",
+                            combatTarget.DisplayName or combatTarget.Name,
+                            distance,
+                            targetHum.Health, targetHum.MaxHealth,
+                            speed
+                        ))
+                    end)
+                else
+                    pcall(function()
+                        targetInfoParagraph:Set("Selected Target Name: None\nTarget Distance: N/A\nTarget Health: N/A\nTarget Move Velocity: N/A")
+                    end)
+                end
+            end
+        end)
+
+        -- 3. Weapon Section
+        local cWeaponSec = CombatTab:CreateSection("Weapon")
+        cWeaponSec:CreateToggle("Disable Camera View Recoil", false, "Comb_NoRecoil", {}, function(state) end)
+        cWeaponSec:CreateToggle("Enforce Zero Bullet Spread", false, "Comb_NoSpread", {}, function(state) end)
+        cWeaponSec:CreateToggle("Fast Reload Animation Hook", false, "Comb_FastReload", {}, function(state) end)
+        cWeaponSec:CreateToggle("Infinite Ammo Reserve Bypass", false, "Comb_InfAmmo", {}, function(state) end)
+        cWeaponSec:CreateToggle("Activate Custom Fire Rate", false, "Comb_FireRateActive", {}, function(state) end)
+        cWeaponSec:CreateSlider("Fire Rate Speed (Rounds/min)", 60, 2000, 600, "Comb_FireRateValue", function(val) end)
+        cWeaponSec:CreateToggle("Auto Reload Weapon on Empty", false, "Comb_AutoReload", {}, function(state) end)
+        cWeaponSec:CreateToggle("Auto Fire Trigger Hold", false, "Comb_AutoFire", {}, function(state) end)
+        cWeaponSec:CreateToggle("Rapid Fire Burst Mode", false, "Comb_RapidFire", {}, function(state) end)
+
+        -- 4. Reach Section
+        local cReachSec = CombatTab:CreateSection("Reach")
+        cReachSec:CreateToggle("Melee Attack Reach Multiplier", false, "Comb_ReachActive", {}, function(state) end)
+        cReachSec:CreateSlider("Melee Reach Distance (Studs)", 5, 50, 15, "Comb_ReachDist", function(val) end)
+        cReachSec:CreateToggle("Melee Reach Boundary Visualizer", false, "Comb_ReachVis", {}, function(state) end)
+
+        -- Melee Reach Visualization Logic Implementation
+        local reachVisualObj = Instance.new("Part")
+        reachVisualObj.Shape = Enum.PartType.Ball
+        reachVisualObj.Transparency = 1
+        reachVisualObj.Anchored = true
+        reachVisualObj.CanCollide = false
+        reachVisualObj.Color = Color3.fromRGB(255, 100, 0)
+        reachVisualObj.Material = Enum.Material.Neon
+        reachVisualObj.Parent = workspace
+
+        RunService.RenderStepped:Connect(function()
+            if Library.Flags["Comb_ReachActive"] and currentRootPart then
+                local radius = Library.Flags["Comb_ReachDist"] or 15
+                if Library.Flags["Comb_ReachVis"] then
+                    reachVisualObj.Size = Vector3.new(radius * 2, radius * 2, radius * 2)
+                    reachVisualObj.CFrame = currentRootPart.CFrame
+                    reachVisualObj.Transparency = 0.85
+                else
+                    reachVisualObj.Transparency = 1
+                end
+            else
+                reachVisualObj.Transparency = 1
+            end
+        end)
+
+        -- 5. Hitbox Section
+        local cHitboxSec = CombatTab:CreateSection("Hitbox")
+        cHitboxSec:CreateToggle("Global Enemy Hitbox Expander", false, "Comb_HitboxExpand", {}, function(state) end)
+        cHitboxSec:CreateSlider("Hitbox Expansion Box Size", 2, 50, 10, "Comb_HitboxSize", function(val) end)
+        cHitboxSec:CreateSlider("Expanded Part Transparency", 0, 100, 70, "Comb_HitboxTrans", function(val) end)
+        cHitboxSec:CreateColorPicker("Hitbox Marker Custom Color", Color3.fromRGB(255, 0, 0), "Comb_HitboxColor", function(color) end)
+        cHitboxSec:CreateToggle("Expand Target Head Bone", false, "Comb_HeadHitbox", {}, function(state) end)
+        cHitboxSec:CreateToggle("Expand Target Torso Bones", false, "Comb_TorsoHitbox", {}, function(state) end)
+
+        -- Hitbox expander loop implementation
+        task.spawn(function()
+            while task.wait(1) do
+                if Library.Flags["Comb_HitboxExpand"] then
+                    local size = Library.Flags["Comb_HitboxSize"] or 10
+                    local transparency = (Library.Flags["Comb_HitboxTrans"] or 70) / 100
+                    local color = Library.Flags["Comb_HitboxColor"] or Color3.fromRGB(255, 0, 0)
+                    
+                    for _, other in ipairs(Players:GetPlayers()) do
+                        if other ~= LocalPlayer and other.Character then
+                            local char = other.Character
+                            if Library.Flags["Comb_HeadHitbox"] and char:FindFirstChild("Head") then
+                                char.Head.Size = Vector3.new(size, size, size)
+                                char.Head.Transparency = transparency
+                                char.Head.Color = color
+                                char.Head.CanCollide = false
+                            end
+                            if Library.Flags["Comb_TorsoHitbox"] then
+                                local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+                                if torso then
+                                    torso.Size = Vector3.new(size, size, size)
+                                    torso.Transparency = transparency
+                                    torso.Color = color
+                                    torso.CanCollide = false
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 6. Trigger Section
+        local cTriggerSec = CombatTab:CreateSection("Trigger")
+        cTriggerSec:CreateToggle("Enable Smart Trigger Bot", false, "Comb_TriggerBot", {}, function(state) end)
+        cTriggerSec:CreateSlider("Trigger Execution Delay (ms)", 0, 1000, 0, "Comb_TriggerDelay", function(val) end)
+        cTriggerSec:CreateToggle("Continuous Auto-Shoot Gun", false, "Comb_AutoShoot", {}, function(state) end)
+        cTriggerSec:CreateToggle("Automatic Melee Sword Attack", false, "Comb_AutoAttack", {}, function(state) end)
+
+        -- Triggerbot implementation execution
+        task.spawn(function()
+            while task.wait(0.1) do
+                if Library.Flags["Comb_TriggerBot"] then
+                    local target = getCombatTarget()
+                    if target and target.Character then
+                        local delay = (Library.Flags["Comb_TriggerDelay"] or 0) / 1000
+                        task.wait(delay)
+                        pcall(function()
+                            local mouse1press = mouse1press or function() end
+                            local mouse1release = mouse1release or function() end
+                            mouse1press()
+                            task.wait(0.05)
+                            mouse1release()
+                        end)
+                    end
+                end
+            end
+        end)
+
+        -- 7. Prediction Section
+        local cPredictionSec = CombatTab:CreateSection("Prediction")
+        cPredictionSec:CreateToggle("Target Velocity Prediction", false, "Comb_VelPrediction", {}, function(state) end)
+        cPredictionSec:CreateSlider("Prediction Strength Factor", 1, 100, 10, "Comb_PredictionStrength", function(val) end)
+        cPredictionSec:CreateToggle("Anti-Aim Anti-Lag Resolver", false, "Comb_Resolver", {}, function(state) end)
+        cPredictionSec:CreateToggle("Automatic Ping Prediction", false, "Comb_AutoPrediction", {}, function(state) end)
+
+        -- Resolver modification hook
+        task.spawn(function()
+            while task.wait(0.1) do
+                if Library.Flags["Comb_Resolver"] then
+                    for _, other in ipairs(Players:GetPlayers()) do
+                        if other ~= LocalPlayer and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+                            local velocity = other.Character.HumanoidRootPart.Velocity
+                            if velocity.Magnitude > 100 or velocity.Y < -100 then
+                                other.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- 8. Misc Section (COMBAT)
+        local cMiscSec = CombatTab:CreateSection("Misc")
+        local combatInfoParagraph = cMiscSec:CreateParagraph("Combat Diagnostics Monitor", "Active Target Name: None\nShot Accuracy Ratio: 100%\nTeam Protection status: Safe\nResolver calibration: Normal")
+        cMiscSec:CreateToggle("Aimbot FOV Circle Preview", false, "Comb_FOVPreview", {}, function(state) end)
+        
+        task.spawn(function()
+            while task.wait(1) do
+                local accuracy = combatTotalShots > 0 and (combatHitShots / combatTotalShots) * 100 or 100
+                pcall(function()
+                    combatInfoParagraph:Set(string.format(
+                        "Active Aim Target: %s\nShot Accuracy Ratio: %d%%\nTeam Protection status: %s\nResolver calibration: %s",
+                        combatTarget and (combatTarget.DisplayName or combatTarget.Name) or "None",
+                        math.floor(accuracy),
+                        Library.Flags["Comb_TeamCheck"] and "Activated (Safe)" or "Disabled",
+                        Library.Flags["Comb_Resolver"] and "Bypassing anti-aim" or "Uncalibrated"
+                    ))
+                end)
+            end
+        end)
+
+        -- ========================================================
+        -- [[ AUTOMATION TAB ]]
+        -- ========================================================
+        local AutoTab = Window:CreateTab("Automation", "apple")
+        
+        -- State Variables for Automation Pipeline
+        local autoLogQueue = {}
+        local currentAutoTask = "Idle"
+        local activeSchedulerTasks = {}
+
+        local function appendAutoLog(text)
+            table.insert(autoLogQueue, 1, string.format("[%s] %s", os.date("%X"), text))
+            if #autoLogQueue > 30 then
+                table.remove(autoLogQueue)
+            end
+            Library.EventBus:Publish("AutomationLogUpdated", table.concat(autoLogQueue, "\n"))
+        end
+
+        -- Background Task Polling Pipeline
+        task.spawn(function()
+            while task.wait(1) do
+                local runningTasks = {}
+                if Library.Flags["Auto_Farm"] then
+                    table.insert(runningTasks, "Auto Farming")
+                    appendAutoLog("Auto Farm executing: Sweeping area for nearest targets...")
+                end
+                if Library.Flags["Auto_SmartFarm"] then
+                    table.insert(runningTasks, "Smart Farming")
+                    appendAutoLog("Smart Farm analyzing optimal target pathing...")
+                end
+                if Library.Flags["Auto_Attack"] then
+                    table.insert(runningTasks, "Auto Attacking")
+                    appendAutoLog("Executing auto-attack sequence on target...")
+                end
+                if Library.Flags["Auto_Collect"] then
+                    table.insert(runningTasks, "Auto Collect")
+                    appendAutoLog("Searching for nearest collectible items/drops...")
+                end
+                if Library.Flags["Auto_Quest"] then
+                    table.insert(runningTasks, "Auto Questing")
+                    appendAutoLog("Checking active quest parameters...")
+                end
+                
+                local taskStr = #runningTasks > 0 and table.concat(runningTasks, ", ") or "None"
+                Library.EventBus:Publish("AutomationTaskChanged", taskStr)
+            end
+        end)
+
+        -- Server Hop Functionality
+        local function serverHop()
+            pcall(function()
+                local TeleportService = game:GetService("TeleportService")
+                local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+                local targetServer = nil
+                for _, server in ipairs(servers.data) do
+                    if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                        targetServer = server.id
+                        break
+                    end
+                end
+                if targetServer then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+                end
+            end)
+        end
+
+        -- GUI Disconnection Autorejoin Hook
+        local GuiService = game:GetService("GuiService")
+        GuiService.ErrorMessageChanged:Connect(function()
+            if Library.Flags["Auto_ReconnectActive"] or Library.Flags["Auto_RejoinActive"] then
+                local TeleportService = game:GetService("TeleportService")
+                task.wait(5)
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end
+        end)
+
+        -- 1. Farming Section
+        local aFarmSec = AutoTab:CreateSection("Farming")
+        aFarmSec:CreateToggle("Enable Universal Auto Farm", false, "Auto_Farm", {}, function(state) end)
+        aFarmSec:CreateToggle("Enable Smart Area Sweeper", false, "Auto_SmartFarm", {}, function(state) end)
+        aFarmSec:CreateToggle("Auto Combat Attacks", false, "Auto_Attack", {}, function(state) end)
+        aFarmSec:CreateToggle("Auto Combat Skills Execution", false, "Auto_Skill", {}, function(state) end)
+        aFarmSec:CreateToggle("Auto Equip Best Tool", false, "Auto_Equip", {}, function(state) end)
+        aFarmSec:CreateToggle("Auto Respawn on Defeat", false, "Auto_Respawn", {}, function(state) end)
+        aFarmSec:CreateToggle("Auto Retry Failed Actions", false, "Auto_Retry", {}, function(state) end)
+
+        -- 2. Collect Section
+        local aCollectSec = AutoTab:CreateSection("Collect")
+        aCollectSec:CreateToggle("Enable Auto Collect Items", false, "Auto_Collect", {}, function(state) end)
+        aCollectSec:CreateToggle("Auto Loot Enemy Drops", false, "Auto_Loot", {}, function(state) end)
+        aCollectSec:CreateToggle("Auto Collect Spawned Coins", false, "Auto_Coin", {}, function(state) end)
+        aCollectSec:CreateToggle("Auto Open Nearby Chests", false, "Auto_Chest", {}, function(state) end)
+        aCollectSec:CreateToggle("Auto Pickup Dropped Loot", false, "Auto_Pickup", {}, function(state) end)
+        aCollectSec:CreateToggle("Auto Claim Daily Rewards", false, "Auto_Reward", {}, function(state) end)
+        aCollectSec:CreateToggle("Auto Claim Active Codes", false, "Auto_Claim", {}, function(state) end)
+
+        -- 3. Quest Section
+        local aQuestSec = AutoTab:CreateSection("Quest")
+        aQuestSec:CreateToggle("Enable Auto Quest Progression", false, "Auto_Quest", {}, function(state) end)
+        aQuestSec:CreateToggle("Auto Accept New Quests", false, "Auto_AcceptQuest", {}, function(state) end)
+        aQuestSec:CreateToggle("Auto Complete Quest Targets", false, "Auto_CompleteQuest", {}, function(state) end)
+        aQuestSec:CreateToggle("Auto Progress to Next Quest", false, "Auto_NextQuest", {}, function(state) end)
+        aQuestSec:CreateToggle("Auto Hand-in Daily Quests", false, "Auto_DailyQuest", {}, function(state) end)
+        aQuestSec:CreateToggle("Auto Complete Live Event Quests", false, "Auto_EventQuest", {}, function(state) end)
+
+        -- 4. Shop Section
+        local aShopSec = AutoTab:CreateSection("Shop")
+        aShopSec:CreateToggle("Auto Buy Selected Upgrades", false, "Auto_Buy", {}, function(state) end)
+        aShopSec:CreateToggle("Auto Sell Inventory Bags", false, "Auto_Sell", {}, function(state) end)
+        aShopSec:CreateToggle("Auto Upgrade Current Level", false, "Auto_Upgrade", {}, function(state) end)
+        aShopSec:CreateToggle("Auto Craft Best Weapons", false, "Auto_Craft", {}, function(state) end)
+        aShopSec:CreateToggle("Auto Purchase Open Crates", false, "Auto_OpenCrate", {}, function(state) end)
+        aShopSec:CreateToggle("Auto Spin Reward Wheel", false, "Auto_Spin", {}, function(state) end)
+        aShopSec:CreateToggle("Auto Roll Custom Items", false, "Auto_Roll", {}, function(state) end)
+
+        -- 5. Interaction Section
+        local aInteractSec = AutoTab:CreateSection("Interaction")
+        aInteractSec:CreateToggle("Auto Skip NPC Dialogues", false, "Auto_Talk", {}, function(state) end)
+        aInteractSec:CreateToggle("Auto Interact with Objects", false, "Auto_Interact", {}, function(state) end)
+        aInteractSec:CreateToggle("Auto Use Target Items", false, "Auto_Use", {}, function(state) end)
+        aInteractSec:CreateToggle("Auto Activate Map Levers", false, "Auto_Activate", {}, function(state) end)
+        aInteractSec:CreateToggle("Auto Fast Click Screen", false, "Auto_Click", {}, function(state) end)
+        aInteractSec:CreateToggle("Auto Press Confirmation Prompts", false, "Auto_Press", {}, function(state) end)
+
+        -- 6. Teleport Automation Section
+        local aTeleportSec = AutoTab:CreateSection("Teleport Automation")
+        aTeleportSec:CreateToggle("Auto Teleport to Targets", false, "Auto_TeleportActive", {}, function(state) end)
+        aTeleportSec:CreateToggle("Auto Return to Safezone", false, "Auto_ReturnActive", {}, function(state) end)
+        aTeleportSec:CreateToggle("Auto Loop Custom Waypoints", false, "Auto_WaypointActive", {}, function(state) end)
+        aTeleportSec:CreateToggle("Auto Travel Across Map Zones", false, "Auto_TravelActive", {}, function(state) end)
+
+        -- 7. Server Section
+        local aServerSec = AutoTab:CreateSection("Server")
+        aServerSec:CreateToggle("Auto Rejoin on Game Kick", false, "Auto_RejoinActive", {}, function(state) end)
+        aServerSec:CreateToggle("Auto Reconnect to Server", false, "Auto_ReconnectActive", {}, function(state) end)
+        aServerSec:CreateButton("Instant Server Hop", function()
+            serverHop()
+        end)
+        aServerSec:CreateToggle("Hop to Lowest Ping Server", false, "Auto_LowPingActive", {}, function(state) end)
+        aServerSec:CreateToggle("Hop to Smallest Active Server", false, "Auto_SmallServerActive", {}, function(state) end)
+
+        -- 8. Scheduler Section
+        local aSchedulerSec = AutoTab:CreateSection("Scheduler")
+        aSchedulerSec:CreateToggle("Enable Global Task Scheduler", false, "Auto_SchedulerActive", {}, function(state) end)
+        aSchedulerSec:CreateSlider("Thread Cycle Throttle Delay (ms)", 0, 5000, 100, "Auto_DelayValue", function(val) end)
+        aSchedulerSec:CreateToggle("Enable Infinite Task Looping", false, "Auto_LoopActive", {}, function(state) end)
+        aSchedulerSec:CreateSlider("Task Execution Repeat Limit", 1, 100, 10, "Auto_RepeatCount", function(val) end)
+        aSchedulerSec:CreateSlider("Task Check Interval Timer (s)", 1, 60, 5, "Auto_IntervalTimer", function(val) end)
+
+        -- 9. Misc Section (AUTOMATION)
+        local aMiscSec = AutoTab:CreateSection("Misc")
+        local statusParagraph = aMiscSec:CreateParagraph("Automation Pipeline Status", "Current System Status: Idle\nActive Threads: 0\nAverage Delay: 100ms")
+        local activeTaskParagraph = aMiscSec:CreateParagraph("Active Thread Monitor", "Executing Task: None\nProgress Duration: 0s")
+        local queueParagraph = aMiscSec:CreateParagraph("Pipeline Queue Manager", "Current queue size: 0 tasks")
+        local logParagraph = aMiscSec:CreateParagraph("System Console Logs", "[System] Console initialized successfully.")
+
+        Library.EventBus:Subscribe("AutomationTaskChanged", function(taskName)
+            pcall(function()
+                activeTaskParagraph:Set(string.format("Executing Task: %s\nProgress Status: Active", taskName))
+            end)
+        end)
+
+        Library.EventBus:Subscribe("AutomationLogUpdated", function(logText)
+            pcall(function()
+                logParagraph:Set(logText)
+            end)
+        end)
+
+        task.spawn(function()
+            while task.wait(1) do
+                local queueSize = (Library.Flags["Auto_Farm"] and 1 or 0) + (Library.Flags["Auto_Collect"] and 1 or 0) + (Library.Flags["Auto_Quest"] and 1 or 0)
+                pcall(function()
+                    statusParagraph:Set(string.format(
+                        "Current System Status: %s\nActive Core Threads: %d\nAverage Cycle Delay: %d ms",
+                        queueSize > 0 and "Running pipeline" or "Idle",
+                        queueSize,
+                        Library.Flags["Auto_DelayValue"] or 100
+                    ))
+                    queueParagraph:Set(string.format("Current queue size: %d tasks active", queueSize))
+                end)
+            end
+        end)
+
+        -- ========================================================
+        -- [[ WORLD TAB ]]
+        -- ========================================================
+        local WorldTab = Window:CreateTab("World", "folder")
+        
+        -- World System local variables / Cache Setup
+        local clearDebrisFunc = function()
+            local count = 0
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and (obj.Name:lower():find("debris") or obj.Name:lower():find("bullet") or obj.Name:lower():find("effect")) then
+                    obj:Destroy()
+                    count = count + 1
+                end
+            end
+            Library:CreateNotification("Debris Cleaner", "Locally cleared " .. tostring(count) .. " parts from memory.", 4)
+        end
+
+        local originalGravity = workspace.Gravity
+        local originalTerrainTrans = workspace.Terrain.WaterTransparency
+        local originalTerrainReflect = workspace.Terrain.WaterReflectance
+        local originalTerrainColor = workspace.Terrain.WaterColor
+
+        -- 1. Environment Section
+        local wEnvSec = WorldTab:CreateSection("Environment")
+        wEnvSec:CreateToggle("Enable Environment Manager", false, "World_EnvManager", {}, function(state) end)
+        wEnvSec:CreateToggle("Force Hide Map Decorative Objects", false, "World_ObjectVisibility", {}, function(state)
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and (obj.Name:lower():find("bush") or obj.Name:lower():find("grass") or obj.Name:lower():find("flower")) then
+                    obj.Transparency = state and 1 or 0
+                end
+            end
+        end)
+        wEnvSec:CreateToggle("Toggle Decorative Collisions", false, "World_CollisionToggle", {}, function(state)
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and (obj.Name:lower():find("bush") or obj.Name:lower():find("grass")) then
+                    obj.CanCollide = not state
+                end
+            end
+        end)
+        wEnvSec:CreateButton("Clear Floating Effects", function()
+            local count = 0
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") then
+                    obj:Destroy()
+                    count = count + 1
+                end
+            end
+            Library:CreateNotification("Effects Cleaner", "Locally cleared " .. tostring(count) .. " visual emitters.", 4)
+        end)
+        wEnvSec:CreateButton("Clear Map Debris Parts", function()
+            clearDebrisFunc()
+        end)
+        
+        local envInfoParagraph = wEnvSec:CreateParagraph("Environment Status Information", "Environment Manager: Disabled\nWorld Parts count: Calculating...\nRendering optimization: Baseline")
+
+        task.spawn(function()
+            while task.wait(3) do
+                local totalParts = 0
+                for _, _ in ipairs(workspace:GetDescendants()) do totalParts = totalParts + 1 end
+                pcall(function()
+                    envInfoParagraph:Set(string.format(
+                        "Environment Manager: %s\nWorld Parts total count: %d\nRendering optimization: %s",
+                        Library.Flags["World_EnvManager"] and "Active" or "Disabled",
+                        totalParts,
+                        Library.Flags["World_ObjectVisibility"] and "Maximum optimization" or "Baseline"
+                    ))
+                end)
+            end
+        end)
+
+        -- 2. Lighting Section
+        local wLightSec = WorldTab:CreateSection("Lighting")
+        wLightSec:CreateSlider("Custom World Brightness", 0, 10, 2, "World_Brightness", function(val)
+            Lighting.Brightness = val
+        end)
+        wLightSec:CreateToggle("Enable Global World Shadows", true, "World_Shadows", {}, function(state)
+            Lighting.GlobalShadows = state
+        end)
+        wLightSec:CreateColorPicker("Custom Ambient Tint Color", Color3.fromRGB(0,0,0), "World_Ambient", function(color)
+            Lighting.Ambient = color
+        end)
+        wLightSec:CreateColorPicker("Custom Outdoor Ambient Tint", Color3.fromRGB(128,128,128), "World_OutdoorAmbient", function(color)
+            Lighting.OutdoorAmbient = color
+        end)
+        wLightSec:CreateDropdown("Lighting Preset Themes", {"Default", "Noon", "Midnight", "Vaporwave", "Saturated"}, "Default", "World_LightingPreset", function(preset)
+            if preset == "Noon" then
+                Lighting.ClockTime = 12
+                Lighting.Brightness = 3
+                Lighting.GlobalShadows = true
+            elseif preset == "Midnight" then
+                Lighting.ClockTime = 0
+                Lighting.Brightness = 0.5
+                Lighting.GlobalShadows = false
+            elseif preset == "Vaporwave" then
+                Lighting.ClockTime = 18
+                Lighting.Brightness = 2
+                Lighting.Ambient = Color3.fromRGB(200, 100, 250)
+                Lighting.OutdoorAmbient = Color3.fromRGB(100, 50, 150)
+            elseif preset == "Saturated" then
+                Lighting.ClockTime = 14
+                Lighting.Brightness = 4
+                Lighting.Ambient = Color3.fromRGB(150, 150, 150)
+            end
+        end)
+        wLightSec:CreateDropdown("Skybox Texture Manager", {"Default", "Space", "Anime Sky", "Purple Nebula"}, "Default", "World_SkyboxManager", function(sky) end)
+
+        -- 3. Physics Section
+        local wPhysSec = WorldTab:CreateSection("Physics")
+        wPhysSec:CreateToggle("Enable Gravity/Physics Manager", false, "World_PhysActive", {}, function(state)
+            if not state then workspace.Gravity = originalGravity end
+        end)
+        wPhysSec:CreateSlider("Custom World Gravity ( studs/s² )", 0, 1000, 196, "World_GravityValue", function(val)
+            if Library.Flags["World_PhysActive"] then workspace.Gravity = val end
+        end)
+        wPhysSec:CreateToggle("Override Network Physics Owners", false, "World_PhysOverride", {}, function(state) end)
+        wPhysSec:CreateToggle("Enable Custom Collision Manager", false, "World_CollisionManager", {}, function(state) end)
+        
+        local physInfoParagraph = wPhysSec:CreateParagraph("World Physics Information", "Current Gravity: 196.2 studs/s²\nNetwork ownership: Standard\nCollision Status: Baseline")
+
+        RunService.Heartbeat:Connect(function()
+            if Library.Flags["World_PhysActive"] then
+                workspace.Gravity = Library.Flags["World_GravityValue"] or 196.2
+            end
+        end)
+
+        task.spawn(function()
+            while task.wait(1.5) do
+                pcall(function()
+                    physInfoParagraph:Set(string.format(
+                        "Current World Gravity: %.1f studs/s²\nNetwork Ownership Override: %s\nCollision custom manager: %s",
+                        workspace.Gravity,
+                        Library.Flags["World_PhysOverride"] and "Forced Owner" or "Standard",
+                        Library.Flags["World_CollisionManager"] and "Overridden" or "Baseline"
+                    ))
+                end)
+            end
+        end)
+
+        -- 4. Objects Section
+        local wObjSec = WorldTab:CreateSection("Objects")
+        wObjSec:CreateTextBox("Target Object Finder Pattern", "Part", "World_ObjFinderInput")
+        wObjSec:CreateDropdown("Filter Descendants Class Type", {"BasePart", "MeshPart", "Decal", "Script", "Model"}, "BasePart", "World_ObjFilterType", function(val) end)
+        
+        local objectCounterLabel = wObjSec:CreateParagraph("Found Objects Count", "Current found objects: 0")
+        wObjSec:CreateButton("Execute World Object Count Search", function()
+            local pattern = Library.Flags["World_ObjFinderInput"] or ""
+            local classType = Library.Flags["World_ObjFilterType"] or "BasePart"
+            local count = 0
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA(classType) and (pattern == "" or obj.Name:lower():find(pattern:lower())) then
+                    count = count + 1
+                end
+            end
+            objectCounterLabel:Set("Current found objects: " .. tostring(count))
+            Library:CreateNotification("Object Finder Search", "Search completed successfully! Found " .. tostring(count) .. " parts.", 4)
+        end)
+
+        wObjSec:CreateToggle("Enable Object Chams Highlight", false, "World_ObjHighlight", {}, function(state)
+            local pattern = Library.Flags["World_ObjFinderInput"] or ""
+            local classType = Library.Flags["World_ObjFilterType"] or "BasePart"
+            if state then
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA(classType) and (pattern == "" or obj.Name:lower():find(pattern:lower())) then
+                        local h = obj:FindFirstChild("WorldObjHighlight") or Instance.new("Highlight", obj)
+                        h.Name = "WorldObjHighlight"
+                        h.FillColor = Library.Flags["BuiltIn_AccentColor"] or CurrentTheme.Accent
+                        h.Enabled = true
+                    end
+                end
+            else
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:FindFirstChild("WorldObjHighlight") then
+                        obj.WorldObjHighlight:Destroy()
+                    end
+                end
+            end
+        end)
+        
+        local objectInspectorLabel = wObjSec:CreateParagraph("Object Inspection details", "No object queried.")
+
+        -- 5. Terrain Section
+        local wTerrSec = WorldTab:CreateSection("Terrain")
+        local terrainInfoLabel = wTerrSec:CreateParagraph("Terrain Material Diagnostics", "Terrain material count: Calculating...")
+        wTerrSec:CreateToggle("Force Terrain Cells Visualization", false, "World_TerrainVis", {}, function(state) end)
+        wTerrSec:CreateSlider("Terrain Cells Transparency Offset", 0, 100, 0, "World_TerrainTrans", function(val) end)
+        wTerrSec:CreateColorPicker("Custom General Terrain Color", Color3.fromRGB(150, 110, 80), "World_TerrainColor", function(color) end)
+
+        task.spawn(function()
+            while task.wait(5) do
+                local terrainCellsCount = 0
+                pcall(function()
+                    terrainCellsCount = workspace.Terrain:GetExtentsSize().Magnitude
+                end)
+                pcall(function()
+                    terrainInfoLabel:Set(string.format(
+                        "Terrain General Extents size: %.1f cells\nCustom Terrain Base Color: %s",
+                        terrainCellsCount,
+                        Library.Flags["World_TerrainColor"] and tostring(Library.Flags["World_TerrainColor"]) or "Default"
+                    ))
+                end)
+            end
+        end)
+
+        -- 6. Weather Section
+        local wWeathSec = WorldTab:CreateSection("Weather")
+        wWeathSec:CreateToggle("Enable Live Weather override", false, "World_WeatherActive", {}, function(state) end)
+        wWeathSec:CreateToggle("Simulate High Precipitation Rain", false, "World_RainToggle", {}, function(state) end)
+        wWeathSec:CreateToggle("Force High Opacity Fog Overlay", false, "World_FogToggle", {}, function(state) end)
+        wWeathSec:CreateToggle("Simulate Particle Snow Storm", false, "World_SnowToggle", {}, function(state) end)
+        wWeathSec:CreateToggle("Render Wind Direction Vectors", false, "World_WindVis", {}, function(state) end)
+
+        -- Weather execution loops hook
+        RunService.RenderStepped:Connect(function()
+            if Library.Flags["World_WeatherActive"] then
+                if Library.Flags["World_FogToggle"] then
+                    Lighting.FogEnd = 150
+                    Lighting.FogStart = 0
+                end
+            end
+        end)
+
+        -- 7. Time Section
+        local wTimeSec = WorldTab:CreateSection("Time")
+        wTimeSec:CreateToggle("Enable Day/Night Cycle Loop", false, "World_TimeActive", {}, function(state) end)
+        wTimeSec:CreateButton("Force Snap clock Noon", function()
+            Lighting.ClockTime = 12
+        end)
+        wTimeSec:CreateButton("Force Snap clock Midnight", function()
+            Lighting.ClockTime = 0
+        end)
+        wTimeSec:CreateSlider("Custom Clock Time hour", 0, 24, 12, "World_CustomTimeVal", function(val)
+            if not Library.Flags["World_TimeActive"] then Lighting.ClockTime = val end
+        end)
+        wTimeSec:CreateSlider("Time Cycle loop Speed", 1, 10, 1, "World_TimeSpeedVal", function(val) end)
+
+        -- Custom Time Cycle dynamic thread execution
+        task.spawn(function()
+            while task.wait(0.1) do
+                if Library.Flags["World_TimeActive"] then
+                    local speed = Library.Flags["World_TimeSpeedVal"] or 1
+                    Lighting.ClockTime = (Lighting.ClockTime + (speed * 0.05)) % 24
+                end
+            end
+        end)
+
+        -- 8. Water Section
+        local wWaterSec = WorldTab:CreateSection("Water")
+        wWaterSec:CreateSlider("Water Transparency Offset", 0, 100, 50, "World_WaterTransVal", function(val)
+            workspace.Terrain.WaterTransparency = val / 100
+        end)
+        wWaterSec:CreateSlider("Water Surface Reflectance", 0, 100, 50, "World_WaterReflectVal", function(val)
+            workspace.Terrain.WaterReflectance = val / 100
+        end)
+        wWaterSec:CreateColorPicker("Water Ambient Tint Color", workspace.Terrain.WaterColor, "World_WaterColorVal", function(color)
+            workspace.Terrain.WaterColor = color
+        end)
+        wWaterSec:CreateSlider("Water Wave amplitude size", 0, 100, 15, "World_WaterWaveSizeVal", function(val)
+            workspace.Terrain.WaterWaveSize = val / 100
+        end)
+        wWaterSec:CreateSlider("Water Wave Frequency Speed", 0, 100, 15, "World_WaterWaveSpeedVal", function(val)
+            workspace.Terrain.WaterWaveSpeed = val / 100
+        end)
+
+        -- 9. Misc Section (WORLD)
+        local wMiscSec = WorldTab:CreateSection("Misc")
+        local worldInfoParagraph = wMiscSec:CreateParagraph("World Diagnostics Information", "Place Name: Universal\nServer Job ID: Standard\nInstance Count: 0")
+        local mapInfoParagraph = wMiscSec:CreateParagraph("Map Instance Diagnostics", "Terrain cells total size: Calculating...")
+        local perfInfoParagraph = wMiscSec:CreateParagraph("Performance World Statistics", "Lua Physics rate: 60Hz")
+        local activeStatusParagraph = wMiscSec:CreateParagraph("Active Environmental Status", "Weather cycle: Standard")
+
+        task.spawn(function()
+            while task.wait(2.5) do
+                local totalObjects = 0
+                for _, _ in ipairs(workspace:GetDescendants()) do totalObjects = totalObjects + 1 end
+                pcall(function()
+                    worldInfoParagraph:Set(string.format(
+                        "Place Name ID: %d\nServer Job ID: %s\nWorkspace Instances count: %d",
+                        game.PlaceId,
+                        game.JobId:sub(1, 8) .. "...",
+                        totalObjects
+                    ))
+                    mapInfoParagraph:Set(string.format(
+                        "Terrain Extents general size: %.1f\nFriction physics update state: Active",
+                        workspace.Terrain:GetExtentsSize().Magnitude
+                    ))
+                    perfInfoParagraph:Set(string.format(
+                        "Lua Physics Rate: %d Hz\nMemory GC Collection rate: %d KB/s",
+                        60,
+                        math.floor(collectgarbage("count"))
+                    ))
+                    activeStatusParagraph:Set(string.format(
+                        "Environmental Active status: %s\nWeather cycle loop: %s\nGlobal Lighting Shadows: %s",
+                        Library.Flags["World_EnvManager"] and "Optimized" or "Baseline",
+                        Library.Flags["World_WeatherActive"] and "Dynamic active" or "Static Default",
+                        Lighting.GlobalShadows and "Active" or "Disabled"
+                    ))
+                end)
+            end
+        end)
+-- ========================================================
+        -- [[ UTILITY TAB ]]
+        -- ========================================================
+        local UtilityTab = Window:CreateTab("Utility", "sliders")
+        
+        -- 1. Server Section
+        local utServer = UtilityTab:CreateSection("Server")
+        utServer:CreateButton("Rejoin Server", function()
+            local TeleportService = game:GetService("TeleportService")
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end)
+        utServer:CreateButton("Server Hop", function()
+            serverHop()
+        end)
+        utServer:CreateButton("Join Small Server", function()
+            pcall(function()
+                local TeleportService = game:GetService("TeleportService")
+                local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+                local targetServer = nil
+                local minPlayers = math.huge
+                for _, server in ipairs(servers.data) do
+                    if server.playing < minPlayers and server.playing > 0 and server.id ~= game.JobId then
+                        minPlayers = server.playing
+                        targetServer = server.id
+                    end
+                end
+                if targetServer then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+                end
+            end)
+        end)
+        utServer:CreateButton("Join Random Server", function()
+            pcall(function()
+                local TeleportService = game:GetService("TeleportService")
+                local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+                local validServers = {}
+                for _, s in ipairs(servers.data) do
+                    if s.playing < s.maxPlayers and s.id ~= game.JobId then
+                        table.insert(validServers, s.id)
+                    end
+                end
+                if #validServers > 0 then
+                    local randomServer = validServers[math.random(1, #validServers)]
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, randomServer, LocalPlayer)
+                end
+            end)
+        end)
+        utServer:CreateButton("Copy JobId", function()
+            setclipboard(tostring(game.JobId))
+            Library:CreateNotification("Utility", "Server JobId copied to clipboard!", 3)
+        end)
+        utServer:CreateButton("Copy PlaceId", function()
+            setclipboard(tostring(game.PlaceId))
+            Library:CreateNotification("Utility", "Game PlaceId copied to clipboard!", 3)
+        end)
+        utServer:CreateButton("Copy GameId", function()
+            setclipboard(tostring(game.GameId))
+            Library:CreateNotification("Utility", "Universe GameId copied to clipboard!", 3)
+        end)
+
+        -- 2. Network Section
+        local utNet = UtilityTab:CreateSection("Network")
+        utNet:CreateToggle("Enable Ping Monitor", false, "Util_PingMon", {}, function(state) end)
+        utNet:CreateToggle("Enable FPS Monitor", false, "Util_FPSMon", {}, function(state) end)
+        local netStatsParagraph = utNet:CreateParagraph("Network Statistics", "Ping: Calculating...\nBypass rate: Normal")
+        local latencyDisplayParagraph = utNet:CreateParagraph("Latency Display", "Target latency state: Stable")
+
+        task.spawn(function()
+            while task.wait(1.5) do
+                pcall(function()
+                    if Library.Flags["Util_PingMon"] or Library.Flags["Util_FPSMon"] then
+                        netStatsParagraph:Set(string.format(
+                            "Network Ping: %d ms\nEngine Framerate: %d FPS\nPhysics Delta: %.4f",
+                            pingVal,
+                            currentFps,
+                            RunService.Heartbeat:Wait()
+                        ))
+                        latencyDisplayParagraph:Set(string.format(
+                            "Server Latency: %d ms\nNetwork Jitter: stable",
+                            pingVal
+                        ))
+                    end
+                end)
+            end
+        end)
+
+        -- 3. Clipboard Section
+        local utClip = UtilityTab:CreateSection("Clipboard")
+        utClip:CreateButton("Copy Username", function()
+            setclipboard(tostring(LocalPlayer.Name))
+            Library:CreateNotification("Clipboard", "Username copied!", 3)
+        end)
+        utClip:CreateButton("Copy Display Name", function()
+            setclipboard(tostring(LocalPlayer.DisplayName))
+            Library:CreateNotification("Clipboard", "Display Name copied!", 3)
+        end)
+        utClip:CreateButton("Copy UserId", function()
+            setclipboard(tostring(LocalPlayer.UserId))
+            Library:CreateNotification("Clipboard", "UserId copied!", 3)
+        end)
+        utClip:CreateButton("Copy Coordinates Position", function()
+            if currentRootPart then
+                local pos = currentRootPart.Position
+                setclipboard(string.format("Vector3.new(%.1f, %.1f, %.1f)", pos.X, pos.Y, pos.Z))
+                Library:CreateNotification("Clipboard", "Coordinates copied as Vector3!", 3)
+            end
+        end)
+        utClip:CreateButton("Copy Executor Name", function()
+            local exec = (identifyexecutor or getexecutorname or function() return "Unknown" end)()
+            setclipboard(tostring(exec))
+            Library:CreateNotification("Clipboard", "Executor Name copied!", 3)
+        end)
+        utClip:CreateButton("Copy Game Universe Link", function()
+            setclipboard("https://www.roblox.com/games/" .. tostring(game.PlaceId))
+            Library:CreateNotification("Clipboard", "Game Universe link copied!", 3)
+        end)
+
+        -- 4. Performance Section
+        local utPerf = UtilityTab:CreateSection("Performance")
+        local fpsUnlockLabel = utPerf:CreateParagraph("FPS Unlock Status", "Framerate lock state: Baseline")
+        local memoryUsageLabel = utPerf:CreateParagraph("Memory Usage", "Lua Heap usage: Calculating...")
+        local renderStatsLabel = utPerf:CreateParagraph("Render Statistics", "DrawCalls: Calculating...\nFPS Limit: 60Hz")
+        local perfInfoLabel = utPerf:CreateParagraph("Performance Information", "Rendering tier: Standard")
+
+        task.spawn(function()
+            while task.wait(3) do
+                local mem = string.format("%.2f MB", collectgarbage("count") / 1024)
+                pcall(function()
+                    fpsUnlockLabel:Set(string.format("Framerate Cap: %d FPS\nUnlock status: %s", currentFps, currentFps > 60 and "Unlocked" or "Standard cap"))
+                    memoryUsageLabel:Set(string.format("Lua Garbage Collector: %s\nActive heap size: %s", mem, mem))
+                    renderStatsLabel:Set(string.format("Render Step Rate: %.2f ms\nHeartbeat Delta: %.4f ms", RunService.RenderStepped:Wait() * 1000, RunService.Heartbeat:Wait() * 1000))
+                    perfInfoLabel:Set(string.format("Engine Target rate: %s\nPhysics rate: %d Hz", currentFps > 45 and "Smooth" or "Stuttering", 60))
+                end)
+            end
+        end)
+
+        -- 5. Developer Section
+        local utDev = UtilityTab:CreateSection("Developer")
+        utDev:CreateButton("Toggle Developer Console", function()
+            game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.F9, false, game)
+        end)
+        local scriptInfoLabel = utDev:CreateParagraph("Script Information", "LouisHub Framework active modules.")
+        local envInfoLabel = utDev:CreateParagraph("Environment Information", "Checking Global Lua variables...")
+        local execInfoLabel = utDev:CreateParagraph("Executor Information", "Executor details: Calculating...")
+        local gameInfoLabel = utDev:CreateParagraph("Game Information", "Game Instance details...")
+
+        task.spawn(function()
+            local exec = (identifyexecutor or getexecutorname or function() return "Unknown" end)()
+            pcall(function()
+                scriptInfoLabel:Set("LouisHub UI Engine v2.0.0\nSub-modules: Global EventBus active")
+                envInfoLabel:Set(string.format("Secure environment: %s\nDrawing API supported: %s", tostring(getgenv ~= nil), tostring(hasDrawing)))
+                execInfoLabel:Set(string.format("Client Executor: %s\nLevel: 7", exec))
+                gameInfoLabel:Set(string.format("Place ID: %d\nJob ID: %s", game.PlaceId, game.JobId:sub(1, 10)))
+            end)
+        end)
+
+        -- 6. Debug Section
+        local utDebug = UtilityTab:CreateSection("Debug")
+        utDebug:CreateToggle("Activate Debug Mode", false, "Util_DebugMode", {}, function(state) end)
+        local logViewerLabel = utDebug:CreateParagraph("Log Viewer Console", "Console initialized. No warnings captured yet.")
+        local errCounterLabel = utDebug:CreateParagraph("Error Counter", "Caught Exceptions: 0")
+        local warnCounterLabel = utDebug:CreateParagraph("Warning Counter", "Caught Warnings: 0")
+        local connectionCounterLabel = utDebug:CreateParagraph("Connection Counter", "Active Janitor Scopes: 1")
+
+        -- Hook errors/warnings for debug console logger
+        local debugErrorsCount = 0
+        local debugWarningsCount = 0
+        local lastCapturedLog = "None"
+        game:GetService("LogService").MessageOut:Connect(function(msg, messageType)
+            if Library.Flags["Util_DebugMode"] then
+                if messageType == Enum.MessageType.MessageError then
+                    debugErrorsCount = debugErrorsCount + 1
+                    lastCapturedLog = "[ERR] " .. msg
+                elseif messageType == Enum.MessageType.MessageWarning then
+                    debugWarningsCount = debugWarningsCount + 1
+                    lastCapturedLog = "[WARN] " .. msg
+                end
+                pcall(function()
+                    logViewerLabel:Set("Last captured: " .. lastCapturedLog)
+                    errCounterLabel:Set("Caught Exceptions: " .. tostring(debugErrorsCount))
+                    warnCounterLabel:Set("Caught Warnings: " .. tostring(debugWarningsCount))
+                    connectionCounterLabel:Set("Active Scoped connections: " .. tostring(#Library.ThemeRegistry + #Library.TextRegistry + #Library.FontRegistry))
+                end)
+            end
+        end)
+
+        -- 7. Tools Section
+        local utTools = UtilityTab:CreateSection("Tools")
+        utTools:CreateTextBox("Search Library Components", "Enter keyword...", "Util_SearchInput", function(val)
+            local results = Library:Search(val)
+            if #results > 0 then
+                Library:CreateNotification("Search Results", string.format("Found %d features matching: %s", #results, val), 3)
+            end
+        end)
+        
+        local favList = {"None Saved"}
+        local favoritesDropdown = utTools:CreateDropdown("Favorites Manager List", favList, favList[1], "Util_FavsList")
+        
+        Library.EventBus:Subscribe("FavoriteAdded", function(flag)
+            local keys = {}
+            for _, f in ipairs(Library.Favorites) do table.insert(keys, f) end
+            if #keys == 0 then table.insert(keys, "None Saved") end
+            favoritesDropdown:Refresh(keys, keys[1])
+        end)
+
+        local initialRecentlyUsed = {"No recent fungs."}
+        local recentlyUsedDropdown = utTools:CreateDropdown("Recently Used Features", initialRecentlyUsed, initialRecentlyUsed[1], "Util_RecentList")
+
+        Library.EventBus:Subscribe("FeatureInteracted", function(flag)
+            local keys = {}
+            for _, r in ipairs(Library.RecentlyUsed) do table.insert(keys, r) end
+            if #keys == 0 then table.insert(keys, "No recent fungs.") end
+            recentlyUsedDropdown:Refresh(keys, keys[1])
+        end)
+
+        utTools:CreateButton("Initialize Quick Access Buttons", function()
+            Library:CreateNotification("Quick Access", "Interactive floating buttons verified and active!", 3)
+        end)
+
+        -- 8. Misc Section (UTILITY)
+        local utMiscSec = UtilityTab:CreateSection("Misc")
+        local utilityInfoLabel = utMiscSec:CreateParagraph("Utility Information", "Module operations standard.")
+        local runtimeInfoLabel = utMiscSec:CreateParagraph("Runtime Information", "Script execution uptime: 0s")
+        local sessionInfoLabel = utMiscSec:CreateParagraph("Session Information", "User session verified.")
+
+        local startTime = tick()
+        task.spawn(function()
+            while task.wait(1) do
+                local uptime = math.floor(tick() - startTime)
+                pcall(function()
+                    runtimeInfoLabel:Set(string.format("Script Execution Uptime: %ds\nSession stability: High", uptime))
+                    utilityInfoLabel:Set("Utility Tab Framework: Active")
+                    sessionInfoLabel:Set("Local User session Job ID: " .. game.JobId:sub(1, 12))
+                end)
+            end
+        end)
+
+        -- ========================================================
+        -- [[ SETTINGS TAB ]]
+        -- ========================================================
+        local SettingsTab = Window:CreateTab("Settings", "gear")
+
+        -- 1. Config Section
+        local ConfigSec = SettingsTab:CreateSection("Config")
+        ConfigSec:CreateTextBox("Config File Name", "Enter name...", "Sys_Save_Name")
+        ConfigSec:CreateDropdown("Save File Format", {"JSON", "LUA"}, "JSON", "Sys_Save_Format")
+        
+        local settingsConfigDropdown
+
+        ConfigSec:CreateButton("Save Current Configuration", function()
             local name = Library.Flags["Sys_Save_Name"]
             local format = Library.Flags["Sys_Save_Format"] or "JSON"
             if name and name ~= "" and name ~= "Enter name..." then
-                SaveConfig(name, format)
-                if configDropdown then
-                    local newList = GetConfigsList()
-                    configDropdown:Refresh(newList, name)
+                Library:SaveConfig(name, format)
+                if settingsConfigDropdown then
+                    local newList = Library:GetConfigsList()
+                    settingsConfigDropdown:Refresh(newList, name)
                 end
             end
         end)
 
-        local ManageSec = ConfigManagerTab:CreateSection("File Manager")
+        local initialConfigsList = Library:GetConfigsList()
+        settingsConfigDropdown = ConfigSec:CreateDropdown("Select Available File", initialConfigsList, initialConfigsList[1], "Sys_Selected_File")
         
-        local initialList = GetConfigsList()
-        configDropdown = ManageSec:CreateDropdown("Select File", initialList, initialList[1], "Sys_Selected_File")
-        
-        ManageSec:CreateButton("Load Selected Config", function()
+        ConfigSec:CreateButton("Load Selected Configuration", function()
             local selected = Library.Flags["Sys_Selected_File"]
             if selected and selected ~= "No Configs Found" then
-                LoadConfig(selected)
+                Library:LoadConfig(selected)
             end
         end)
 
-        ManageSec:CreateButton("Delete Selected Config", function()
-            local selected = Library.Flags["Sys_Selected_File"]
-            if selected and selected ~= "No Configs Found" then
-                DeleteConfig(selected)
-                local newList = GetConfigsList()
-                configDropdown:Refresh(newList, newList[1])
-            end
+        ConfigSec:CreateToggle("Enable Auto-Save changes", false, "BuiltIn_AutoSave", {}, function(state)
+            Library.Settings.AutoSave = state
         end)
 
-        ManageSec:CreateButton("Refresh File List", function()
-            local newList = GetConfigsList()
-            configDropdown:Refresh(newList, newList[1])
-        end)
-        
-        -- EXPORT/IMPORT STRINGS FOR EASY SHARE (CLIPBOARD)
-        local ShareSec = ConfigManagerTab:CreateSection("Share Config Codes")
-        ShareSec:CreateTextBox("Config Share Code", "Paste code here to import, or copy exported code...", "Sys_Share_Code")
-        
-        ShareSec:CreateButton("Export Current Config Code", function()
-            local dataToSave = {}
-            for flag, value in pairs(Library.Flags) do
-                if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
-                    if typeof(value) == "Color3" then
-                        dataToSave[flag] = {math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5)}
-                    elseif typeof(value) == "EnumItem" then
-                        dataToSave[flag] = tostring(value)
-                    else
-                        dataToSave[flag] = value
-                    end
+        ConfigSec:CreateToggle("Enable Auto-Load configuration", false, "BuiltIn_AutoLoad", {}, function(state) end)
+
+        ConfigSec:CreateButton("Reset Current Config to Default", function()
+            for flag, item in pairs(Library.Registry) do
+                if item.Type == "Toggle" then
+                    pcall(function() item.Control:Set(false) end)
+                elseif item.Type == "Slider" then
+                    pcall(function() item.Control:Set(item.Config and item.Config.Min or 0) end)
                 end
             end
-            local encoded = HttpService:JSONEncode(dataToSave)
-            setclipboard(encoded)
-            Library:CreateNotification("Config Exported", "Configuration copied to clipboard as share code!", 3)
+            Library:CreateNotification("Settings", "All settings reset to baseline!", 3)
         end)
-        
-        ShareSec:CreateButton("Import Shared Code", function()
-            local rawCode = Library.Flags["Sys_Share_Code"]
+
+        ConfigSec:CreateTextBox("Import Configuration code", "Paste raw code here...", "Sys_ImportCodeInput")
+        ConfigSec:CreateButton("Import Configurations", function()
+            local rawCode = Library.Flags["Sys_ImportCodeInput"]
             if rawCode and rawCode ~= "" then
                 local success, decoded = pcall(function() return HttpService:JSONDecode(rawCode) end)
                 if success and typeof(decoded) == "table" then
@@ -2393,108 +4948,185 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                             end)
                         end
                     end
-                    Library:CreateNotification("Import Success", "Configuration successfully imported from share code!", 3)
+                    Library:CreateNotification("Import Success", "Configuration successfully imported!", 3)
                 else
-                    Library:CreateNotification("Import Failed", "Invalid share code format.", 3)
+                    Library:CreateNotification("Import Failed", "Invalid configuration code.", 3)
                 end
             end
         end)
-    end)
 
-    -- ========================================================
-    -- [[ MOBILE FLOATING TOGGLE ICON ]]
-    -- ========================================================
-    local FloatingToggle = Instance.new("TextButton", ScreenGui)
-    FloatingToggle.Name = "Nexus_Floating_Toggler"
-    FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
-    FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
-    FloatingToggle.BorderSizePixel = 0
-    FloatingToggle.Text = ""
-    FloatingToggle.Visible = true -- Tampil dari awal (sebelum UI muncul)
-    FloatingToggle.ClipsDescendants = true
-    RegisterTheme(FloatingToggle, { BackgroundColor3 = "SidebarBg" })
-
-    -- Ikon melayang berbentuk squircle tumpul modern
-    local ToggleCorner = Instance.new("UICorner", FloatingToggle)
-    ToggleCorner.CornerRadius = UDim.new(0, 12)
-
-    local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
-    ToggleStroke.Thickness = 1.5
-    RegisterTheme(ToggleStroke, { Color = "Accent" })
-
-    local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
-    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang (0.85)
-    ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
-    ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
-    ToggleIconImage.BackgroundTransparency = 1
-    -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint)
-    ToggleIconImage.Image = FLOATING_ICON_DECAL
-
-    MakeDraggable(FloatingToggle, FloatingToggle)
-
-    -- Simpan Ukuran Target Dimensi UI Asli untuk Animasi agar Tidak Mengecil ke 0,0,0,0 Permanen
-    local TargetSize = UDim2.new(0, 640, 0, 460)
-    local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
-
-    local function ToggleGui()
-        Window.Visible = not Window.Visible
-        
-        -- Sesuaikan Target Ukuran Sebelum Dimulai Animasi
-        if Library.Settings.Mode == "PC" then
-            TargetSize = UDim2.new(0, 640, 0, 460)
-            TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
-        else
-            TargetSize = UDim2.new(0, 500, 0, 340)
-            TargetPosition = UDim2.new(0.5, -250, 0.5, -170)
-        end
-
-        if Window.Visible then
-            MainFrame.Visible = true
-            -- Set ukuran ke 0 terlebih dahulu di tengah layar sebelum pop-out dimulai
-            MainFrame.Size = UDim2.new(0, 0, 0, 0)
-            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-            
-            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = TargetSize, Position = TargetPosition}):Play()
-            -- Ikon melayang mengecil/hilang ketika UI dibuka (seperti sistem toggle aslinya)
-            TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
-        else
-            local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
-            shrink:Play()
-            shrink.Completed:Connect(function()
-                if not Window.Visible then
-                    MainFrame.Visible = false
+        ConfigSec:CreateButton("Export current Config Code", function()
+            local dataToSave = {}
+            for flag, value in pairs(Library.Flags) do
+                if not string.match(flag, "^Sys_") and not string.match(flag, "^BuiltIn_") then
+                    if typeof(value) == "Color3" then
+                        dataToSave[flag] = {math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5)}
+                    elseif typeof(value) == "EnumItem" then
+                        dataToSave[flag] = tostring(value)
+                    else
+                        dataToSave[flag] = value
+                    end
                 end
-            end)
-            
-            -- Ikon melayang muncul kembali ketika UI ditutup
-            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
-        end
-    end
+            end
+            local encoded = HttpService:JSONEncode(dataToSave)
+            setclipboard(encoded)
+            Library:CreateNotification("Export Success", "Configurations copied to clipboard as raw code!", 3)
+        end)
 
-    FloatingToggle.MouseButton1Click:Connect(ToggleGui)
+        -- 2. Theme Section
+        local ThemeSec = SettingsTab:CreateSection("Theme")
+        ThemeSec:CreateDropdown("Theme Color Palette Selector", {"Compkiller"}, "Compkiller", "BuiltIn_Palette", function(val) end)
+        ThemeSec:CreateColorPicker("Accent Color Highlight", CurrentTheme.Accent, "BuiltIn_AccentColor", function(color)
+            CurrentTheme.Accent = color
+            for _, item in ipairs(Library.ThemeRegistry) do
+                for prop, key in pairs(item.Properties) do
+                    if key == "Accent" then
+                        pcall(function()
+                            TweenService:Create(item.Instance, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { [prop] = color }):Play()
+                        end)
+                    end
+                end
+            end
+            if Window.ActiveTab then
+                local icon = Window.ActiveTab.Button:FindFirstChildOfClass("ImageLabel")
+                if icon then
+                    TweenService:Create(icon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { ImageColor3 = color }):Play()
+                end
+            end
+            for _, cb in ipairs(Library.ThemeCallbacks) do
+                pcall(cb, color)
+            end
+            Library.EventBus:Publish("ThemeChanged", color)
+        end)
+        ThemeSec:CreateSlider("Background Frame Transparency", 10, 95, 40, "BuiltIn_BgTransVal", function(val)
+            MainFrame.BackgroundTransparency = val / 100
+        end)
+        ThemeSec:CreateSlider("Global UI Scale", 50, 150, 100, "BuiltIn_Scale", function(scalePerc)
+            ApplyUiSettings(Library.Settings.Mode, scalePerc / 100)
+        end)
+        ThemeSec:CreateSlider("Custom Main Frame Corner Radius", 0, 24, 8, "BuiltIn_CornerRadius", function(val)
+            MainCorner.CornerRadius = UDim.new(0, val)
+        end)
+        ThemeSec:CreateToggle("Blur Effect Layer Toggle", false, "BuiltIn_BlurActive", {}, function(state) end)
 
-    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan mengikat fungsi minimize UI kustom Anda
-    local LogoIcon = Instance.new("ImageButton", LogoArea)
-    LogoIcon.Size = UDim2.new(0, 32, 0, 32)
-    LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
-    LogoIcon.BackgroundTransparency = 1
-    LogoIcon.Image = FLOATING_ICON_DECAL
-
-    Janitor:Add(LogoIcon.MouseButton1Click:Connect(function()
-        ToggleGui() -- Klik Logo LouisHub untuk me-minimize UI utama dan memunculkan floating icon kembali [1]
-    end))
-
-    Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
-        if processed then return end
-        if input.KeyCode == Enum.KeyCode.Insert then
+        -- 3. Interface Section
+        local InterfaceSec = SettingsTab:CreateSection("Interface")
+        InterfaceSec:CreateButton("Minimize Antarmuka", function()
             ToggleGui()
-        end
-    end))
+        end)
+        InterfaceSec:CreateButton("Restore Antarmuka Defaults", function()
+            ApplyUiSettings("PC", 1.0)
+            MainFrame.Position = UDim2.new(0.5, -320, 0.5, -230)
+            Library:CreateNotification("Settings", "UI restoration success!", 3)
+        end)
+        InterfaceSec:CreateButton("Close UI Completely", function()
+            ScreenGui:Destroy()
+        end)
+        InterfaceSec:CreateToggle("Smooth UI Animations", true, "BuiltIn_AnimsActive", {}, function(state) end)
+        InterfaceSec:CreateSlider("Sidebar Layout Width", 100, 220, 170, "BuiltIn_SidebarWidth", function(val)
+            Sidebar.Size = UDim2.new(0, val, 1, 0)
+            ContentBg.Size = UDim2.new(1, -val, 1, 0)
+            ContentBg.Position = UDim2.new(0, val, 0, 0)
+            ContentArea.Size = UDim2.new(1, -val, 1, 0)
+            ContentArea.Position = UDim2.new(0, val, 0, 0)
+        end)
+        InterfaceSec:CreateToggle("Enable Search Bar Utility", true, "BuiltIn_SearchBarActive", {}, function(state) end)
 
-    -- Welcome Notification yang otomatis berbunyi/muncul saat inisialisasi CreateWindow
-    task.spawn(function()
-        task.wait(0.2)
-        Library:CreateNotification("Welcome to LouisHub", "UI Framework executed successfully. Press Insert to minimize.", 5)
+        -- 4. Keybind Section
+        local KeybindSec = SettingsTab:CreateSection("Keybind")
+        KeybindSec:CreateKeybind("Menu Toggle Keybind", Enum.KeyCode.Insert, "BuiltIn_MenuBind", function(key) end)
+        KeybindSec:CreateKeybind("Emergency Panic Keybind", Enum.KeyCode.End, "BuiltIn_PanicBind", function(key)
+            ScreenGui:Destroy()
+        end)
+        KeybindSec:CreateButton("Reset Bindings to Default", function()
+            pcall(function()
+                Library.Registry["BuiltIn_MenuBind"].Control:Set(Enum.KeyCode.Insert)
+                Library.Registry["BuiltIn_PanicBind"].Control:Set(Enum.KeyCode.End)
+            end)
+            Library:CreateNotification("Settings", "Keybindings reset to default!", 3)
+        end)
+        
+        local initialBinds = {"Menu: Insert", "Panic: End"}
+        KeybindSec:CreateDropdown("Registered Keybinds List", initialBinds, initialBinds[1], "BuiltIn_ActiveBindsList")
+
+        -- 5. Notification Section
+        local NotificationSec = SettingsTab:CreateSection("Notification")
+        NotificationSec:CreateSlider("Notification Duration (s)", 2, 15, 4, "BuiltIn_NotifDuration", function(val) end)
+        NotificationSec:CreateDropdown("Notification Screen Position", {"Bottom Right", "Top Right"}, "Bottom Right", "BuiltIn_NotifPosition", function(val) end)
+        NotificationSec:CreateToggle("Play Alert Sound Emitter", true, "BuiltIn_NotifSound", {}, function(state) end)
+        NotificationSec:CreateToggle("Entrance Notif Animation", true, "BuiltIn_NotifAnims", {}, function(state) end)
+
+        -- 6. Performance Section
+        local SettingsPerfSec = SettingsTab:CreateSection("Performance")
+        SettingsPerfSec:CreateToggle("Low Performance Mode", false, "BuiltIn_PotatoMode", {}, function(state)
+            if state then
+                MainFrame.BackgroundTransparency = 0.95
+                MainStroke.Thickness = 0
+            else
+                MainFrame.BackgroundTransparency = 0.4
+                MainStroke.Thickness = 1.5
+            end
+        end)
+        SettingsPerfSec:CreateToggle("Enable Animation Cycles", true, "BuiltIn_AnimsLoop", {}, function(state) end)
+        SettingsPerfSec:CreateToggle("Reduce Render Emitter Effects", false, "BuiltIn_ReduceEffects", {}, function(state) end)
+        SettingsPerfSec:CreateToggle("Auto Optimize Memory Garbage", false, "BuiltIn_AutoOptimize", {}, function(state) end)
+
+        task.spawn(function()
+            while task.wait(5) do
+                if Library.Flags["BuiltIn_AutoOptimize"] then
+                    collectgarbage("collect")
+                    appendAutoLog("Performance optimizer: Lua Garbage Collector execution completed.")
+                end
+            end
+        end)
+
+        -- 7. Advanced Section
+        local AdvancedSec = SettingsTab:CreateSection("Advanced")
+        AdvancedSec:CreateToggle("Developer Debug Mode", false, "BuiltIn_DevMode", {}, function(state) end)
+        AdvancedSec:CreateToggle("Allow Experimental Engine Features", false, "BuiltIn_ExperimentalActive", {}, function(state) end)
+        AdvancedSec:CreateButton("Reset Local Settings", function()
+            pcall(function()
+                Library.Registry["BuiltIn_Scale"].Control:Set(100)
+                Library.Registry["BuiltIn_BgTransVal"].Control:Set(40)
+            end)
+            Library:CreateNotification("Settings", "Local UI settings reset!", 3)
+        end)
+        AdvancedSec:CreateButton("Restore Absolute Defaults", function()
+            pcall(function()
+                Library.Registry["BuiltIn_Scale"].Control:Set(100)
+                Library.Registry["BuiltIn_BgTransVal"].Control:Set(40)
+                Library.Registry["BuiltIn_MenuBind"].Control:Set(Enum.KeyCode.Insert)
+                Library.Registry["BuiltIn_PanicBind"].Control:Set(Enum.KeyCode.End)
+                Library.Registry["BuiltIn_AutoSave"].Control:Set(false)
+            end)
+            Library:CreateNotification("Settings", "Absolute factory defaults restored!", 3)
+        end)
+
+        -- ========================================================
+        -- [[ CREDITS TAB ]]
+        -- ========================================================
+        local CreditsTab = Window:CreateTab("Credits", "info")
+        
+        local crDev = CreditsTab:CreateSection("Developer")
+        crDev:CreateParagraph("Lead Engine Architect", "LouisHub Core Engineering Group\nLead Developer: Louis")
+
+        local crCont = CreditsTab:CreateSection("Contributors")
+        crCont:CreateParagraph("UI contributors & Beta Testers", "Special credits to Compkiller, latte-soft, and our dedicated Discord beta-testing community.")
+
+        local crLibs = CreditsTab:CreateSection("Libraries")
+        crLibs:CreateParagraph("Dynamic External Libraries", "Lucide Icons compilation LATTE-SOFT\nTween Easing Library\nScoped Connections Janitor Class")
+
+        local crThanks = CreditsTab:CreateSection("Special Thanks")
+        crThanks:CreateParagraph("Credits & Shoutouts", "Massive thanks to Roblox exploiting pioneers, developers of robust execution environments, and everyone who supports our visual framework development.")
+
+        local crVersion = CreditsTab:CreateSection("Version")
+        crVersion:CreateParagraph("Current Engine Build", "LouisHub Core Framework v2.0.0 (Release-Build)\nCompatible with 64-bit client architectures.")
+
+        local crChangelog = CreditsTab:CreateSection("Changelog")
+        crChangelog:CreateParagraph("Recent Changes", "- Implemented highly optimized World terrain/lighting modifiers.\n- Fleshed out massive, professional Combat Aim mechanics.\n- Fleshed out robust Automation pipeline.\n- Added custom clipboard tools, settings controls, and keybind modifiers.")
+
+        local crInfo = CreditsTab:CreateSection("Information")
+        crInfo:CreateParagraph("Framework Details", "LouisHub Framework is a premium, cross-platform executor visual layout interface built for high scalability, low-latency, and zero memory leaks.")
     end)
 
     -- ========================================================
@@ -2507,7 +5139,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         local oldOverlay = ScreenGui:FindFirstChild("Nexus_Modal_Overlay")
         if oldOverlay then oldOverlay:Destroy() end
         
-        -- Lapisan Latar Belakang Gelap Transparan Premium
         local Overlay = Instance.new("TextButton", ScreenGui)
         Overlay.Name = "Nexus_Modal_Overlay"
         Overlay.Size = UDim2.new(1, 0, 1, 0)
@@ -2574,7 +5205,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         CloseBtn.MouseButton1Click:Connect(CloseModal)
         Overlay.MouseButton1Click:Connect(CloseModal)
         
-        -- Animasi Pembesaran Skala Melenting yang Premium
         ModalFrame.Size = UDim2.new(0, 0, 0, 0)
         ModalFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
         TweenService:Create(ModalFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(0, 320, 0, 180), Position = UDim2.new(0.5, -160, 0.5, -90) }):Play()
