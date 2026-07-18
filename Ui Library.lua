@@ -1,12 +1,2273 @@
---[[
- .____                  ________ ___.    _____                           __                
- |    |    __ _______   \_____  \\_ |___/ ____\_ __  ______ ____ _____ _/  |_  ___________ 
- |    |   |  |  \__  \   /   |   \| __ \   __\  |  \/  ___// ___\\__  \\   __\/  _ \_  __ \
- |    |___|  |  // __ \_/    |    \ \_\ \  | |  |  /\___ \\  \___ / __ \|  | (  <_> )  | \/
- |_______ \____/(____  /\_______  /___  /__| |____//____  >\___  >____  /__|  \____/|__|   
-         \/          \/         \/    \/                \/     \/     \/                   
-          \_Welcome to LuaObfuscator.com   (Alpha 0.10.9) ~  Much Love, Ferib 
+local Library = {}
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local TextService = game:GetService("TextService")
 
-]]--
+-- ========================================================
+-- [[ 0. CONFIGURATION, DIRECTORY & THEME SYSTEM ]]
+-- ========================================================
+Library.Flags = {}
+Library.Elements = {}
+Library.ExternalButtons = {} 
+Library.LoadedConfigCache = {} 
+Library.Toggles = {} -- Pelacak sakelar aktif untuk pembaruan tema dinamis
 
-local v0={};local v1=game:GetService("TweenService");local v2=game:GetService("UserInputService");local v3=game:GetService("RunService");local v4=game:GetService("Players");local v5=v4.LocalPlayer;local v6=game:GetService("HttpService");local v7=game:GetService("TextService");v0.Flags={};v0.Elements={};v0.ExternalButtons={};v0.LoadedConfigCache={};v0.Toggles={};local v13=game.PlaceId;local v14="LouisHub";if makefolder then pcall(function() makefolder(v14);end);end local v15=v14   .. "/Settings_"   .. tostring(v13)   .. ".json" ;local v16="default";local v17=false;local v18={RGB={WindowBg=Color3.fromRGB(15,15,18),WindowTransparency=0,HeaderBg=Color3.fromRGB(15,15,18),HeaderTransparency=1,SidebarBg=Color3.fromRGB(18,18,22),SidebarTransparency=0,ContentBg=Color3.fromRGB(18,18,22),ContentTransparency=0,ElementBg=Color3.fromRGB(22,22,26),ElementTransparency=0,ElementStroke=Color3.fromRGB(35,35,40),TextPrimary=Color3.fromRGB(255,255,255),TextSecondary=Color3.fromRGB(140,140,150),TextDark=Color3.fromRGB(130,130,130),Accent=Color3.fromRGB(255,255,255),IsRGB=true,BgImage="",BgImageTransparency=1,FloatingIconImage="rbxthumb://type=Asset&id=10734887784&w=150&h=150"},["Cute Pastel"]={WindowBg=Color3.fromRGB(255,235,243),WindowTransparency=0,HeaderBg=Color3.fromRGB(174,224,250),HeaderTransparency=0.1,SidebarBg=Color3.fromRGB(255,215,230),SidebarTransparency=0.8,ContentBg=Color3.fromRGB(247,251,255),ContentTransparency=0.8,ElementBg=Color3.fromRGB(255,255,255),ElementTransparency=0.15,ElementStroke=Color3.fromRGB(235,205,220),TextPrimary=Color3.fromRGB(80,75,90),TextSecondary=Color3.fromRGB(115,120,140),TextDark=Color3.fromRGB(150,155,175),Accent=Color3.fromRGB(255,130,170),IsRGB=false,BgImage="rbxthumb://type=Asset&id=118470928936375&w=420&h=420",BgImageTransparency=0.8,FloatingIconImage="rbxthumb://type=Asset&id=103242464029137&w=150&h=150"}};local v19="RGB";local v20=true;local v21={};local v22={};local v23=nil;local function v24() local v45={};if (listfiles and isfolder and isfolder(v14)) then local v521,v522=pcall(listfiles,v14);if (v521 and (type(v522)=="table")) then local v925="Config_"   .. tostring(v13)   .. "_(.-)%.json$" ;for v960,v961 in ipairs(v522) do local v962=v961:gsub("\\","/");local v963=v962:match(v925);if v963 then table.insert(v45,v963);end end end end if ( #v45==0) then table.insert(v45,"default");else table.sort(v45);end return v45;end local function v25(v46,v47) local v48=v47 or "A" ;local v49=v46.TextSize;local v50=v46.Font;local v51=v7:GetTextSize(v48,v49,v50,Vector2.new(1000,40));v46.Size=UDim2.new(0,v51.X + 28 ,0,40);end local function v26(v53,v54) table.insert(v21,{Instance=v53,Properties=v54});local v55=v18[v19];pcall(function() for v523,v524 in pairs(v54) do if (type(v524)=="function") then v53[v523]=v524(v55);else v53[v523]=v55[v524];end end end);end local function v27(v56) v19=v56;local v57=v18[v56] or v18['RGB'] ;v20=v57.IsRGB;for v408,v409 in ipairs(v21) do local v410=v409.Instance;if (v410 and v410:IsDescendantOf(game)) then pcall(function() for v964,v965 in pairs(v409.Properties) do if (type(v965)=="function") then v410[v964]=v965(v57);else v410[v964]=v57[v965];end end end);end end if  not v20 then for v817,v818 in ipairs(v22) do if (v818.Instance and v818.Instance:IsDescendantOf(game)) then pcall(function() if ((v818.Instance.Name=="Icon") and v818.Instance.Parent and (v818.Instance.Parent.Name=="FloatingToggleIcon")) then v818.Instance[v818.Property]=Color3.fromRGB(255,255,255);else v818.Instance[v818.Property]=v57.Accent;end end);end end end for v411,v412 in ipairs(v0.Toggles) do pcall(function() v412.UpdateVisual(false,true);end);end if (v23 and v23.UpdateAllTabsVisual) then v23:UpdateAllTabsVisual();end v0.Flags['__MetaTheme']=v56;v0:SaveSettings();end local function v28(v60) if  not v60 then return "";end local v61={home="rbxassetid://10723407389",swords="rbxassetid://10734975692",eye="rbxassetid://10723346959",crosshair="rbxassetid://10709818534",crown="rbxassetid://10709818626",keyboard="rbxassetid://10723416765",sliders="rbxassetid://10734963400"};if ((type(v60)=="string") and v61[v60:lower()]) then v60=v61[v60:lower()];end if ((type(v60)=="string") and v60:find("^rbxthumb://")) then return v60;end if (type(v60)=="number") then return "rbxthumb://type=Asset&id="   .. tostring(v60)   .. "&w=150&h=150" ;end if ((type(v60)=="string") and v60:find("^rbxassetid://")) then local v526=v60:gsub("^rbxassetid://","");return "rbxthumb://type=Asset&id="   .. v526   .. "&w=150&h=150" ;end return tostring(v60);end local function v29() if ( not isfile or  not readfile) then return;end if isfile(v15) then pcall(function() local v819=v6:JSONDecode(readfile(v15));if (v819 and (type(v819)=="table")) then if v819.SelectedProfile then v16=v819.SelectedProfile;end if (v819.AutoLoad~=nil) then v17=v819.AutoLoad;end if v819.SelectedTheme then v19=v819.SelectedTheme;end end end);end local v62=v24();local v63=false;for v413,v414 in ipairs(v62) do if (v414==v16) then v63=true;break;end end if  not v63 then v16=v62[1] or "default" ;end local v64=v14   .. "/Config_"   .. tostring(v13)   .. "_"   .. v16   .. ".json" ;if isfile(v64) then pcall(function() local v820=v6:JSONDecode(readfile(v64));if (v820 and (type(v820)=="table")) then v0.LoadedConfigCache=v820;for v987,v988 in pairs(v820) do if  not v987:find("^__Meta") then v0.Flags[v987]=v988;end end end end);end end v29();v0.SaveSettings=function(v65) if  not writefile then return;end if makefolder then pcall(makefolder,v14);end local v66,v67=pcall(function() local v415={SelectedProfile=v16,AutoLoad=v17,SelectedTheme=v19};writefile(v15,v6:JSONEncode(v415));end);if  not v66 then warn("LouisHub UI: Gagal menyimpan settings. Error: "   .. tostring(v67) );end end;v0.SaveConfig=function(v68,v69) if  not writefile then return;end if makefolder then pcall(makefolder,v14);end local v70,v71=pcall(function() local v416=v14   .. "/Config_"   .. tostring(v13)   .. "_"   .. v16   .. ".json" ;local v417={};for v527,v528 in pairs(v0.Flags) do if  not v527:find("^__Meta") then v417[v527]=v528;end end writefile(v416,v6:JSONEncode(v417));if  not v69 then v0:Notify("Config System","Config saved to folder /"   .. v14   .. " as "   .. v16 ,3);end end);if  not v70 then warn("LouisHub UI: Gagal menyimpan config. Error: "   .. tostring(v71) );end end;v0.LoadConfig=function(v72,v73,v74) if ( not isfile or  not readfile) then return;end if  not v74 then if v0.Elements['__MetaProfile'] then v0.Elements['__MetaProfile']:Set(v16,true,true);end if v0.Elements['__MetaAutoLoad'] then v0.Elements['__MetaAutoLoad']:Set(v17,true,true);end if v0.Elements['__MetaTheme'] then v0.Elements['__MetaTheme']:Set(v19,true,true);end end if (v17 or v73 or v74) then local v529=v14   .. "/Config_"   .. tostring(v13)   .. "_"   .. v16   .. ".json" ;if isfile(v529) then local v930,v931=pcall(function() local v967=v6:JSONDecode(readfile(v529));if (v967 and (type(v967)=="table")) then v0.LoadedConfigCache=v967;if  not v74 then for v1032,v1033 in pairs(v0.Elements) do if ( not v1032:find("^__Meta") and (v1033.DefaultValue~=nil)) then v1033:Set(v1033.DefaultValue,true,true);end end v0.Flags['__MetaProfile']=v16;v0.Flags['__MetaAutoLoad']=v17;v0.Flags['__MetaTheme']=v19;local v1029=GetMainGui();for v1034,v1035 in pairs(v967) do if v1034:find("^__Meta") then continue;end if v0.Elements[v1034] then v0.Elements[v1034]:Set(v1035,true,false);end if v1034:find("^ExtBtnPos_") then local v1036=v1034:gsub("^ExtBtnPos_","");local v1037=v1029:FindFirstChild("ExternalButton_"   .. v1036 );if (v1037 and (type(v1035)=="table")) then v1037.Position=UDim2.new(v1035.X_Scale or 0 ,v1035.X_Offset or 0 ,v1035.Y_Scale or 0 ,v1035.Y_Offset or 0 );end v0.Flags[v1034]=v1035;elseif ((v1034=="StatsHUDPos") and (type(v1035)=="table")) then local v1040=v1029:FindFirstChild("Louis_StatsHUD");if v1040 then v1040.Position=UDim2.new(v1035.X_Scale or 0 ,v1035.X_Offset or 0 ,v1035.Y_Scale or 0 ,v1035.Y_Offset or 0 );end v0.Flags[v1034]=v1035;end end if v73 then v0:Notify("Config System","Successfully loaded "   .. v16 ,3);end end end end);if  not v930 then warn("LouisHub UI: Gagal membaca config. Error: "   .. tostring(v931) );end elseif  not v74 then for v1013 in pairs(v0.Flags) do v0.Flags[v1013]=nil;end v0.Flags['__MetaProfile']=v16;v0.Flags['__MetaAutoLoad']=v17;v0.Flags['__MetaTheme']=v19;for v1015,v1016 in pairs(v0.Elements) do if ( not v1015:find("^__Meta") and (v1016.DefaultValue~=nil)) then v1016:Set(v1016.DefaultValue,true,true);end end for v1017,v1018 in pairs(v0.ExternalButtons) do if (v1018.Instance and v1018.DefaultPosition) then v1018.Instance.Position=v1018.DefaultPosition;end end if v73 then v0:Notify("Config System","Profile is empty. UI reset to default for "   .. v16 ,3);end end end end;local function v33(v75,v76) for v418,v419 in ipairs(v22) do if ((v419.Instance==v75) and (v419.Property==v76)) then return;end end table.insert(v22,{Instance=v75,Property=v76});end local function v34(v77,v78) for v420= #v22,1, -1 do if ((v22[v420].Instance==v77) and (v22[v420].Property==v78)) then table.remove(v22,v420);end end end v3.RenderStepped:Connect(function() if  not v20 then return;end local v79=(os.clock()%4)/4 ;local v80=Color3.fromHSV(v79,0.85,0.95);for v421= #v22,1, -1 do local v422=v22[v421];if (v422.Instance and v422.Instance:IsDescendantOf(game)) then pcall(function() v422.Instance[v422.Property]=v80;end);else table.remove(v22,v421);end end end);local function v35(v81,v82,v83) local v84=false;local v85;local v86=Vector3.new();local v87=UDim2.new();v81.InputBegan:Connect(function(v423) if v82:GetAttribute("DragLocked") then return;end if ((v423.UserInputType==Enum.UserInputType.MouseButton1) or (v423.UserInputType==Enum.UserInputType.Touch)) then v84=true;v85=v423;v86=v423.Position;v87=v82.Position;local v823;v823=v423.Changed:Connect(function() if (v423.UserInputState==Enum.UserInputState.End) then v84=false;v85=nil;if v823 then v823:Disconnect();end if v83 then v83();end end end);end end);v2.InputChanged:Connect(function(v424) if (v84 and (v424==v85)) then if v82:GetAttribute("DragLocked") then v84=false;v85=nil;return;end local v824=v424.Position-v86 ;v82.Position=UDim2.new(v87.X.Scale,v87.X.Offset + v824.X ,v87.Y.Scale,v87.Y.Offset + v824.Y );end end);end local v36;local function v37() if  not v36 then v36=Instance.new("ScreenGui");v36.Name="LouisHub_ModernUI";v36.ResetOnSpawn=false;v36.IgnoreGuiInset=true;v36.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;local v535;local v536,v537=pcall(function() return gethui and gethui() ;end);if (v536 and v537) then v535=v537;else local v933,v934=pcall(function() return game:GetService("CoreGui");end);if (v933 and v934) then v535=v934;else v535=v5:WaitForChild("PlayerGui");end end v36.Parent=v535;end return v36;end local v38;local function v39() if  not v38 then v38=Instance.new("ScreenGui");v38.Name="Louis_Notification_System";v38.DisplayOrder=9999;local v541;local v542,v543=pcall(function() return gethui and gethui() ;end);if (v542 and v543) then v541=v543;else local v935,v936=pcall(function() return game:GetService("CoreGui");end);if (v935 and v936) then v541=v936;else v541=v5:WaitForChild("PlayerGui");end end v38.Parent=v541;local v545=Instance.new("Frame",v38);v545.Name="Holder";v545.Size=UDim2.new(0,280,1, -40);v545.Position=UDim2.new(1, -300,0,20);v545.BackgroundTransparency=1;local v550=Instance.new("UIListLayout",v545);v550.VerticalAlignment=Enum.VerticalAlignment.Bottom;v550.Padding=UDim.new(0,8);end return v38.Holder;end v0.Notify=function(v88,v89,v90,v91) v91=v91 or 4 ;local v92=v39();local v93=v18[v19];local v94=Instance.new("Frame");v94.Size=UDim2.new(1,0,0,0);v94.BackgroundColor3=v93.WindowBg;v94.BackgroundTransparency=v93.WindowTransparency;v94.BorderSizePixel=0;v94.ClipsDescendants=true;v94.Parent=v92;local v103=Instance.new("UICorner",v94);v103.CornerRadius=UDim.new(0,6);local v105=Instance.new("UIStroke",v94);v105.Thickness=1;v105.Color=(v93.IsRGB and Color3.new(1,1,1)) or v93.Accent ;if v93.IsRGB then v33(v105,"Color");end local v108=Instance.new("Frame",v94);v108.Size=UDim2.new(0,3,1,0);v108.Position=UDim2.new(0,0,0,0);v108.BorderSizePixel=0;v108.BackgroundColor3=(v93.IsRGB and Color3.new(1,1,1)) or v93.Accent ;if v93.IsRGB then v33(v108,"BackgroundColor3");end local v113=Instance.new("TextLabel",v94);v113.Size=UDim2.new(1, -30,0,20);v113.Position=UDim2.new(0,14,0,8);v113.BackgroundTransparency=1;v113.Text=v89 or "Notification" ;v113.TextColor3=v93.TextPrimary;v113.Font=Enum.Font.MontserratBold;v113.TextSize=12;v113.TextXAlignment=Enum.TextXAlignment.Left;local v125=Instance.new("TextLabel",v94);v125.Size=UDim2.new(1, -30,0,32);v125.Position=UDim2.new(0,14,0,26);v125.BackgroundTransparency=1;v125.Text=v90 or "Description" ;v125.TextColor3=v93.TextSecondary;v125.Font=Enum.Font.Montserrat;v125.TextSize=10;v125.TextWrapped=true;v125.TextXAlignment=Enum.TextXAlignment.Left;v1:Create(v94,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(1,0,0,65)}):Play();task.delay(v91,function() if (v94 and v94.Parent) then local v826=v1:Create(v94,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.new(1,0,0,0)});v826:Play();v826.Completed:Connect(function() v94:Destroy();end);end end);end;local function v41(v137,v138,v139) local v140=v37();local v141=v18[v19];local v142=Instance.new("Frame",v140);v142.Name="Louis_Loading_Screen";v142.Size=UDim2.new(1,0,1,0);v142.BackgroundColor3=Color3.fromRGB(12,12,15);v142.BackgroundTransparency=0;v142.BorderSizePixel=0;v142.ZIndex=9990;local v149=Instance.new("Frame",v142);v149.Size=UDim2.new(0,220,0,60);v149.Position=UDim2.new(0,30,1, -90);v149.BackgroundTransparency=1;v149.ZIndex=9995;local v154=Instance.new("ImageLabel",v149);v154.Size=UDim2.new(0,44,0,44);v154.Position=UDim2.new(0,0,0.5, -22);v154.BackgroundTransparency=1;v154.ImageTransparency=1;v154.ZIndex=9995;v154.Image="rbxthumb://type=AvatarHeadShot&id="   .. tostring(v5.UserId)   .. "&w=150&h=150" ;task.spawn(function() local v425,v426=pcall(function() return v4:GetUserThumbnailAsync(v5.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100);end);if (v425 and v426) then v154.Image=v426;end end);Instance.new("UICorner",v154).CornerRadius=UDim.new(1,0);local v162=Instance.new("UIStroke",v154);v162.Thickness=1.5;v162.Transparency=1;v162.Color=(v141.IsRGB and Color3.new(1,1,1)) or v141.Accent ;if v141.IsRGB then v33(v162,"Color");end local v166=Instance.new("TextLabel",v149);v166.Size=UDim2.new(1, -54,1,0);v166.Position=UDim2.new(0,54,0,0);v166.BackgroundTransparency=1;v166.Font=Enum.Font.MontserratBold;v166.TextColor3=(v141.IsRGB and Color3.new(1,1,1)) or v141.TextPrimary ;v166.TextSize=10;v166.TextXAlignment=Enum.TextXAlignment.Left;v166.RichText=true;v166.TextTransparency=1;v166.ZIndex=9995;v166.Text='<font color="'   .. ((v141.IsRGB and "rgb(180, 180, 180)") or "rgb(100, 100, 110)")   .. '">MEMBER:</font>\n'   .. v5.Name:upper()   .. '\n<font size="8" color="'   .. ((v141.IsRGB and "rgb(130, 130, 130)") or "rgb(140, 140, 150)")   .. '">ID: '   .. v5.UserId   .. "</font>" ;local v180=Instance.new("TextLabel",v142);v180.Size=UDim2.new(1,0,0,45);v180.Position=UDim2.new(0,0,0.35,0);v180.BackgroundTransparency=1;v180.Font=Enum.Font.MontserratBold;v180.TextSize=34;v180.RichText=true;v180.Text=(v137 or "LOUIS HUB"):upper();v180.TextTransparency=1;v180.ZIndex=9995;v180.TextColor3=(v141.IsRGB and Color3.new(1,1,1)) or v141.Accent ;if v141.IsRGB then v33(v180,"TextColor3");end local v191=Instance.new("TextLabel",v142);v191.Size=UDim2.new(1,0,0,20);v191.Position=UDim2.new(0,0,0.44,0);v191.BackgroundTransparency=1;v191.Text=(v138 or "MODERNIZED INTERFACE"):upper();v191.TextColor3=(v141.IsRGB and Color3.fromRGB(180,180,190)) or v141.TextSecondary ;v191.TextSize=12;v191.Font=Enum.Font.MontserratBold;v191.TextTransparency=1;v191.ZIndex=9995;local v201=Instance.new("Frame",v142);v201.Size=UDim2.new(0.4,0,0,4);v201.Position=UDim2.new(0.3,0,0.62,0);v201.BackgroundColor3=(v141.IsRGB and Color3.fromRGB(25,25,30)) or Color3.fromRGB(30,30,35) ;v201.ZIndex=9995;Instance.new("UICorner",v201);local v206=Instance.new("Frame",v201);v206.Size=UDim2.new(0,0,1,0);v206.ZIndex=9995;Instance.new("UICorner",v206);v206.BackgroundColor3=(v141.IsRGB and Color3.new(1,1,1)) or v141.Accent ;if v141.IsRGB then v33(v206,"BackgroundColor3");end local v210=Instance.new("TextButton",v142);v210.Size=UDim2.new(0,110,0,32);v210.Position=UDim2.new(0.5, -55,0.8,0);v210.BackgroundColor3=(v141.IsRGB and Color3.fromRGB(22,22,26)) or Color3.fromRGB(28,28,33) ;v210.Text="SKIP";v210.TextColor3=(v141.IsRGB and Color3.new(1,1,1)) or v141.TextPrimary ;v210.Font=Enum.Font.MontserratBold;v210.TextSize=12;v210.ZIndex=10000;v210.TextTransparency=1;local v220=Instance.new("UICorner",v210);v220.CornerRadius=UDim.new(0,6);local v222=Instance.new("UIStroke",v210);v222.Color=(v141.IsRGB and Color3.fromRGB(40,40,45)) or v141.ElementStroke ;v222.Thickness=1;local v225=Instance.new("Sound",v142);v225.SoundId="rbxassetid://1567483853";v225.Volume=0.5;local function v228() for v554=1,3 do local v555=Instance.new("Frame",v142);v555.BackgroundColor3=v141.Accent;v555.BorderSizePixel=0;v555.Size=UDim2.new(0,math.random(40,90),0,1.5);v555.Position=UDim2.new(0.5,math.random( -80,80),0.38,math.random( -15,15));v555.ZIndex=9995;task.spawn(function() task.wait(0.1);v555:Destroy();end);end end local v229=false;local function v230() if v229 then return;end v229=true;v225:Stop();v34(v180,"TextColor3");v34(v206,"BackgroundColor3");v34(v162,"Color");local v427=TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out);v1:Create(v142,v427,{BackgroundTransparency=1}):Play();for v562,v563 in ipairs(v142:GetDescendants()) do pcall(function() if (v563:IsA("TextLabel") or v563:IsA("TextButton")) then v1:Create(v563,v427,{TextTransparency=1,BackgroundTransparency=1}):Play();elseif v563:IsA("ImageLabel") then v1:Create(v563,v427,{ImageTransparency=1,BackgroundTransparency=1}):Play();elseif v563:IsA("Frame") then v1:Create(v563,v427,{BackgroundTransparency=1}):Play();elseif v563:IsA("UIStroke") then v1:Create(v563,v427,{Transparency=1}):Play();end end);end task.delay(0.38,function() v142:Destroy();if v139 then v139();end end);end v210.MouseButton1Click:Connect(v230);local v231=TweenInfo.new(0.6,Enum.EasingStyle.Quad,Enum.EasingDirection.Out);v1:Create(v180,v231,{TextTransparency=0}):Play();v1:Create(v154,v231,{ImageTransparency=0}):Play();v1:Create(v162,v231,{Transparency=0}):Play();v1:Create(v166,v231,{TextTransparency=0}):Play();v1:Create(v210,v231,{TextTransparency=0}):Play();task.delay(1,function() if v229 then return;end v1:Create(v191,TweenInfo.new(0.4),{TextTransparency=0}):Play();for v564=1,6 do if v229 then break;end local v565= not v191.Visible;v191.Visible=v565;v180.Visible=v565;if v565 then v228();pcall(function() v225:Play();end);end task.wait(0.2);end if  not v229 then v191.Visible=true;v180.Visible=true;end end);v206:TweenSize(UDim2.new(1,0,1,0),"Out","Linear",5.5);local v232=0;while (v232<6) and  not v229  do v232=v232 + 0.1 ;task.wait(0.1);end if  not v229 then v230();end end v0.CreateWindow=function(v233,v234,v235) v0:LoadConfig(false,true);local v236={Tabs={},CurrentTab=nil,DragLocked=false,Minimized=false,Visible=false};v23=v236;local v237=v37();local v238=Instance.new("Frame");v238.Size=UDim2.new(0,520,0,330);v238.Position=UDim2.new(0.5, -260,0.5, -165);v238.BorderSizePixel=0;v238.ClipsDescendants=true;v238.Parent=v237;v238.Visible=false;v26(v238,{BackgroundColor3="WindowBg",BackgroundTransparency="WindowTransparency"});local v245=Instance.new("UICorner",v238);v245.CornerRadius=UDim.new(0,8);local v247=Instance.new("ImageLabel",v238);v247.Name="UIBackgroundPattern";v247.Size=UDim2.new(1,0,1,0);v247.Position=UDim2.new(0,0,0,0);v247.BackgroundTransparency=1;v247.ScaleType=Enum.ScaleType.Crop;v247.ZIndex= -2;v26(v247,{Image="BgImage",ImageTransparency="BgImageTransparency"});local v255=Instance.new("UIStroke",v238);v255.Thickness=1;v33(v255,"Color");v26(v255,{Color=function(v428) return (v428.IsRGB and v255.Color) or v428.ElementStroke ;end});local v257=Instance.new("Frame",v238);v257.Size=UDim2.new(1,0,0,46);v257.BorderSizePixel=0;v26(v257,{BackgroundColor3="HeaderBg",BackgroundTransparency="HeaderTransparency"});local v260=Instance.new("UICorner",v257);v260.CornerRadius=UDim.new(0,8);local v262=Instance.new("Frame",v257);v262.Size=UDim2.new(1,0,0.5,0);v262.Position=UDim2.new(0,0,0.5,0);v262.BorderSizePixel=0;v262.ZIndex= -1;v26(v262,{BackgroundColor3="HeaderBg",BackgroundTransparency="HeaderTransparency"});v35(v257,v238);local v267=Instance.new("TextLabel",v257);v267.Size=UDim2.new(0,300,0,18);v267.Position=UDim2.new(0,16,0,10);v267.BackgroundTransparency=1;v267.Text=v234 or "LOUIS HUB" ;v267.TextSize=14;v267.Font=Enum.Font.MontserratBold;v267.TextXAlignment=Enum.TextXAlignment.Left;v26(v267,{TextColor3="TextPrimary"});local v277=Instance.new("TextLabel",v257);v277.Size=UDim2.new(0,300,0,12);v277.Position=UDim2.new(0,16,0,26);v277.BackgroundTransparency=1;v277.Text=v235 or "Rebuilt Edition" ;v277.TextSize=9;v277.Font=Enum.Font.MontserratBold;v277.TextXAlignment=Enum.TextXAlignment.Left;v26(v277,{TextColor3="TextSecondary"});local v285=Instance.new("Frame",v238);v285.Size=UDim2.new(1,0,0,1);v285.Position=UDim2.new(0,0,0,46);v285.BorderSizePixel=0;v33(v285,"BackgroundColor3");v26(v285,{BackgroundTransparency=function(v429) return (v429.IsRGB and 0) or 1 ;end});local v289=Instance.new("Frame",v238);v289.Size=UDim2.new(0,140,1, -58);v289.Position=UDim2.new(0,12,0,52);v289.BorderSizePixel=0;Instance.new("UICorner",v289).CornerRadius=UDim.new(0,6);v26(v289,{BackgroundColor3="SidebarBg",BackgroundTransparency="SidebarTransparency"});local v294=Instance.new("UIStroke",v289);v294.Thickness=1;v26(v294,{Color="ElementStroke"});local v296=Instance.new("ScrollingFrame",v289);v296.Size=UDim2.new(1, -12,1, -12);v296.Position=UDim2.new(0,6,0,6);v296.BackgroundTransparency=1;v296.ScrollBarThickness=0;v296.CanvasSize=UDim2.new(0,0,0,0);local v302=Instance.new("UIListLayout",v296);v302.Padding=UDim.new(0,4);local v304=Instance.new("Frame",v238);v304.Size=UDim2.new(1, -174,1, -58);v304.Position=UDim2.new(0,162,0,52);v304.BorderSizePixel=0;Instance.new("UICorner",v304).CornerRadius=UDim.new(0,6);v26(v304,{BackgroundColor3="ContentBg",BackgroundTransparency="ContentTransparency"});local v309=Instance.new("UIStroke",v304);v309.Thickness=1;v26(v309,{Color="ElementStroke"});v302:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() v296.CanvasSize=UDim2.new(0,0,0,v302.AbsoluteContentSize.Y);end);local v311=Instance.new("ImageButton",v257);v311.Size=UDim2.new(0,18,0,18);v311.Position=UDim2.new(1, -52,0,14);v311.BackgroundTransparency=1;v311.Image="rbxthumb://type=Asset&id=6031094670&w=150&h=150";v26(v311,{ImageColor3="TextSecondary"});v311.MouseButton1Click:Connect(function() v236.Minimized= not v236.Minimized;local v432=(v236.Minimized and UDim2.new(0,520,0,47)) or UDim2.new(0,520,0,330) ;local v433=(v236.Minimized and 180) or 0 ;v1:Create(v311,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Rotation=v433}):Play();if v236.Minimized then local v830=v1:Create(v289,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{BackgroundTransparency=1});local v831=v1:Create(v304,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{BackgroundTransparency=1});v830:Play();v831:Play();v830.Completed:Connect(function() if v236.Minimized then v289.Visible=false;v304.Visible=false;end end);v1:Create(v238,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=v432}):Play();else v289.Visible=true;v304.Visible=true;local v834=v18[v19];v1:Create(v289,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{BackgroundTransparency=v834.SidebarTransparency}):Play();v1:Create(v304,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{BackgroundTransparency=v834.ContentTransparency}):Play();v1:Create(v238,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=v432}):Play();end end);local v316=Instance.new("ImageButton",v257);v316.Size=UDim2.new(0,18,0,18);v316.Position=UDim2.new(1, -28,0,14);v316.BackgroundTransparency=1;v316.Image="rbxthumb://type=Asset&id=10734898355&w=150&h=150";v26(v316,{ImageColor3="TextSecondary"});v316.MouseEnter:Connect(function() v1:Create(v316,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{ImageColor3=Color3.fromRGB(255,75,75)}):Play();end);v316.MouseLeave:Connect(function() local v434=v18[v19];v1:Create(v316,TweenInfo.new(0.15,Enum.EasingStyle.Quad),{ImageColor3=v434.TextSecondary}):Play();end);local v321=Instance.new("TextButton",v237);v321.Name="FloatingToggleIcon";v321.Size=UDim2.new(0,48,0,48);v321.Position=UDim2.new(0.5, -24,0.5, -24);v321.BorderSizePixel=0;v321.Text="";v321.Visible=false;v321.ClipsDescendants=true;v26(v321,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency"});local v329=Instance.new("UICorner",v321);v329.CornerRadius=UDim.new(0,8);local v331=Instance.new("UIStroke",v321);v331.Thickness=1;v33(v331,"Color");v26(v331,{Color=function(v435) return (v435.IsRGB and v331.Color) or v435.Accent ;end});local v333=Instance.new("ImageLabel",v321);v333.Name="Icon";v333.Size=UDim2.new(0.85,0,0.85,0);v333.Position=UDim2.new(0.075,0,0.075,0);v333.BackgroundTransparency=1;v333.ScaleType=Enum.ScaleType.Fit;v33(v333,"ImageColor3");v26(v333,{Image="FloatingIconImage",ImageColor3=function(v436) return (v436.IsRGB and v333.ImageColor3) or Color3.fromRGB(255,255,255) ;end});v35(v321,v321);local v340=true;local function v341() if  not v236.Visible then v236.Visible=true;v238.Visible=true;local v837=v1:Create(v321,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.new(0,0,0,0)});v837:Play();v837.Completed:Connect(function() if v236.Visible then v321.Visible=false;end end);v238.Size=UDim2.new(0,520,0,0);local v839=(v236.Minimized and 47) or 330 ;v1:Create(v238,TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,520,0,v839)}):Play();end end local function v342() if v236.Visible then v236.Visible=false;local v841=v1:Create(v238,TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Size=UDim2.new(0,520,0,0)});v841:Play();v841.Completed:Connect(function() if  not v236.Visible then v238.Visible=false;end end);if v340 then v340=false;v321.Position=UDim2.new(0,20,0.5, -24);end v321.Visible=true;v321.Size=UDim2.new(0,0,0,0);v1:Create(v321,TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,48,0,48)}):Play();end end v321.MouseButton1Click:Connect(function() v1:Create(v321,TweenInfo.new(0.1,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,40,0,40)}):Play();task.delay(0.1,function() v341();end);end);v316.MouseButton1Click:Connect(v342);v41(v234,v235,function() v340=true;v321.Position=UDim2.new(0.5, -24,0.5, -24);v321.Size=UDim2.new(0,0,0,0);v321.Visible=true;v1:Create(v321,TweenInfo.new(0.4,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(0,48,0,48)}):Play();task.spawn(function() task.wait(0.5);v0:LoadConfig();v27(v19);end);end);v236.SetDragLock=function(v440,v441) v236.DragLocked=v441;v238:SetAttribute("DragLocked",v441);end;v236.BindToggleKey=function(v443,v444) local v445=false;v2.InputBegan:Connect(function(v568,v569) if v569 then return;end if ((v568.KeyCode==v444) and  not v445) then v445=true;if v236.Visible then v342();else v341();end task.wait(0.3);v445=false;end end);end;v236.UpdateAllTabsVisual=function(v446) local v447=v18[v19];for v570,v571 in ipairs(v236.Tabs) do local v572=v236.CurrentTab and (v236.CurrentTab.Button==v571.Button) ;v1:Create(v571.Button,TweenInfo.new(0.15),{BackgroundTransparency=(v572 and v447.ElementTransparency) or (v447.IsRGB and 1) or v447.SidebarTransparency ,BackgroundColor3=(v572 and v447.ElementBg) or v447.SidebarBg }):Play();v1:Create(v571.ButtonStroke,TweenInfo.new(0.15),{Transparency=(v572 and 0) or (v447.IsRGB and 1) or v447.SidebarTransparency ,Color=v447.ElementStroke}):Play();v1:Create(v571.Text,TweenInfo.new(0.15),{TextColor3=(v572 and v447.TextPrimary) or v447.TextDark }):Play();v571.Indicator.Visible=v572;if v571.Icon then v1:Create(v571.Icon,TweenInfo.new(0.15),{ImageColor3=(v572 and v447.TextPrimary) or v447.TextDark }):Play();end end end;v236.CreateTab=function(v448,v449,v450) local v451={};local v452=Instance.new("ScrollingFrame",v304);v452.Size=UDim2.new(1, -16,1, -16);v452.Position=UDim2.new(0,8,0,8);v452.BackgroundTransparency=1;v452.ScrollBarThickness=2;v452.CanvasSize=UDim2.new(0,0,0,0);v452.Visible=false;v452.ScrollBarImageColor3=Color3.fromRGB(150,150,150);v452.ScrollBarImageTransparency=0.4;local v461=Instance.new("UIListLayout",v452);v461.Padding=UDim.new(0,6);v461.SortOrder=Enum.SortOrder.LayoutOrder;v461:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() v452.CanvasSize=UDim2.new(0,0,0,v461.AbsoluteContentSize.Y);end);local v465=Instance.new("TextButton",v296);v465.Size=UDim2.new(1,0,0,32);v465.Text="";v465.AutoButtonColor=false;Instance.new("UICorner",v465).CornerRadius=UDim.new(0,5);local v470=Instance.new("UIStroke",v465);v470.Thickness=1;local v472=Instance.new("Frame",v465);v472.Size=UDim2.new(0,2.5,1, -12);v472.Position=UDim2.new(0,4,0,6);v472.BorderSizePixel=0;v472.Visible=false;v33(v472,"BackgroundColor3");v26(v472,{BackgroundColor3=function(v575) return (v575.IsRGB and v472.BackgroundColor3) or v575.Accent ;end});local v477;if v450 then v477=Instance.new("ImageLabel",v465);v477.Size=UDim2.new(0,14,0,14);v477.Position=UDim2.new(0,10,0.5, -7);v477.BackgroundTransparency=1;v477.Image=v28(v450);end local v478=Instance.new("TextLabel",v465);v478.Size=UDim2.new(1,(v450 and  -34) or  -16 ,1,0);v478.Position=UDim2.new(0,(v450 and 28) or 10 );v478.BackgroundTransparency=1;v478.Text=v449;v478.TextSize=11;v478.Font=Enum.Font.MontserratMedium;v478.TextXAlignment=Enum.TextXAlignment.Left;local v488={Button=v465,ButtonStroke=v470,Text=v478,Frame=v452,Icon=v477,Indicator=v472};table.insert(v236.Tabs,v488);local function v489() if (v236.CurrentTab and (v236.CurrentTab.Button==v465)) then return;end if v236.CurrentTab then local v937=v236.CurrentTab;local v938=v1:Create(v937.Frame,TweenInfo.new(0.15,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(1, -16,0.95, -16),Position=UDim2.new(0,8,0,12)});v938:Play();v938.Completed:Connect(function() v937.Frame.Visible=false;end);end v452.Size=UDim2.new(1, -16,0.95, -16);v452.Position=UDim2.new(0,8,0,12);v452.Visible=true;v1:Create(v452,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(1, -16,1, -16),Position=UDim2.new(0,8,0,8)}):Play();v236.CurrentTab=v488;v236:UpdateAllTabsVisual();end v465.MouseEnter:Connect(function() if (v236.CurrentTab and (v236.CurrentTab.Button==v465)) then return;end local v580=v18[v19];v1:Create(v465,TweenInfo.new(0.15),{BackgroundTransparency=(v580.IsRGB and 0.5) or v580.ElementTransparency ,BackgroundColor3=(v580.IsRGB and Color3.fromRGB(20,20,24)) or v580.ElementBg }):Play();v1:Create(v478,TweenInfo.new(0.15),{TextColor3=v580.TextPrimary}):Play();if v477 then v1:Create(v477,TweenInfo.new(0.15),{ImageColor3=v580.TextPrimary}):Play();end end);v465.MouseLeave:Connect(function() if (v236.CurrentTab and (v236.CurrentTab.Button==v465)) then return;end local v581=v18[v19];v1:Create(v465,TweenInfo.new(0.15),{BackgroundTransparency=(v581.IsRGB and 1) or v581.SidebarTransparency ,BackgroundColor3=v581.SidebarBg}):Play();v1:Create(v478,TweenInfo.new(0.15),{TextColor3=v581.TextDark}):Play();if v477 then v1:Create(v477,TweenInfo.new(0.15),{ImageColor3=v581.TextDark}):Play();end end);v465.MouseButton1Click:Connect(v489);if ( #v236.Tabs==1) then task.spawn(function() repeat task.wait();until v238.Visible==true  v489();end);end v451.CreateButton=function(v582,v583,v584) local v585=Instance.new("TextButton",v452);v585.Size=UDim2.new(1, -6,0,34);v585.Text="";v585.AutoButtonColor=false;Instance.new("UICorner",v585).CornerRadius=UDim.new(0,5);v26(v585,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency"});local v590=Instance.new("UIStroke",v585);v590.Thickness=1;v26(v590,{Color="ElementStroke"});local v592=Instance.new("TextLabel",v585);v592.Size=UDim2.new(1, -35,1,0);v592.Position=UDim2.new(0,12,0,0);v592.BackgroundTransparency=1;v592.Text=v583 or "Button" ;v592.TextSize=11;v592.Font=Enum.Font.MontserratMedium;v592.TextXAlignment=Enum.TextXAlignment.Left;v26(v592,{TextColor3="TextPrimary"});local v602=Instance.new("ImageLabel",v585);v602.Size=UDim2.new(0,12,0,12);v602.Position=UDim2.new(1, -22,0.5, -6);v602.BackgroundTransparency=1;v602.Image="rbxthumb://type=Asset&id=6031094678&w=150&h=150";v26(v602,{ImageColor3="TextSecondary"});v585.MouseEnter:Connect(function() local v848=v18[v19];v1:Create(v585,TweenInfo.new(0.15),{BackgroundColor3=(v848.IsRGB and Color3.fromRGB(28,28,33)) or v848.SidebarBg ,BackgroundTransparency=(v848.IsRGB and 0) or v848.SidebarTransparency }):Play();v1:Create(v602,TweenInfo.new(0.15),{ImageColor3=v848.TextPrimary,Position=UDim2.new(1, -20,0.5, -6)}):Play();end);v585.MouseLeave:Connect(function() local v849=v18[v19];v1:Create(v585,TweenInfo.new(0.15),{BackgroundColor3=v849.ElementBg,BackgroundTransparency=v849.ElementTransparency}):Play();v1:Create(v602,TweenInfo.new(0.15),{ImageColor3=v849.TextSecondary,Position=UDim2.new(1, -22,0.5, -6)}):Play();end);v585.MouseButton1Click:Connect(function() local v850=v18[v19];local v851=v1:Create(v585,TweenInfo.new(0.05),{BackgroundColor3=(v850.IsRGB and Color3.fromRGB(35,35,42)) or v850.ContentBg ,BackgroundTransparency=(v850.IsRGB and 0) or v850.ContentTransparency });v851:Play();v851.Completed:Connect(function() v1:Create(v585,TweenInfo.new(0.1),{BackgroundColor3=(v850.IsRGB and Color3.fromRGB(28,28,33)) or v850.SidebarBg ,BackgroundTransparency=(v850.IsRGB and 0) or v850.SidebarTransparency }):Play();end);if v584 then task.spawn(v584);end end);end;v451.CreateToggle=function(v607,v608,v609,v610,v611) local v612=v610;local v613=v611;if (type(v610)=="function") then v613=v610;v612=v608:gsub("%s+","");elseif  not v610 then v612=v608:gsub("%s+","");end local v614=v0.LoadedConfigCache and v0.LoadedConfigCache[v612] ;local v615={State=((v614~=nil) and v614) or v609 or false };v0.Flags[v612]=v615.State;local v618=Instance.new("TextButton",v452);v618.Size=UDim2.new(1, -6,0,34);v618.Text="";v618.AutoButtonColor=false;Instance.new("UICorner",v618).CornerRadius=UDim.new(0,5);v26(v618,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency"});local v623=Instance.new("UIStroke",v618);v623.Thickness=1;v26(v623,{Color="ElementStroke"});local v625=Instance.new("TextLabel",v618);v625.Size=UDim2.new(1, -65,1,0);v625.Position=UDim2.new(0,12,0,0);v625.BackgroundTransparency=1;v625.Text=v608 or "Toggle" ;v625.TextSize=11;v625.Font=Enum.Font.MontserratMedium;v625.TextXAlignment=Enum.TextXAlignment.Left;v26(v625,{TextColor3="TextPrimary"});local v635=Instance.new("Frame",v618);v635.Size=UDim2.new(0,32,0,16);v635.Position=UDim2.new(1, -44,0.5, -8);v635.BorderSizePixel=0;Instance.new("UICorner",v635).CornerRadius=UDim.new(1,0);local v640=Instance.new("Frame",v635);v640.Size=UDim2.new(0,12,0,12);v640.Position=UDim2.new(0,2,0.5, -6);v640.BorderSizePixel=0;Instance.new("UICorner",v640).CornerRadius=UDim.new(1,0);v26(v640,{BackgroundColor3="TextDark"});local function v645(v852,v853) local v854=(v852 and 0.2) or 0 ;local v855=TweenInfo.new(v854,Enum.EasingStyle.Quad,Enum.EasingDirection.Out);local v856=v18[v19];if v615.State then v1:Create(v640,v855,{Position=UDim2.new(1, -14,0.5, -6),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play();if v856.IsRGB then v33(v635,"BackgroundColor3");else v34(v635,"BackgroundColor3");v1:Create(v635,v855,{BackgroundColor3=v856.Accent}):Play();end v1:Create(v618,TweenInfo.new(0.15),{BackgroundColor3=(v856.IsRGB and Color3.fromRGB(24,24,30)) or v856.SidebarBg ,BackgroundTransparency=(v856.IsRGB and 0) or v856.SidebarTransparency }):Play();else v34(v635,"BackgroundColor3");v1:Create(v640,v855,{Position=UDim2.new(0,2,0.5, -6),BackgroundColor3=v856.TextDark}):Play();v1:Create(v635,TweenInfo.new(v854),{BackgroundColor3=(v856.IsRGB and Color3.fromRGB(35,35,40)) or v856.ElementStroke }):Play();v1:Create(v618,TweenInfo.new(0.15),{BackgroundColor3=v856.ElementBg,BackgroundTransparency=v856.ElementTransparency}):Play();end v0.Flags[v612]=v615.State;if  not v853 then v0:SaveConfig(true);end end v645(false,true);if ((v614~=nil) and v613) then task.spawn(function() v613(v615.State);end);end v618.MouseButton1Click:Connect(function() v615.State= not v615.State;v645(true);if v613 then task.spawn(function() v613(v615.State);end);end end);local v646={};v646.DefaultValue=v609 or false ;v646.Set=function(v860,v861,v862,v863) v615.State=v861;v645(true,v862);if (v613 and  not v863) then task.spawn(function() v613(v615.State);end);end end;table.insert(v0.Toggles,{Controller=v646,UpdateVisual=v645});v0.Elements[v612]=v646;return v646;end;v451.CreateSlider=function(v650,v651,v652,v653,v654,v655,v656) local v657=v655;local v658=v656;if (type(v655)=="function") then v658=v655;v657=v651:gsub("%s+","");elseif  not v655 then v657=v651:gsub("%s+","");end local v659=v0.LoadedConfigCache and v0.LoadedConfigCache[v657] ;local v660={Value=((v659~=nil) and v659) or v654 or v652 };v0.Flags[v657]=v660.Value;local v663=Instance.new("Frame",v452);v663.Size=UDim2.new(1, -6,0,48);Instance.new("UICorner",v663).CornerRadius=UDim.new(0,5);v26(v663,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency"});local v666=Instance.new("UIStroke",v663);v666.Thickness=1;v26(v666,{Color="ElementStroke"});local v668=Instance.new("TextLabel",v663);v668.Size=UDim2.new(1, -20,0,20);v668.Position=UDim2.new(0,12,0,4);v668.BackgroundTransparency=1;v668.Text=v651   .. ": "   .. tostring(v660.Value) ;v668.TextSize=11;v668.Font=Enum.Font.MontserratMedium;v668.TextXAlignment=Enum.TextXAlignment.Left;v26(v668,{TextColor3="TextPrimary"});local v678=Instance.new("TextButton",v663);v678.Size=UDim2.new(1, -24,0,4);v678.Position=UDim2.new(0,12,1, -12);v678.Text="";v678.AutoButtonColor=false;Instance.new("UICorner",v678).CornerRadius=UDim.new(1,0);v26(v678,{BackgroundColor3=function(v865) return (v865.IsRGB and Color3.fromRGB(35,35,40)) or v865.SidebarBg ;end});local v684=Instance.new("Frame",v678);v684.Size=UDim2.new((v660.Value-v652)/(v653-v652) ,0,1,0);v684.BorderSizePixel=0;Instance.new("UICorner",v684).CornerRadius=UDim.new(1,0);v33(v684,"BackgroundColor3");v26(v684,{BackgroundColor3=function(v866) return (v866.IsRGB and v684.BackgroundColor3) or v866.Accent ;end});local function v688(v867,v868) v660.Value=math.clamp(v867,v652,v653);local v870=(v660.Value-v652)/(v653-v652) ;v1:Create(v684,TweenInfo.new(0.1,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(v870,0,1,0)}):Play();v668.Text=v651   .. ": "   .. tostring(v660.Value) ;v0.Flags[v657]=v660.Value;if  not v868 then v0:SaveConfig(true);end end v688(v660.Value,true);if ((v659~=nil) and v658) then task.spawn(function() v658(v660.Value);end);end local v689=false;local function v690(v873) local v874=math.clamp((v873.Position.X-v678.AbsolutePosition.X)/v678.AbsoluteSize.X ,0,1);local v875=v652 + (v874 * (v653-v652)) ;local v876=math.floor(v875 + 0.5 );v688(v876);if v658 then task.spawn(function() v658(v876);end);end end v678.InputBegan:Connect(function(v877) if ((v877.UserInputType==Enum.UserInputType.MouseButton1) or (v877.UserInputType==Enum.UserInputType.Touch)) then v689=true;v690(v877);end end);v2.InputChanged:Connect(function(v878) if (v689 and ((v878.UserInputType==Enum.UserInputType.MouseMovement) or (v878.UserInputType==Enum.UserInputType.Touch))) then v690(v878);end end);v2.InputEnded:Connect(function(v879) if ((v879.UserInputType==Enum.UserInputType.MouseButton1) or (v879.UserInputType==Enum.UserInputType.Touch)) then v689=false;end end);local v691={};v691.DefaultValue=v654 or v652 ;v691.Set=function(v880,v881,v882,v883) v688(v881,v882);if (v658 and  not v883) then task.spawn(function() v658(v660.Value);end);end end;v0.Elements[v657]=v691;return v691;end;v451.CreateDropdown=function(v695,v696,v697,v698,v699,v700) local v701=v699;local v702=v700;if (type(v699)=="function") then v702=v699;v701=v696:gsub("%s+","");elseif  not v699 then v701=v696:gsub("%s+","");end local v703=v0.LoadedConfigCache and v0.LoadedConfigCache[v701] ;local v704={Open=false,CurrentValue=((v703~=nil) and v703) or v698 or v697[1] ,OptionFrames={}};v0.Flags[v701]=v704.CurrentValue;local v707=Instance.new("Frame",v452);v707.Size=UDim2.new(1, -6,0,34);v707.ClipsDescendants=true;Instance.new("UICorner",v707).CornerRadius=UDim.new(0,5);v26(v707,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency"});local v711=Instance.new("UIStroke",v707);v711.Thickness=1;v26(v711,{Color="ElementStroke"});local v713=Instance.new("TextButton",v707);v713.Size=UDim2.new(1,0,0,34);v713.BackgroundTransparency=1;v713.Text="";local v717=Instance.new("TextLabel",v713);v717.Size=UDim2.new(1, -60,1,0);v717.Position=UDim2.new(0,12,0,0);v717.BackgroundTransparency=1;v717.Text=v696   .. " ("   .. tostring(v704.CurrentValue)   .. ")" ;v717.TextSize=11;v717.Font=Enum.Font.MontserratMedium;v717.TextXAlignment=Enum.TextXAlignment.Left;v26(v717,{TextColor3="TextPrimary"});local v727=Instance.new("ImageLabel",v713);v727.Size=UDim2.new(0,10,0,10);v727.Position=UDim2.new(1, -22,0.5, -5);v727.BackgroundTransparency=1;v727.Image="rbxthumb://type=Asset&id=6031094670&w=150&h=150";v26(v727,{ImageColor3="TextSecondary"});local v732=Instance.new("Frame",v707);v732.Size=UDim2.new(1, -24,0,0);v732.Position=UDim2.new(0,12,0,36);v732.BackgroundTransparency=1;local v736=Instance.new("UIListLayout",v732);v736.Padding=UDim.new(0,4);local function v738() for v939,v940 in ipairs(v704.OptionFrames) do v940:Destroy();end v704.OptionFrames={};local v885=v18[v19];for v941,v942 in ipairs(v697) do local v943=Instance.new("TextButton",v732);v943.Size=UDim2.new(1,0,0,26);v943.BackgroundColor3=(v885.IsRGB and Color3.fromRGB(26,26,31)) or v885.SidebarBg ;v943.BackgroundTransparency=(v885.IsRGB and 0) or v885.SidebarTransparency ;v943.Text="";v943.AutoButtonColor=false;Instance.new("UICorner",v943).CornerRadius=UDim.new(0,4);local v950=Instance.new("TextLabel",v943);v950.Size=UDim2.new(1, -20,1,0);v950.Position=UDim2.new(0,10,0,0);v950.BackgroundTransparency=1;v950.Text=tostring(v942);v950.TextSize=10;v950.TextXAlignment=Enum.TextXAlignment.Left;if (v942==v704.CurrentValue) then v950.TextColor3=(v885.IsRGB and Color3.new(1,1,1)) or v885.TextPrimary ;v950.Font=Enum.Font.MontserratBold;local v999=Instance.new("Frame",v943);v999.Size=UDim2.new(0,2.5,1, -8);v999.Position=UDim2.new(0,3,0,4);Instance.new("UICorner",v999);v33(v999,"BackgroundColor3");v26(v999,{BackgroundColor3=function(v1019) return (v1019.IsRGB and v999.BackgroundColor3) or v1019.Accent ;end});else v950.TextColor3=v885.TextDark;v950.Font=Enum.Font.Montserrat;end v943.MouseEnter:Connect(function() local v970=v18[v19];v1:Create(v943,TweenInfo.new(0.1),{BackgroundColor3=(v970.IsRGB and Color3.fromRGB(32,32,38)) or v970.ElementBg ,BackgroundTransparency=(v970.IsRGB and 0) or v970.ElementTransparency }):Play();end);v943.MouseLeave:Connect(function() local v971=v18[v19];v1:Create(v943,TweenInfo.new(0.1),{BackgroundColor3=(v971.IsRGB and Color3.fromRGB(26,26,31)) or v971.SidebarBg ,BackgroundTransparency=(v971.IsRGB and 0) or v971.SidebarTransparency }):Play();end);v943.MouseButton1Click:Connect(function() v704.CurrentValue=v942;v717.Text=v696   .. " ("   .. tostring(v942)   .. ")" ;v704.Open=false;local v975=v18[v19];v34(v711,"Color");v711.Color=v975.ElementStroke;v1:Create(v707,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(1, -6,0,34)}):Play();v1:Create(v727,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Rotation=0}):Play();v738();v0.Flags[v701]=v942;if  not v701:find("^__Meta") then v0:SaveConfig(true);end if v702 then task.spawn(function() v702(v942);end);end end);table.insert(v704.OptionFrames,v943);end end v713.MouseButton1Click:Connect(function() v704.Open= not v704.Open;local v887=34;local v888=0;local v889=v18[v19];if v704.Open then v738();if v889.IsRGB then v33(v711,"Color");else v34(v711,"Color");v711.Color=v889.Accent;end v732.Size=UDim2.new(1, -24,0,v736.AbsoluteContentSize.Y);v887=34 + v736.AbsoluteContentSize.Y + 8 ;v888=180;else v34(v711,"Color");v711.Color=v889.ElementStroke;v732.Size=UDim2.new(1, -24,0,0);end v1:Create(v707,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(1, -6,0,v887)}):Play();v1:Create(v727,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Rotation=v888}):Play();end);if ((v703~=nil) and v702) then task.spawn(function() v702(v704.CurrentValue);end);end local v739={};v739.DefaultValue=v698 or v697[1] ;v739.Set=function(v890,v891,v892,v893) v704.CurrentValue=v891;v717.Text=v696   .. " ("   .. tostring(v891)   .. ")" ;v0.Flags[v701]=v891;if ( not v892 and  not v701:find("^__Meta")) then v0:SaveConfig(true);end if (v702 and  not v893) then task.spawn(function() v702(v891);end);end end;v739.Refresh=function(v897,v898) v697=v898;if v704.Open then v738();v732.Size=UDim2.new(1, -24,0,v736.AbsoluteContentSize.Y);local v984=34 + v736.AbsoluteContentSize.Y + 8 ;v1:Create(v707,TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(1, -6,0,v984)}):Play();end end;v739.Update=v739.Refresh;v0.Elements[v701]=v739;return v739;end;v451.CreateTextBox=function(v745,v746,v747,v748,v749) local v750=v748;local v751=v749;if (type(v748)=="function") then v751=v748;v750=v746:gsub("%s+","");elseif  not v748 then v750=v746:gsub("%s+","");end local v752=v0.LoadedConfigCache and v0.LoadedConfigCache[v750] ;local v753=Instance.new("Frame",v452);v753.Size=UDim2.new(1, -6,0,34);Instance.new("UICorner",v753).CornerRadius=UDim.new(0,5);v26(v753,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency"});local v756=Instance.new("UIStroke",v753);v756.Thickness=1;v26(v756,{Color="ElementStroke"});local v758=Instance.new("TextLabel",v753);v758.Size=UDim2.new(0.45, -12,1,0);v758.Position=UDim2.new(0,12,0,0);v758.BackgroundTransparency=1;v758.Text=v746 or "Input Text" ;v758.TextSize=11;v758.Font=Enum.Font.MontserratMedium;v758.TextXAlignment=Enum.TextXAlignment.Left;v26(v758,{TextColor3="TextPrimary"});local v768=Instance.new("TextBox",v753);v768.Size=UDim2.new(0.55, -12,0,22);v768.Position=UDim2.new(0.45,0,0.5, -11);v768.Text=(v752 and tostring(v752)) or "" ;v768.PlaceholderText=v747 or "Type here..." ;v768.PlaceholderColor3=Color3.fromRGB(120,120,130);v768.TextSize=10;v768.Font=Enum.Font.Montserrat;Instance.new("UICorner",v768).CornerRadius=UDim.new(0,4);v26(v768,{BackgroundColor3=function(v899) return (v899.IsRGB and Color3.fromRGB(30,30,35)) or v899.SidebarBg ;end,BackgroundTransparency=function(v900) return (v900.IsRGB and 0) or v900.SidebarTransparency ;end,TextColor3="TextPrimary"});local v778=Instance.new("UIStroke",v768);v778.Thickness=1;v26(v778,{Color="ElementStroke"});v0.Flags[v750]=v768.Text;v768.Focused:Connect(function() local v901=v18[v19];v1:Create(v778,TweenInfo.new(0.15),{Color=v901.Accent}):Play();v1:Create(v753,TweenInfo.new(0.15),{BackgroundColor3=(v901.IsRGB and Color3.fromRGB(24,24,30)) or v901.SidebarBg ,BackgroundTransparency=(v901.IsRGB and 0) or v901.SidebarTransparency }):Play();end);v768.FocusLost:Connect(function(v902) local v903=v18[v19];v1:Create(v778,TweenInfo.new(0.15),{Color=v903.ElementStroke}):Play();v1:Create(v753,TweenInfo.new(0.15),{BackgroundColor3=v903.ElementBg,BackgroundTransparency=v903.ElementTransparency}):Play();v0.Flags[v750]=v768.Text;v0:SaveConfig(true);if v751 then task.spawn(function() v751(v768.Text,v902);end);end end);if ((v752~=nil) and v751) then task.spawn(function() v751(v768.Text,false);end);end local v781={};v781.DefaultValue="";v781.Set=function(v906,v907,v908,v909) v768.Text=tostring(v907);v0.Flags[v750]=v907;if  not v908 then v0:SaveConfig(true);end if (v751 and  not v909) then task.spawn(function() v751(v907,false);end);end end;v0.Elements[v750]=v781;return v781;end;v451.CreateParagraph=function(v785,v786,v787) local v788=Instance.new("Frame",v452);v788.Size=UDim2.new(1, -6,0,52);Instance.new("UICorner",v788).CornerRadius=UDim.new(0,5);v26(v788,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency"});local v791=Instance.new("UIStroke",v788);v791.Thickness=1;v26(v791,{Color="ElementStroke"});local v793=Instance.new("TextLabel",v788);v793.Size=UDim2.new(1, -20,0,18);v793.Position=UDim2.new(0,12,0,6);v793.BackgroundTransparency=1;v793.Text=v786 or "Section Title" ;v793.Font=Enum.Font.MontserratBold;v793.TextSize=11;v793.TextXAlignment=Enum.TextXAlignment.Left;v26(v793,{TextColor3="TextPrimary"});local v803=Instance.new("TextLabel",v788);v803.Size=UDim2.new(1, -20,1, -26);v803.Position=UDim2.new(0,12,0,22);v803.BackgroundTransparency=1;v803.Text=v787 or "Description text details." ;v803.Font=Enum.Font.Montserrat;v803.TextSize=9;v803.TextWrapped=true;v803.TextXAlignment=Enum.TextXAlignment.Left;v26(v803,{TextColor3="TextSecondary"});end;return v451;end;local v347=v236:CreateTab("Config","rbxthumb://type=Asset&id=7734053495&w=150&h=150");v347:CreateParagraph("Configuration Profiles","Manage your setup files here. They are directly saved into the folder 'workspace/"   .. v14   .. "' (accessible via ZArchiver)." );local v348;local v349=v24();v348=v347:CreateDropdown("Selected Profile",v349,v16,"__MetaProfile",function(v496) v16=v496;v0:SaveSettings();v0:LoadConfig(true);end);local v350=v16;local v351=v347:CreateTextBox("New Profile Name","Type custom name here...","__MetaProfileInput",function(v497) v350=v497;end);task.spawn(function() repeat task.wait();until v0.Elements['__MetaProfileInput'] v0.Elements['__MetaProfileInput']:Set(v16,true,true);end);v347:CreateButton("Create / Save Profile",function() if (v350 and (v350~="")) then v16=v350;v0:SaveSettings();v0:SaveConfig(false);local v912=v24();v348:Refresh(v912);v348:Set(v16,true,true);else v0:Notify("File Error","Profile name cannot be blank!",3);end end);v347:CreateButton("Load Selected Profile",function() v0:LoadConfig(true);end);v347:CreateButton("Delete Selected Profile",function() local v498=v14   .. "/Config_"   .. tostring(v13)   .. "_"   .. v16   .. ".json" ;if (isfile and isfile(v498)) then local v913,v914=pcall(function() if delfile then delfile(v498);elseif deletefile then deletefile(v498);else error("Executor missing filesystem support.");end end);if v913 then v0:Notify("Config System","Deleted profile: "   .. v16 ,3);local v985=v24();v16=v985[1] or "default" ;v0:SaveSettings();v348:Refresh(v985);v348:Set(v16,true,true);v0:LoadConfig(true);else v0:Notify("Delete Error","File is read-only or unsupported by executor.",3);end else v0:Notify("Config System","Profile file not found on disk.",3);end end);v347:CreateToggle("Auto Load Config",v17,"__MetaAutoLoad",function(v499) v17=v499;v0:SaveSettings();end);local v352=v236:CreateTab("Theme","rbxthumb://type=Asset&id=10734963400&w=150&h=150");v352:CreateParagraph("Theme Manager","Customize the interface style to adapt to your desired aesthetic immediately.");v352:CreateDropdown("Selected Theme",{"RGB","Cute Pastel"},v19,"__MetaTheme",function(v500) v27(v500);end);return v236;end;v0.CreateExternalButton=function(v353,v354,v355,v356,v357) local v358=v37();local v359=Instance.new("TextButton");v359.Name="ExternalButton_"   .. tostring(v354) ;v359.Text=v355 or "A" ;v359.Font=Enum.Font.MontserratBold;v359.TextSize=13;v359.AutoButtonColor=false;v359.Parent=v358;v25(v359,v359.Text);local v367=v0.LoadedConfigCache and v0.LoadedConfigCache["ExtBtnPos_"   .. tostring(v354) ] ;if (v367 and (type(v367)=="table")) then v359.Position=UDim2.new(v367.X_Scale or 0 ,v367.X_Offset or 0 ,v367.Y_Scale or 0 ,v367.Y_Offset or 0 );else v359.Position=v356 or UDim2.new(0,20,0.5,0) ;end v26(v359,{BackgroundColor3="ElementBg",BackgroundTransparency="ElementTransparency",TextColor3="TextPrimary"});local v368=Instance.new("UICorner",v359);v368.CornerRadius=UDim.new(0,6);local v370=Instance.new("UIStroke",v359);v33(v370,"Color");v26(v370,{Color=function(v501) return (v501.IsRGB and v370.Color) or v501.Accent ;end,Thickness=function(v502) return (v502.IsRGB and 1) or 1.5 ;end});v35(v359,v359,function() v0.Flags["ExtBtnPos_"   .. tostring(v354) ]={X_Scale=v359.Position.X.Scale,X_Offset=v359.Position.X.Offset,Y_Scale=v359.Position.Y.Scale,Y_Offset=v359.Position.Y.Offset};v0:SaveConfig(true);end);v0.ExternalButtons[v354]={Instance=v359,DefaultPosition=v356 or UDim2.new(0,20,0.5,0) };v359.MouseButton1Click:Connect(function() if v357 then task.spawn(v357);end end);local v372={};v372.Instance=v359;v372.SetVisible=function(v504,v505) v359.Visible=v505;end;v372.SetText=function(v507,v508) v359.Text=tostring(v508);v25(v359,v359.Text);end;v372.SetDragLock=function(v510,v511) v359:SetAttribute("DragLocked",v511);end;v372.SetSize=function(v512,v513) if (typeof(v513)=="UDim2") then v359.Size=v513;elseif (type(v513)=="number") then v359.Size=UDim2.new(0,v513,0,v513);end end;return v372;end;v0.CreateStatsHUD=function(v378) local v379=v37();local v380=Instance.new("Frame");v380.Name="Louis_StatsHUD";v380.Size=UDim2.new(0,150,0,28);local v383=v0.LoadedConfigCache and v0.LoadedConfigCache['StatsHUDPos'] ;if (v383 and (type(v383)=="table")) then v380.Position=UDim2.new(v383.X_Scale or 0 ,v383.X_Offset or 0 ,v383.Y_Scale or 0 ,v383.Y_Offset or 0 );else v380.Position=UDim2.new(1, -20,0,50);end v380.AnchorPoint=Vector2.new(1,0);v380.BorderSizePixel=0;v380.Parent=v379;v380.Visible=true;v26(v380,{BackgroundColor3="WindowBg",BackgroundTransparency="WindowTransparency"});local v388=Instance.new("UICorner",v380);v388.CornerRadius=UDim.new(0,6);local v390=Instance.new("UIStroke",v380);v390.Thickness=1;v33(v390,"Color");v26(v390,{Color=function(v514) return (v514.IsRGB and v390.Color) or v514.ElementStroke ;end});local v392=Instance.new("TextLabel",v380);v392.Size=UDim2.new(1,0,1,0);v392.BackgroundTransparency=1;v392.Font=Enum.Font.MontserratBold;v392.TextSize=10;v392.RichText=true;v392.Text="FPS: ...  â€¢  PING: ... MS";v26(v392,{TextColor3="TextPrimary"});v35(v380,v380,function() v0.Flags['StatsHUDPos']={X_Scale=v380.Position.X.Scale,X_Offset=v380.Position.X.Offset,Y_Scale=v380.Position.Y.Scale,Y_Offset=v380.Position.Y.Offset};v0:SaveConfig(true);end);local v400={};local v401=30;local v402=0;local v403=0.1;local v404;v404=v3.RenderStepped:Connect(function(v516) if ( not v380 or  not v380.Parent) then v404:Disconnect();return;end table.insert(v400,v516);if ( #v400>v401) then table.remove(v400,1);end local v517=os.clock();if ((v517-v402)>=v403) then v402=v517;local v916=0;for v958,v959 in ipairs(v400) do v916=v916 + v959 ;end local v917=(( #v400>0) and math.round( #v400/v916 )) or 60 ;local v918=0;local v919,v920=pcall(function() return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue();end);if (v919 and v920) then v918=math.round(v920);end local v921=v19=="Cute Pastel" ;local v922=(v921 and "rgb(50, 160, 100)") or "rgb(0, 255, 120)" ;local v923=(v921 and "rgb(50, 120, 220)") or "rgb(0, 180, 255)" ;v392.Text=string.format("FPS: <font color='%s'>%d</font>  â€¢  PING: <font color='%s'>%d MS</font>",v922,v917,v923,v918);end end);local v405={};v405.SetVisible=function(v518,v519) v380.Visible=v519;end;return v405;end;task.spawn(function() local v407=v0:CreateStatsHUD();v407:SetVisible(true);pcall(function() v0:LoadConfig();end);end);return v0;
+local PlaceId = game.PlaceId
+local FolderName = "LouisHub"
+
+-- Memastikan folder penyimpanan utama dibuat otomatis agar terbaca di ZArchiver
+if makefolder then
+    pcall(function()
+        makefolder(FolderName)
+    end)
+end
+
+local SettingsFileName = FolderName .. "/Settings_" .. tostring(PlaceId) .. ".json"
+local CurrentProfile = "default"
+local AutoLoadEnabled = false
+
+-- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca
+local Themes = {
+    ["RGB"] = {
+        WindowBg = Color3.fromRGB(15, 15, 18),
+        WindowTransparency = 0,
+        HeaderBg = Color3.fromRGB(15, 15, 18),
+        HeaderTransparency = 1,
+        SidebarBg = Color3.fromRGB(18, 18, 22),
+        SidebarTransparency = 0,
+        ContentBg = Color3.fromRGB(18, 18, 22),
+        ContentTransparency = 0,
+        ElementBg = Color3.fromRGB(22, 22, 26),
+        ElementTransparency = 0,
+        ElementStroke = Color3.fromRGB(35, 35, 40),
+        TextPrimary = Color3.fromRGB(255, 255, 255),
+        TextSecondary = Color3.fromRGB(140, 140, 150),
+        TextDark = Color3.fromRGB(130, 130, 130),
+        Accent = Color3.fromRGB(255, 255, 255), -- Dinamis oleh loop RGB
+        IsRGB = true,
+        BgImage = "", 
+        BgImageTransparency = 1,
+        FloatingIconImage = "rbxthumb://type=Asset&id=10734887784&w=150&h=150"
+    },
+    ["Cute Pastel"] = {
+        WindowBg = Color3.fromRGB(255, 235, 243),      
+        WindowTransparency = 0,                         
+        HeaderBg = Color3.fromRGB(174, 224, 250),      
+        HeaderTransparency = 0.1,                       
+        SidebarBg = Color3.fromRGB(255, 215, 230),     
+        SidebarTransparency = 0.8,                      
+        ContentBg = Color3.fromRGB(247, 251, 255),     
+        ContentTransparency = 0.8,                     
+        ElementBg = Color3.fromRGB(255, 255, 255),     
+        ElementTransparency = 0.15,                     
+        ElementStroke = Color3.fromRGB(235, 205, 220), 
+        TextPrimary = Color3.fromRGB(80, 75, 90),      
+        TextSecondary = Color3.fromRGB(115, 120, 140), 
+        TextDark = Color3.fromRGB(150, 155, 175),      
+        Accent = Color3.fromRGB(255, 130, 170),        
+        IsRGB = false,
+        BgImage = "rbxthumb://type=Asset&id=118470928936375&w=420&h=420", 
+        BgImageTransparency = 0.8, 
+        FloatingIconImage = "rbxthumb://type=Asset&id=103242464029137&w=150&h=150" 
+    }
+}
+
+local CurrentThemeName = "RGB"
+local IsThemeRGB = true
+local ThemeRegistry = {}
+local RGBElements = {}
+local ActiveWindowInstance = nil
+
+-- Membaca file config asli secara real-time dari folder LouisHub
+local function GetAvailableProfiles()
+    local profiles = {}
+    if listfiles and isfolder and isfolder(FolderName) then
+        local success, files = pcall(listfiles, FolderName)
+        if success and type(files) == "table" then
+            local pattern = "Config_" .. tostring(PlaceId) .. "_(.-)%.json$"
+            for _, file in ipairs(files) do
+                local normalized = file:gsub("\\", "/")
+                local profileName = normalized:match(pattern)
+                if profileName then
+                    table.insert(profiles, profileName)
+                end
+            end
+        end
+    end
+    
+    -- Jika folder kosong, berikan fallback ke list minimal berisi "default"
+    if #profiles == 0 then
+        table.insert(profiles, "default")
+    else
+        table.sort(profiles)
+    end
+    return profiles
+end
+
+-- Menghitung ukuran tombol eksternal secara presisi berdasarkan panjang teks
+local function UpdateExtBtnSize(btn, text)
+    local txt = text or "A"
+    local fontSize = btn.TextSize
+    local font = btn.Font
+    local textBound = TextService:GetTextSize(txt, fontSize, font, Vector2.new(1000, 40))
+    btn.Size = UDim2.new(0, textBound.X + 28, 0, 40) -- Padding 14px kiri-kanan
+end
+
+-- Mendaftarkan elemen UI agar merespon pergantian warna & transparansi tema secara instan
+local function RegisterThemeable(instance, propertyMap)
+    table.insert(ThemeRegistry, {
+        Instance = instance,
+        Properties = propertyMap
+    })
+    local theme = Themes[CurrentThemeName]
+    pcall(function()
+        for property, valSelector in pairs(propertyMap) do
+            if type(valSelector) == "function" then
+                instance[property] = valSelector(theme)
+            else
+                instance[property] = theme[valSelector]
+            end
+        end
+    end)
+end
+
+-- Menerapkan perubahan tema secara langsung ke seluruh elemen terdaftar
+local function ApplyTheme(themeName)
+    CurrentThemeName = themeName
+    local theme = Themes[themeName] or Themes["RGB"]
+    IsThemeRGB = theme.IsRGB
+    
+    -- Perbarui elemen statis & transparan
+    for _, item in ipairs(ThemeRegistry) do
+        local instance = item.Instance
+        if instance and instance:IsDescendantOf(game) then
+            pcall(function()
+                for property, valSelector in pairs(item.Properties) do
+                    if type(valSelector) == "function" then
+                        instance[property] = valSelector(theme)
+                    else
+                        instance[property] = theme[valSelector]
+                    end
+                end
+            end)
+        end
+    end
+    
+    -- Atur ulang elemen RGB jika beralih ke tema statis (Cute Pastel)
+    if not IsThemeRGB then
+        for _, item in ipairs(RGBElements) do
+            if item.Instance and item.Instance:IsDescendantOf(game) then
+                pcall(function()
+                    -- Jaga agar ikon melayang tidak tercampur aksen pink agar warna aslinya terlihat
+                    if item.Instance.Name == "Icon" and item.Instance.Parent and item.Instance.Parent.Name == "FloatingToggleIcon" then
+                        item.Instance[item.Property] = Color3.fromRGB(255, 255, 255)
+                    else
+                        item.Instance[item.Property] = theme.Accent
+                    end
+                end)
+            end
+        end
+    end
+
+    -- Regenerasi visual tombol sakelar aktif secara langsung
+    for _, toggle in ipairs(Library.Toggles) do
+        pcall(function()
+            toggle.UpdateVisual(false, true)
+        end)
+    end
+    
+    -- Segarkan tampilan tab aktif
+    if ActiveWindowInstance and ActiveWindowInstance.UpdateAllTabsVisual then
+        ActiveWindowInstance:UpdateAllTabsVisual()
+    end
+    
+    Library.Flags["__MetaTheme"] = themeName
+    Library:SaveSettings()
+end
+
+-- Dual Icon Resolver (Menerjemahkan nama ikon Lucide ke ID aset)
+local function resolveIcon(icon)
+    if not icon then return "" end
+    
+    local lucideIcons = {
+        ["home"] = "rbxassetid://10723407389",
+        ["swords"] = "rbxassetid://10734975692",
+        ["eye"] = "rbxassetid://10723346959",
+        ["crosshair"] = "rbxassetid://10709818534",
+        ["crown"] = "rbxassetid://10709818626",
+        ["keyboard"] = "rbxassetid://10723416765",
+        ["sliders"] = "rbxassetid://10734963400"
+    }
+    
+    if type(icon) == "string" and lucideIcons[icon:lower()] then
+        icon = lucideIcons[icon:lower()]
+    end
+    
+    if type(icon) == "string" and icon:find("^rbxthumb://") then
+        return icon
+    end
+    
+    if type(icon) == "number" then
+        return "rbxthumb://type=Asset&id=" .. tostring(icon) .. "&w=150&h=150"
+    end
+    
+    if type(icon) == "string" and icon:find("^rbxassetid://") then
+        local id = icon:gsub("^rbxassetid://", "")
+        return "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150"
+    end
+    
+    return tostring(icon)
+end
+
+-- Pra-Muat Setelan & Tema Terpilih
+local function PreloadConfiguration()
+    if not isfile or not readfile then return end
+    
+    if isfile(SettingsFileName) then
+        pcall(function()
+            local meta = HttpService:JSONDecode(readfile(SettingsFileName))
+            if meta and type(meta) == "table" then
+                if meta.SelectedProfile then CurrentProfile = meta.SelectedProfile end
+                if meta.AutoLoad ~= nil then AutoLoadEnabled = meta.AutoLoad end
+                if meta.SelectedTheme then CurrentThemeName = meta.SelectedTheme end
+            end
+        end)
+    end
+    
+    -- Memastikan profil terpilih benar-benar ada di folder penyimpanan, jika tidak, pakai profil pertama yang terbaca
+    local profiles = GetAvailableProfiles()
+    local profileExists = false
+    for _, p in ipairs(profiles) do
+        if p == CurrentProfile then
+            profileExists = true
+            break
+        end
+    end
+    if not profileExists then
+        CurrentProfile = profiles[1] or "default"
+    end
+    
+    local fileName = FolderName .. "/Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+    if isfile(fileName) then
+        pcall(function()
+            local decoded = HttpService:JSONDecode(readfile(fileName))
+            if decoded and type(decoded) == "table" then
+                Library.LoadedConfigCache = decoded
+                for k, v in pairs(decoded) do
+                    if not k:find("^__Meta") then
+                        Library.Flags[k] = v
+                    end
+                end
+            end
+        end)
+    end
+end
+
+PreloadConfiguration()
+
+function Library:SaveSettings()
+    if not writefile then return end
+    if makefolder then pcall(makefolder, FolderName) end
+    local success, err = pcall(function()
+        local meta = {
+            SelectedProfile = CurrentProfile,
+            AutoLoad = AutoLoadEnabled,
+            SelectedTheme = CurrentThemeName
+        }
+        writefile(SettingsFileName, HttpService:JSONEncode(meta))
+    end)
+    if not success then
+        warn("LouisHub UI: Gagal menyimpan settings. Error: " .. tostring(err))
+    end
+end
+
+function Library:SaveConfig(quiet)
+    if not writefile then return end
+    if makefolder then pcall(makefolder, FolderName) end
+    local success, err = pcall(function()
+        local fileName = FolderName .. "/Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+        
+        local filteredFlags = {}
+        for k, v in pairs(Library.Flags) do
+            if not k:find("^__Meta") then
+                filteredFlags[k] = v
+            end
+        end
+        
+        writefile(fileName, HttpService:JSONEncode(filteredFlags))
+        if not quiet then
+            Library:Notify("Config System", "Config saved to folder /" .. FolderName .. " as " .. CurrentProfile, 3)
+        end
+    end)
+    if not success then
+        warn("LouisHub UI: Gagal menyimpan config. Error: " .. tostring(err))
+    end
+end
+
+function Library:LoadConfig(force, preloadOnly)
+    if not isfile or not readfile then return end
+    
+    -- Membaca file settings global dihilangkan dari sini untuk mencegah 'CurrentProfile' ter-overwrite 
+    -- kembali ke profil lama oleh file cache disk akibat delay synchronous penulisan file.
+
+    if not preloadOnly then
+        if Library.Elements["__MetaProfile"] then
+            Library.Elements["__MetaProfile"]:Set(CurrentProfile, true, true)
+        end
+        if Library.Elements["__MetaAutoLoad"] then
+            Library.Elements["__MetaAutoLoad"]:Set(AutoLoadEnabled, true, true)
+        end
+        if Library.Elements["__MetaTheme"] then
+            Library.Elements["__MetaTheme"]:Set(CurrentThemeName, true, true)
+        end
+    end
+
+    if AutoLoadEnabled or force or preloadOnly then
+        local fileName = FolderName .. "/Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+        if isfile(fileName) then
+            local success, err = pcall(function()
+                local decoded = HttpService:JSONDecode(readfile(fileName))
+                if decoded and type(decoded) == "table" then
+                    Library.LoadedConfigCache = decoded
+                    
+                    if not preloadOnly then
+                        -- 1. Reset semua elemen UI ke DefaultValue masing-masing terlebih dahulu (agar tidak ada flag yang bernilai nil)
+                        for flag, element in pairs(Library.Elements) do
+                            if not flag:find("^__Meta") and element.DefaultValue ~= nil then
+                                element:Set(element.DefaultValue, true, true) -- ignoreSave=true, ignoreCallback=true
+                            end
+                        end
+                        
+                        -- Jaga meta flags tetap sinkron
+                        Library.Flags["__MetaProfile"] = CurrentProfile
+                        Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
+                        Library.Flags["__MetaTheme"] = CurrentThemeName
+                        
+                        -- 2. Terapkan nilai config yang dimuat dari file JSON
+                        local mainGui = GetMainGui()
+                        for flag, val in pairs(decoded) do
+                            if flag:find("^__Meta") then
+                                continue
+                            end
+                            
+                            if Library.Elements[flag] then
+                                Library.Elements[flag]:Set(val, true, false) -- ignoreSave=true, ignoreCallback=false (memicu callback asli)
+                            end
+                            if flag:find("^ExtBtnPos_") then
+                                local btnId = flag:gsub("^ExtBtnPos_", "")
+                                local btn = mainGui:FindFirstChild("ExternalButton_" .. btnId)
+                                if btn and type(val) == "table" then
+                                    btn.Position = UDim2.new(
+                                        val.X_Scale or 0, 
+                                        val.X_Offset or 0, 
+                                        val.Y_Scale or 0, 
+                                        val.Y_Offset or 0
+                                    )
+                                end
+                                Library.Flags[flag] = val
+                            elseif flag == "StatsHUDPos" and type(val) == "table" then
+                                local hud = mainGui:FindFirstChild("Louis_StatsHUD")
+                                if hud then
+                                    hud.Position = UDim2.new(
+                                        val.X_Scale or 0, 
+                                        val.X_Offset or 0, 
+                                        val.Y_Scale or 0, 
+                                        val.Y_Offset or 0
+                                    )
+                                end
+                                Library.Flags[flag] = val
+                            end
+                        end
+                        if force then
+                            Library:Notify("Config System", "Successfully loaded " .. CurrentProfile, 3)
+                        end
+                    end
+                end
+            end)
+            if not success then
+                warn("LouisHub UI: Gagal membaca config. Error: " .. tostring(err))
+            end
+        else
+            -- Jika file profil baru kosong / belum ada config, kembalikan UI ke default (Reset)
+            if not preloadOnly then
+                for k in pairs(Library.Flags) do
+                    Library.Flags[k] = nil
+                end
+                Library.Flags["__MetaProfile"] = CurrentProfile
+                Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
+                Library.Flags["__MetaTheme"] = CurrentThemeName
+
+                for flag, element in pairs(Library.Elements) do
+                    if not flag:find("^__Meta") and element.DefaultValue ~= nil then
+                        element:Set(element.DefaultValue, true, true)
+                    end
+                end
+                for id, btnData in pairs(Library.ExternalButtons) do
+                    if btnData.Instance and btnData.DefaultPosition then
+                        btnData.Instance.Position = btnData.DefaultPosition
+                    end
+                end
+                if force then
+                    Library:Notify("Config System", "Profile is empty. UI reset to default for " .. CurrentProfile, 3)
+                end
+            end
+        end
+    end
+end
+
+-- ========================================================
+-- [[ 1. MAIN ENGINE SYSTEM (DYNAMIC RGB & LEAKLESS DRAG) ]]
+-- ========================================================
+local function RegisterRGB(instance, property)
+    for _, item in ipairs(RGBElements) do
+        if item.Instance == instance and item.Property == property then
+            return
+        end
+    end
+    table.insert(RGBElements, {Instance = instance, Property = property})
+end
+
+local function UnregisterRGB(instance, property)
+    for i = #RGBElements, 1, -1 do
+        if RGBElements[i].Instance == instance and RGBElements[i].Property == property then
+            table.remove(RGBElements, i)
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    if not IsThemeRGB then return end -- Hindari pemrosesan warna jika mode RGB mati
+    local hue = (os.clock() % 4) / 4
+    local rainbowColor = Color3.fromHSV(hue, 0.85, 0.95)
+    
+    for i = #RGBElements, 1, -1 do
+        local item = RGBElements[i]
+        if item.Instance and item.Instance:IsDescendantOf(game) then
+            pcall(function()
+                item.Instance[item.Property] = rainbowColor
+            end)
+        else
+            table.remove(RGBElements, i)
+        end
+    end
+end)
+
+-- Sistem Drag Baru yang Sangat Akurat Berdasarkan Titik Sentuh Awal (Offset Delta)
+local function EnableDrag(dragFrame, parentFrame, onDragEnd)
+    local dragging = false
+    local dragInput
+    local dragStart = Vector3.new()
+    local startPos = UDim2.new()
+    
+    dragFrame.InputBegan:Connect(function(input)
+        if parentFrame:GetAttribute("DragLocked") then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragInput = input
+            dragStart = input.Position
+            startPos = parentFrame.Position
+            
+            local endConnection
+            endConnection = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    dragInput = nil
+                    if endConnection then endConnection:Disconnect() end
+                    if onDragEnd then onDragEnd() end
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            if parentFrame:GetAttribute("DragLocked") then 
+                dragging = false
+                dragInput = nil
+                return 
+            end
+            local delta = input.Position - dragStart
+            parentFrame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+local MainGui
+local function GetMainGui()
+    if not MainGui then
+        MainGui = Instance.new("ScreenGui")
+        MainGui.Name = "LouisHub_ModernUI"
+        MainGui.ResetOnSpawn = false
+        MainGui.IgnoreGuiInset = true
+        MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        
+        local parent
+        local successHui, hui = pcall(function() return gethui and gethui() end)
+        if successHui and hui then
+            parent = hui
+        else
+            local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+            if success and coreGui then
+                parent = coreGui
+            else
+                parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+        end
+        MainGui.Parent = parent
+    end
+    return MainGui
+end
+
+-- ========================================================
+-- [[ 2. MODERN NOTIFICATION SYSTEM ]]
+-- ========================================================
+local NotificationGui
+local function GetNotificationHolder()
+    if not NotificationGui then
+        NotificationGui = Instance.new("ScreenGui")
+        NotificationGui.Name = "Louis_Notification_System"
+        NotificationGui.DisplayOrder = 9999
+        
+        local parent
+        local successHui, hui = pcall(function() return gethui and gethui() end)
+        if successHui and hui then
+            parent = hui
+        else
+            local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+            if success and coreGui then
+                parent = coreGui
+            else
+                parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+        end
+        NotificationGui.Parent = parent
+        
+        local Holder = Instance.new("Frame", NotificationGui)
+        Holder.Name = "Holder"
+        Holder.Size = UDim2.new(0, 280, 1, -40)
+        Holder.Position = UDim2.new(1, -300, 0, 20)
+        Holder.BackgroundTransparency = 1
+        
+        local Layout = Instance.new("UIListLayout", Holder)
+        Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+        Layout.Padding = UDim.new(0, 8)
+    end
+    return NotificationGui.Holder
+end
+
+function Library:Notify(title, desc, duration)
+    duration = duration or 4
+    local Holder = GetNotificationHolder()
+    local t = Themes[CurrentThemeName]
+    
+    local NotifFrame = Instance.new("Frame")
+    NotifFrame.Size = UDim2.new(1, 0, 0, 0)
+    NotifFrame.BackgroundColor3 = t.WindowBg
+    NotifFrame.BackgroundTransparency = t.WindowTransparency
+    NotifFrame.BorderSizePixel = 0
+    NotifFrame.ClipsDescendants = true
+    NotifFrame.Parent = Holder
+    
+    local NotifCorner = Instance.new("UICorner", NotifFrame)
+    NotifCorner.CornerRadius = UDim.new(0, 6)
+    
+    local NotifStroke = Instance.new("UIStroke", NotifFrame)
+    NotifStroke.Thickness = 1
+    NotifStroke.Color = t.IsRGB and Color3.new(1,1,1) or t.Accent
+    if t.IsRGB then RegisterRGB(NotifStroke, "Color") end
+
+    local NotifAccent = Instance.new("Frame", NotifFrame)
+    NotifAccent.Size = UDim2.new(0, 3, 1, 0)
+    NotifAccent.Position = UDim2.new(0, 0, 0, 0)
+    NotifAccent.BorderSizePixel = 0
+    NotifAccent.BackgroundColor3 = t.IsRGB and Color3.new(1,1,1) or t.Accent
+    if t.IsRGB then RegisterRGB(NotifAccent, "BackgroundColor3") end
+    
+    local TitleLabel = Instance.new("TextLabel", NotifFrame)
+    TitleLabel.Size = UDim2.new(1, -30, 0, 20)
+    TitleLabel.Position = UDim2.new(0, 14, 0, 8)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title or "Notification"
+    TitleLabel.TextColor3 = t.TextPrimary
+    TitleLabel.Font = Enum.Font.MontserratBold
+    TitleLabel.TextSize = 12
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local DescLabel = Instance.new("TextLabel", NotifFrame)
+    DescLabel.Size = UDim2.new(1, -30, 0, 32)
+    DescLabel.Position = UDim2.new(0, 14, 0, 26)
+    DescLabel.BackgroundTransparency = 1
+    DescLabel.Text = desc or "Description"
+    DescLabel.TextColor3 = t.TextSecondary
+    DescLabel.Font = Enum.Font.Montserrat
+    DescLabel.TextSize = 10
+    DescLabel.TextWrapped = true
+    DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, 65)}):Play()
+    
+    task.delay(duration, function()
+        if NotifFrame and NotifFrame.Parent then
+            local fadeOut = TweenService:Create(NotifFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(1, 0, 0, 0)})
+            fadeOut:Play()
+            fadeOut.Completed:Connect(function()
+                NotifFrame:Destroy()
+            end)
+        end
+    end)
+end
+
+-- ========================================================
+-- [[ 3. REBUILT LOADING SCREEN SYSTEM ]]
+-- ========================================================
+local function StartLoading(titleText, subtitleText, onComplete)
+    local ScreenGui = GetMainGui()
+    local t = Themes[CurrentThemeName]
+    
+    local LoadingGui = Instance.new("Frame", ScreenGui)
+    LoadingGui.Name = "Louis_Loading_Screen"
+    LoadingGui.Size = UDim2.new(1, 0, 1, 0)
+    LoadingGui.BackgroundColor3 = Color3.fromRGB(12, 12, 15) -- Selalu solid gelap mewah
+    LoadingGui.BackgroundTransparency = 0 -- Hilangkan transparansi agar background game tidak bocor
+    LoadingGui.BorderSizePixel = 0
+    LoadingGui.ZIndex = 9990
+
+    local ProfileFrame = Instance.new("Frame", LoadingGui)
+    ProfileFrame.Size = UDim2.new(0, 220, 0, 60)
+    ProfileFrame.Position = UDim2.new(0, 30, 1, -90)
+    ProfileFrame.BackgroundTransparency = 1
+    ProfileFrame.ZIndex = 9995
+
+    local ProfileImage = Instance.new("ImageLabel", ProfileFrame)
+    ProfileImage.Size = UDim2.new(0, 44, 0, 44)
+    ProfileImage.Position = UDim2.new(0, 0, 0.5, -22)
+    ProfileImage.BackgroundTransparency = 1
+    ProfileImage.ImageTransparency = 1
+    ProfileImage.ZIndex = 9995
+    
+    ProfileImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+    task.spawn(function()
+        local success, content = pcall(function()
+            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+        end)
+        if success and content then
+            ProfileImage.Image = content
+        end
+    end)
+    
+    Instance.new("UICorner", ProfileImage).CornerRadius = UDim.new(1, 0)
+    local pStroke = Instance.new("UIStroke", ProfileImage)
+    pStroke.Thickness = 1.5
+    pStroke.Transparency = 1
+    pStroke.Color = t.IsRGB and Color3.new(1,1,1) or t.Accent
+    if t.IsRGB then RegisterRGB(pStroke, "Color") end
+
+    local UserInfo = Instance.new("TextLabel", ProfileFrame)
+    UserInfo.Size = UDim2.new(1, -54, 1, 0)
+    UserInfo.Position = UDim2.new(0, 54, 0, 0)
+    UserInfo.BackgroundTransparency = 1
+    UserInfo.Font = Enum.Font.MontserratBold
+    UserInfo.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.TextPrimary
+    UserInfo.TextSize = 10
+    UserInfo.TextXAlignment = Enum.TextXAlignment.Left
+    UserInfo.RichText = true
+    UserInfo.TextTransparency = 1
+    UserInfo.ZIndex = 9995
+    UserInfo.Text = '<font color="'.. (t.IsRGB and "rgb(180, 180, 180)" or "rgb(100, 100, 110)") ..'">MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="8" color="'.. (t.IsRGB and "rgb(130, 130, 130)" or "rgb(140, 140, 150)") ..'">ID: ' .. LocalPlayer.UserId .. '</font>'
+
+    local Title = Instance.new("TextLabel", LoadingGui)
+    Title.Size = UDim2.new(1, 0, 0, 45)
+    Title.Position = UDim2.new(0, 0, 0.35, 0)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.MontserratBold
+    Title.TextSize = 34
+    Title.RichText = true
+    Title.Text = (titleText or "LOUIS HUB"):upper()
+    Title.TextTransparency = 1
+    Title.ZIndex = 9995
+    Title.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.Accent
+    if t.IsRGB then RegisterRGB(Title, "TextColor3") end
+
+    local SubTitle = Instance.new("TextLabel", LoadingGui)
+    SubTitle.Size = UDim2.new(1, 0, 0, 20)
+    SubTitle.Position = UDim2.new(0, 0, 0.44, 0)
+    SubTitle.BackgroundTransparency = 1
+    SubTitle.Text = (subtitleText or "MODERNIZED INTERFACE"):upper()
+    SubTitle.TextColor3 = t.IsRGB and Color3.fromRGB(180, 180, 190) or t.TextSecondary
+    SubTitle.TextSize = 12
+    SubTitle.Font = Enum.Font.MontserratBold
+    SubTitle.TextTransparency = 1
+    SubTitle.ZIndex = 9995
+
+    local BarBg = Instance.new("Frame", LoadingGui)
+    BarBg.Size = UDim2.new(0.4, 0, 0, 4)
+    BarBg.Position = UDim2.new(0.3, 0, 0.62, 0)
+    BarBg.BackgroundColor3 = t.IsRGB and Color3.fromRGB(25, 25, 30) or Color3.fromRGB(30, 30, 35)
+    BarBg.ZIndex = 9995
+    Instance.new("UICorner", BarBg)
+    
+    local BarFill = Instance.new("Frame", BarBg)
+    BarFill.Size = UDim2.new(0, 0, 1, 0)
+    BarFill.ZIndex = 9995
+    Instance.new("UICorner", BarFill)
+    BarFill.BackgroundColor3 = t.IsRGB and Color3.new(1,1,1) or t.Accent
+    if t.IsRGB then RegisterRGB(BarFill, "BackgroundColor3") end
+
+    local SkipBtn = Instance.new("TextButton", LoadingGui)
+    SkipBtn.Size = UDim2.new(0, 110, 0, 32)
+    SkipBtn.Position = UDim2.new(0.5, -55, 0.8, 0)
+    SkipBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(22, 22, 26) or Color3.fromRGB(28, 28, 33)
+    SkipBtn.Text = "SKIP"
+    SkipBtn.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.TextPrimary
+    SkipBtn.Font = Enum.Font.MontserratBold
+    SkipBtn.TextSize = 12
+    SkipBtn.ZIndex = 10000
+    SkipBtn.TextTransparency = 1
+    
+    local SkipCorner = Instance.new("UICorner", SkipBtn)
+    SkipCorner.CornerRadius = UDim.new(0, 6)
+    local SkipStroke = Instance.new("UIStroke", SkipBtn)
+    SkipStroke.Color = t.IsRGB and Color3.fromRGB(40, 40, 45) or t.ElementStroke
+    SkipStroke.Thickness = 1
+
+    local beepSound = Instance.new("Sound", LoadingGui)
+    beepSound.SoundId = "rbxassetid://1567483853"
+    beepSound.Volume = 0.5
+
+    local function ElectricZapEffect()
+        for i = 1, 3 do
+            local zap = Instance.new("Frame", LoadingGui)
+            zap.BackgroundColor3 = t.Accent
+            zap.BorderSizePixel = 0
+            zap.Size = UDim2.new(0, math.random(40, 90), 0, 1.5)
+            zap.Position = UDim2.new(0.5, math.random(-80, 80), 0.38, math.random(-15, 15))
+            zap.ZIndex = 9995
+            task.spawn(function() task.wait(0.1); zap:Destroy() end)
+        end
+    end
+
+    local skipTriggered = false
+    local function ForceExit()
+        if skipTriggered then return end
+        skipTriggered = true
+        beepSound:Stop()
+        
+        UnregisterRGB(Title, "TextColor3")
+        UnregisterRGB(BarFill, "BackgroundColor3")
+        UnregisterRGB(pStroke, "Color")
+
+        local fadeInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        TweenService:Create(LoadingGui, fadeInfo, {BackgroundTransparency = 1}):Play()
+        for _, obj in ipairs(LoadingGui:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                    TweenService:Create(obj, fadeInfo, {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("ImageLabel") then
+                    TweenService:Create(obj, fadeInfo, {ImageTransparency = 1, BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("Frame") then
+                    TweenService:Create(obj, fadeInfo, {BackgroundTransparency = 1}):Play()
+                elseif obj:IsA("UIStroke") then
+                    TweenService:Create(obj, fadeInfo, {Transparency = 1}):Play()
+                end
+            end)
+        end
+        task.delay(0.38, function() 
+            LoadingGui:Destroy() 
+            if onComplete then onComplete() end
+        end)
+    end
+
+    SkipBtn.MouseButton1Click:Connect(ForceExit)
+
+    local entryTween = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(Title, entryTween, {TextTransparency = 0}):Play()
+    TweenService:Create(ProfileImage, entryTween, {ImageTransparency = 0}):Play()
+    TweenService:Create(pStroke, entryTween, {Transparency = 0}):Play()
+    TweenService:Create(UserInfo, entryTween, {TextTransparency = 0}):Play()
+    TweenService:Create(SkipBtn, entryTween, {TextTransparency = 0}):Play()
+
+    task.delay(1, function()
+        if skipTriggered then return end
+        TweenService:Create(SubTitle, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
+        for i = 1, 6 do 
+            if skipTriggered then break end
+            local vis = not SubTitle.Visible
+            SubTitle.Visible = vis
+            Title.Visible = vis
+            if vis then 
+                ElectricZapEffect()
+                pcall(function() beepSound:Play() end) 
+            end
+            task.wait(0.2)
+        end
+        if not skipTriggered then SubTitle.Visible = true; Title.Visible = true end
+    end)
+
+    BarFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Linear", 5.5)
+    
+    local waitTime = 0
+    while waitTime < 6 and not skipTriggered do
+        waitTime = waitTime + 0.1
+        task.wait(0.1)
+    end
+    if not skipTriggered then ForceExit() end
+end
+
+-- ========================================================
+-- [[ 4. METHODS: CREATE MAIN WINDOW ]]
+-- ========================================================
+function Library:CreateWindow(titleText, subtitleText)
+    Library:LoadConfig(false, true)
+
+    local Window = {
+        Tabs = {},
+        CurrentTab = nil,
+        DragLocked = false,
+        Minimized = false,
+        Visible = false
+    }
+    ActiveWindowInstance = Window
+
+    local ScreenGui = GetMainGui()
+
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 520, 0, 330)
+    MainFrame.Position = UDim2.new(0.5, -260, 0.5, -165)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
+    MainFrame.Parent = ScreenGui
+    MainFrame.Visible = false
+    RegisterThemeable(MainFrame, { 
+        BackgroundColor3 = "WindowBg",
+        BackgroundTransparency = "WindowTransparency"
+    })
+
+    local MainCorner = Instance.new("UICorner", MainFrame)
+    MainCorner.CornerRadius = UDim.new(0, 8)
+
+    -- Wallpaper/Gambar Pola Latar Belakang Kustom
+    local BackgroundImage = Instance.new("ImageLabel", MainFrame)
+    BackgroundImage.Name = "UIBackgroundPattern"
+    BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
+    BackgroundImage.Position = UDim2.new(0, 0, 0, 0)
+    BackgroundImage.BackgroundTransparency = 1
+    BackgroundImage.ScaleType = Enum.ScaleType.Crop
+    BackgroundImage.ZIndex = -2
+    RegisterThemeable(BackgroundImage, {
+        Image = "BgImage",
+        ImageTransparency = "BgImageTransparency"
+    })
+
+    local MainStroke = Instance.new("UIStroke", MainFrame)
+    MainStroke.Thickness = 1
+    RegisterRGB(MainStroke, "Color")
+    RegisterThemeable(MainStroke, { Color = function(t) return t.IsRGB and MainStroke.Color or t.ElementStroke end })
+
+    -- Header Panel
+    local Header = Instance.new("Frame", MainFrame)
+    Header.Size = UDim2.new(1, 0, 0, 46)
+    Header.BorderSizePixel = 0
+    RegisterThemeable(Header, { 
+        BackgroundColor3 = "HeaderBg", 
+        BackgroundTransparency = "HeaderTransparency" 
+    })
+    
+    local HeaderCorner = Instance.new("UICorner", Header)
+    HeaderCorner.CornerRadius = UDim.new(0, 8)
+    
+    local BottomHeaderMask = Instance.new("Frame", Header)
+    BottomHeaderMask.Size = UDim2.new(1, 0, 0.5, 0)
+    BottomHeaderMask.Position = UDim2.new(0, 0, 0.5, 0)
+    BottomHeaderMask.BorderSizePixel = 0
+    BottomHeaderMask.ZIndex = -1
+    RegisterThemeable(BottomHeaderMask, { 
+        BackgroundColor3 = "HeaderBg", 
+        BackgroundTransparency = "HeaderTransparency" 
+    })
+    
+    EnableDrag(Header, MainFrame)
+
+    local TitleLabel = Instance.new("TextLabel", Header)
+    TitleLabel.Size = UDim2.new(0, 300, 0, 18)
+    TitleLabel.Position = UDim2.new(0, 16, 0, 10)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = titleText or "LOUIS HUB"
+    TitleLabel.TextSize = 14
+    TitleLabel.Font = Enum.Font.MontserratBold
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
+
+    local SubtitleLabel = Instance.new("TextLabel", Header)
+    SubtitleLabel.Size = UDim2.new(0, 300, 0, 12)
+    SubtitleLabel.Position = UDim2.new(0, 16, 0, 26)
+    SubtitleLabel.BackgroundTransparency = 1
+    SubtitleLabel.Text = subtitleText or "Rebuilt Edition"
+    SubtitleLabel.TextSize = 9
+    SubtitleLabel.Font = Enum.Font.MontserratBold
+    SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterThemeable(SubtitleLabel, { TextColor3 = "TextSecondary" })
+
+    local BarBg = Instance.new("Frame", MainFrame)
+    BarBg.Size = UDim2.new(1, 0, 0, 1)
+    BarBg.Position = UDim2.new(0, 0, 0, 46)
+    BarBg.BorderSizePixel = 0
+    RegisterRGB(BarBg, "BackgroundColor3")
+    RegisterThemeable(BarBg, { 
+        BackgroundTransparency = function(t) return t.IsRGB and 0 or 1 end
+    })
+
+    -- Sidebar Container
+    local Sidebar = Instance.new("Frame", MainFrame)
+    Sidebar.Size = UDim2.new(0, 140, 1, -58)
+    Sidebar.Position = UDim2.new(0, 12, 0, 52)
+    Sidebar.BorderSizePixel = 0
+    Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6)
+    RegisterThemeable(Sidebar, { 
+        BackgroundColor3 = "SidebarBg",
+        BackgroundTransparency = "SidebarTransparency"
+    })
+    
+    local SidebarStroke = Instance.new("UIStroke", Sidebar)
+    SidebarStroke.Thickness = 1
+    RegisterThemeable(SidebarStroke, { Color = "ElementStroke" })
+
+    local TabContainer = Instance.new("ScrollingFrame", Sidebar)
+    TabContainer.Size = UDim2.new(1, -12, 1, -12)
+    TabContainer.Position = UDim2.new(0, 6, 0, 6)
+    TabContainer.BackgroundTransparency = 1
+    TabContainer.ScrollBarThickness = 0
+    TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+    local TabLayout = Instance.new("UIListLayout", TabContainer)
+    TabLayout.Padding = UDim.new(0, 4)
+
+    -- Primary Content Workspace
+    local ContentArea = Instance.new("Frame", MainFrame)
+    ContentArea.Size = UDim2.new(1, -174, 1, -58)
+    ContentArea.Position = UDim2.new(0, 162, 0, 52)
+    ContentArea.BorderSizePixel = 0
+    Instance.new("UICorner", ContentArea).CornerRadius = UDim.new(0, 6)
+    RegisterThemeable(ContentArea, { 
+        BackgroundColor3 = "ContentBg",
+        BackgroundTransparency = "ContentTransparency"
+    })
+
+    local ContentStroke = Instance.new("UIStroke", ContentArea)
+    ContentStroke.Thickness = 1
+    RegisterThemeable(ContentStroke, { Color = "ElementStroke" })
+
+    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
+    end)
+
+    local ToggleIcon = Instance.new("ImageButton", Header)
+    ToggleIcon.Size = UDim2.new(0, 18, 0, 18)
+    ToggleIcon.Position = UDim2.new(1, -52, 0, 14)
+    ToggleIcon.BackgroundTransparency = 1
+    ToggleIcon.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
+    RegisterThemeable(ToggleIcon, { ImageColor3 = "TextSecondary" })
+
+    ToggleIcon.MouseButton1Click:Connect(function()
+        Window.Minimized = not Window.Minimized
+        local targetSize = Window.Minimized and UDim2.new(0, 520, 0, 47) or UDim2.new(0, 520, 0, 330)
+        local targetRotation = Window.Minimized and 180 or 0
+        
+        TweenService:Create(ToggleIcon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = targetRotation}):Play()
+        
+        if Window.Minimized then
+            local sidebarFade = TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+            local contentFade = TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+            sidebarFade:Play()
+            contentFade:Play()
+            
+            sidebarFade.Completed:Connect(function()
+                if Window.Minimized then
+                    Sidebar.Visible = false
+                    ContentArea.Visible = false
+                end
+            end)
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+        else
+            Sidebar.Visible = true
+            ContentArea.Visible = true
+            local t = Themes[CurrentThemeName]
+            TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.SidebarTransparency}):Play()
+            TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.ContentTransparency}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+        end
+    end)
+
+    local CloseBtn = Instance.new("ImageButton", Header)
+    CloseBtn.Size = UDim2.new(0, 18, 0, 18)
+    CloseBtn.Position = UDim2.new(1, -28, 0, 14)
+    CloseBtn.BackgroundTransparency = 1
+    CloseBtn.Image = "rbxthumb://type=Asset&id=10734898355&w=150&h=150"
+    RegisterThemeable(CloseBtn, { ImageColor3 = "TextSecondary" })
+
+    CloseBtn.MouseEnter:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = Color3.fromRGB(255, 75, 75)}):Play()
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        local t = Themes[CurrentThemeName]
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = t.TextSecondary}):Play()
+    end)
+
+    -- [[ 4a. FLOATING ICON OPEN CLOSE ]]
+    local FloatingToggle = Instance.new("TextButton", ScreenGui)
+    FloatingToggle.Name = "FloatingToggleIcon"
+    FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
+    FloatingToggle.Position = UDim2.new(0.5, -24, 0.5, -24)
+    FloatingToggle.BorderSizePixel = 0
+    FloatingToggle.Text = ""
+    FloatingToggle.Visible = false
+    FloatingToggle.ClipsDescendants = true -- Memotong sisa gambar ikon kustom saat animasi menyusut
+    RegisterThemeable(FloatingToggle, { 
+        BackgroundColor3 = "ElementBg",
+        BackgroundTransparency = "ElementTransparency"
+    })
+
+    local ToggleCorner = Instance.new("UICorner", FloatingToggle)
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+
+    local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
+    ToggleStroke.Thickness = 1
+    RegisterRGB(ToggleStroke, "Color")
+    RegisterThemeable(ToggleStroke, { Color = function(t) return t.IsRGB and ToggleStroke.Color or t.Accent end })
+
+    local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
+    ToggleIconImage.Name = "Icon"
+    
+    -- Menggunakan skala (%) agar ikon mengecil bersamaan secara mulus dengan tombol luar
+    ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0) 
+    ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
+    
+    ToggleIconImage.BackgroundTransparency = 1
+    ToggleIconImage.ScaleType = Enum.ScaleType.Fit
+    RegisterRGB(ToggleIconImage, "ImageColor3")
+    RegisterThemeable(ToggleIconImage, {
+        Image = "FloatingIconImage",
+        ImageColor3 = function(t) return t.IsRGB and ToggleIconImage.ImageColor3 or Color3.fromRGB(255, 255, 255) end
+    })
+
+    EnableDrag(FloatingToggle, FloatingToggle)
+
+    local firstTimeOpen = true
+
+    local function OpenGui()
+        if not Window.Visible then
+            Window.Visible = true
+            MainFrame.Visible = true
+            
+            local shrinkTween = TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+            shrinkTween:Play()
+            shrinkTween.Completed:Connect(function()
+                if Window.Visible then
+                    FloatingToggle.Visible = false
+                end
+            end)
+            
+            MainFrame.Size = UDim2.new(0, 520, 0, 0)
+            local targetHeight = Window.Minimized and 47 or 330
+            TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 520, 0, targetHeight)}):Play()
+        end
+    end
+
+    local function CloseGui()
+        if Window.Visible then
+            Window.Visible = false
+            
+            local hideTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 520, 0, 0)})
+            hideTween:Play()
+            hideTween.Completed:Connect(function()
+                if not Window.Visible then
+                    MainFrame.Visible = false
+                end
+            end)
+            
+            if firstTimeOpen then
+                firstTimeOpen = false
+                FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
+            end
+            
+            FloatingToggle.Visible = true
+            FloatingToggle.Size = UDim2.new(0, 0, 0, 0)
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+        end
+    end
+
+    FloatingToggle.MouseButton1Click:Connect(function()
+        TweenService:Create(FloatingToggle, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 40, 0, 40)}):Play()
+        task.delay(0.1, function()
+            OpenGui()
+        end)
+    end)
+
+    CloseBtn.MouseButton1Click:Connect(CloseGui)
+
+    StartLoading(titleText, subtitleText, function()
+        firstTimeOpen = true
+        FloatingToggle.Position = UDim2.new(0.5, -24, 0.5, -24)
+        FloatingToggle.Size = UDim2.new(0, 0, 0, 0)
+        FloatingToggle.Visible = true
+        
+        TweenService:Create(FloatingToggle, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+
+        task.spawn(function()
+            task.wait(0.5)
+            Library:LoadConfig()
+            ApplyTheme(CurrentThemeName)
+        end)
+    end)
+
+    function Window:SetDragLock(state)
+        Window.DragLocked = state
+        MainFrame:SetAttribute("DragLocked", state)
+    end
+
+    function Window:BindToggleKey(keyCode)
+        local debounce = false
+        UserInputService.InputBegan:Connect(function(input, processed)
+            if processed then return end
+            if input.KeyCode == keyCode and not debounce then
+                debounce = true
+                if Window.Visible then
+                    CloseGui()
+                else
+                    OpenGui()
+                end
+                task.wait(0.3)
+                debounce = false
+            end
+        end)
+    end
+
+    function Window:UpdateAllTabsVisual()
+        local t = Themes[CurrentThemeName]
+        for _, tabInfo in ipairs(Window.Tabs) do
+            local isSelected = (Window.CurrentTab and Window.CurrentTab.Button == tabInfo.Button)
+            
+            TweenService:Create(tabInfo.Button, TweenInfo.new(0.15), {
+                BackgroundTransparency = isSelected and t.ElementTransparency or (t.IsRGB and 1 or t.SidebarTransparency),
+                BackgroundColor3 = isSelected and t.ElementBg or t.SidebarBg
+            }):Play()
+            TweenService:Create(tabInfo.ButtonStroke, TweenInfo.new(0.15), {
+                Transparency = isSelected and 0 or (t.IsRGB and 1 or t.SidebarTransparency),
+                Color = t.ElementStroke
+            }):Play()
+            TweenService:Create(tabInfo.Text, TweenInfo.new(0.15), {
+                TextColor3 = isSelected and t.TextPrimary or t.TextDark
+            }):Play()
+            tabInfo.Indicator.Visible = isSelected
+            if tabInfo.Icon then
+                TweenService:Create(tabInfo.Icon, TweenInfo.new(0.15), {
+                    ImageColor3 = isSelected and t.TextPrimary or t.TextDark
+                }):Play()
+            end
+        end
+    end
+
+    -- ========================================================
+    -- [[ 5. METHODS: CREATE NEW TAB ]]
+    -- ========================================================
+    function Window:CreateTab(tabName, iconAssetId)
+        local Tab = {}
+        
+        local TabContent = Instance.new("ScrollingFrame", ContentArea)
+        TabContent.Size = UDim2.new(1, -16, 1, -16)
+        TabContent.Position = UDim2.new(0, 8, 0, 8)
+        TabContent.BackgroundTransparency = 1
+        TabContent.ScrollBarThickness = 2
+        TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+        TabContent.Visible = false
+
+        -- Scrollbar yang sepenuhnya disamakan dengan gaya tema RGB (Abu-abu tipis netral & bersih)
+        TabContent.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
+        TabContent.ScrollBarImageTransparency = 0.4
+
+        local ContentLayout = Instance.new("UIListLayout", TabContent)
+        ContentLayout.Padding = UDim.new(0, 6)
+        ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabContent.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y)
+        end)
+
+        local TabButton = Instance.new("TextButton", TabContainer)
+        TabButton.Size = UDim2.new(1, 0, 0, 32)
+        TabButton.Text = ""
+        TabButton.AutoButtonColor = false
+        Instance.new("UICorner", TabButton).CornerRadius = UDim.new(0, 5)
+
+        local TabBtnStroke = Instance.new("UIStroke", TabButton)
+        TabBtnStroke.Thickness = 1
+
+        local TabIndicator = Instance.new("Frame", TabButton)
+        TabIndicator.Size = UDim2.new(0, 2.5, 1, -12)
+        TabIndicator.Position = UDim2.new(0, 4, 0, 6)
+        TabIndicator.BorderSizePixel = 0
+        TabIndicator.Visible = false
+        RegisterRGB(TabIndicator, "BackgroundColor3")
+        RegisterThemeable(TabIndicator, { BackgroundColor3 = function(t) return t.IsRGB and TabIndicator.BackgroundColor3 or t.Accent end })
+
+        local IconLabel
+        if iconAssetId then
+            IconLabel = Instance.new("ImageLabel", TabButton)
+            IconLabel.Size = UDim2.new(0, 14, 0, 14)
+            IconLabel.Position = UDim2.new(0, 10, 0.5, -7)
+            IconLabel.BackgroundTransparency = 1
+            IconLabel.Image = resolveIcon(iconAssetId)
+        end
+
+        local TabText = Instance.new("TextLabel", TabButton)
+        TabText.Size = UDim2.new(1, iconAssetId and -34 or -16, 1, 0)
+        TabText.Position = UDim2.new(0, iconAssetId and 28 or 10)
+        TabText.BackgroundTransparency = 1
+        TabText.Text = tabName
+        TabText.TextSize = 11
+        TabText.Font = Enum.Font.MontserratMedium
+        TabText.TextXAlignment = Enum.TextXAlignment.Left
+
+        local tabData = {
+            Button = TabButton,
+            ButtonStroke = TabBtnStroke,
+            Text = TabText,
+            Frame = TabContent,
+            Icon = IconLabel,
+            Indicator = TabIndicator
+        }
+        table.insert(Window.Tabs, tabData)
+
+        local function Select()
+            -- Cek proteksi klik ganda: jika tab saat ini ditekan kembali, abaikan fungsi
+            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then 
+                return 
+            end
+
+            if Window.CurrentTab then
+                local oldTab = Window.CurrentTab
+                local fadeOut = TweenService:Create(oldTab.Frame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0.95, -16), Position = UDim2.new(0, 8, 0, 12)})
+                fadeOut:Play()
+                fadeOut.Completed:Connect(function()
+                    oldTab.Frame.Visible = false
+                end)
+            end
+            
+            TabContent.Size = UDim2.new(1, -16, 0.95, -16)
+            TabContent.Position = UDim2.new(0, 8, 0, 12)
+            TabContent.Visible = true
+            TweenService:Create(TabContent, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 1, -16), Position = UDim2.new(0, 8, 0, 8)}):Play()
+
+            Window.CurrentTab = tabData
+            Window:UpdateAllTabsVisual()
+        end
+
+        TabButton.MouseEnter:Connect(function()
+            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
+            local t = Themes[CurrentThemeName]
+            TweenService:Create(TabButton, TweenInfo.new(0.15), {
+                BackgroundTransparency = t.IsRGB and 0.5 or t.ElementTransparency,
+                BackgroundColor3 = t.IsRGB and Color3.fromRGB(20, 20, 24) or t.ElementBg
+            }):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = t.TextPrimary}):Play()
+            if IconLabel then
+                TweenService:Create(IconLabel, TweenInfo.new(0.15), {ImageColor3 = t.TextPrimary}):Play()
+            end
+        end)
+
+        TabButton.MouseLeave:Connect(function()
+            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
+            local t = Themes[CurrentThemeName]
+            TweenService:Create(TabButton, TweenInfo.new(0.15), {
+                BackgroundTransparency = t.IsRGB and 1 or t.SidebarTransparency,
+                BackgroundColor3 = t.SidebarBg
+            }):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = t.TextDark}):Play()
+            if IconLabel then
+                TweenService:Create(IconLabel, TweenInfo.new(0.15), {ImageColor3 = t.TextDark}):Play()
+            end
+        end)
+
+        TabButton.MouseButton1Click:Connect(Select)
+
+        if #Window.Tabs == 1 then
+            task.spawn(function()
+                repeat task.wait() until MainFrame.Visible == true
+                Select()
+            end)
+        end
+
+        -- ========================================================
+        -- [[ 5a. TAB ELEMENT: CREATE BUTTON ]]
+        -- ========================================================
+        function Tab:CreateButton(buttonText, callback)
+            local Button = Instance.new("TextButton", TabContent)
+            Button.Size = UDim2.new(1, -6, 0, 34)
+            Button.Text = ""
+            Button.AutoButtonColor = false
+            Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(Button, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+
+            local BtnStroke = Instance.new("UIStroke", Button)
+            BtnStroke.Thickness = 1
+            RegisterThemeable(BtnStroke, { Color = "ElementStroke" })
+
+            local BtnText = Instance.new("TextLabel", Button)
+            BtnText.Size = UDim2.new(1, -35, 1, 0)
+            BtnText.Position = UDim2.new(0, 12, 0, 0)
+            BtnText.BackgroundTransparency = 1
+            BtnText.Text = buttonText or "Button"
+            BtnText.TextSize = 11
+            BtnText.Font = Enum.Font.MontserratMedium
+            BtnText.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(BtnText, { TextColor3 = "TextPrimary" })
+
+            local ArrowIcon = Instance.new("ImageLabel", Button)
+            ArrowIcon.Size = UDim2.new(0, 12, 0, 12)
+            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -6)
+            ArrowIcon.BackgroundTransparency = 1
+            ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094678&w=150&h=150"
+            RegisterThemeable(ArrowIcon, { ImageColor3 = "TextSecondary" })
+
+            Button.MouseEnter:Connect(function()
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(Button, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                }):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextPrimary, Position = UDim2.new(1, -20, 0.5, -6)}):Play()
+            end)
+            Button.MouseLeave:Connect(function()
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(Button, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.ElementBg,
+                    BackgroundTransparency = t.ElementTransparency
+                }):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextSecondary, Position = UDim2.new(1, -22, 0.5, -6)}):Play()
+            end)
+
+            Button.MouseButton1Click:Connect(function()
+                local t = Themes[CurrentThemeName]
+                local press = TweenService:Create(Button, TweenInfo.new(0.05), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 42) or t.ContentBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.ContentTransparency
+                })
+                press:Play()
+                press.Completed:Connect(function()
+                    TweenService:Create(Button, TweenInfo.new(0.1), {
+                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
+                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    }):Play()
+                end)
+                if callback then task.spawn(callback) end
+            end)
+        end
+
+        -- ========================================================
+        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE ]]
+        -- ========================================================
+        function Tab:CreateToggle(toggleText, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = toggleText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = toggleText:gsub("%s+", "")
+            end
+
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Toggle = {State = (savedVal ~= nil and savedVal) or defaultVal or false}
+            Library.Flags[actualFlag] = Toggle.State
+
+            local ToggleBtn = Instance.new("TextButton", TabContent)
+            ToggleBtn.Size = UDim2.new(1, -6, 0, 34)
+            ToggleBtn.Text = ""
+            ToggleBtn.AutoButtonColor = false
+            Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(ToggleBtn, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+
+            local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
+            ToggleStroke.Thickness = 1
+            RegisterThemeable(ToggleStroke, { Color = "ElementStroke" })
+
+            local TextLabel = Instance.new("TextLabel", ToggleBtn)
+            TextLabel.Size = UDim2.new(1, -65, 1, 0)
+            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.Text = toggleText or "Toggle"
+            TextLabel.TextSize = 11
+            TextLabel.Font = Enum.Font.MontserratMedium
+            TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(TextLabel, { TextColor3 = "TextPrimary" })
+
+            local SwitchBg = Instance.new("Frame", ToggleBtn)
+            SwitchBg.Size = UDim2.new(0, 32, 0, 16)
+            SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
+            SwitchBg.BorderSizePixel = 0
+            Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
+
+            local SwitchBall = Instance.new("Frame", SwitchBg)
+            SwitchBall.Size = UDim2.new(0, 12, 0, 12)
+            SwitchBall.Position = UDim2.new(0, 2, 0.5, -6)
+            SwitchBall.BorderSizePixel = 0
+            Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
+            RegisterThemeable(SwitchBall, { BackgroundColor3 = "TextDark" })
+
+            local function UpdateVisual(animate, ignoreSave)
+                local duration = animate and 0.2 or 0
+                local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local t = Themes[CurrentThemeName]
+                
+                if Toggle.State then
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                    
+                    if t.IsRGB then
+                        RegisterRGB(SwitchBg, "BackgroundColor3")
+                    else
+                        UnregisterRGB(SwitchBg, "BackgroundColor3")
+                        TweenService:Create(SwitchBg, info, {BackgroundColor3 = t.Accent}):Play()
+                    end
+                    
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
+                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
+                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    }):Play()
+                else
+                    UnregisterRGB(SwitchBg, "BackgroundColor3")
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = t.TextDark}):Play()
+                    TweenService:Create(SwitchBg, TweenInfo.new(duration), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 40) or t.ElementStroke}):Play()
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
+                        BackgroundColor3 = t.ElementBg,
+                        BackgroundTransparency = t.ElementTransparency
+                    }):Play()
+                end
+
+                Library.Flags[actualFlag] = Toggle.State
+                if not ignoreSave then
+                    Library:SaveConfig(true)
+                end
+            end
+
+            UpdateVisual(false, true)
+
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Toggle.State) end)
+            end
+
+            ToggleBtn.MouseButton1Click:Connect(function()
+                Toggle.State = not Toggle.State
+                UpdateVisual(true)
+                if actualCallback then task.spawn(function() actualCallback(Toggle.State) end) end
+            end)
+
+            local toggleController = {}
+            toggleController.DefaultValue = defaultVal or false
+            function toggleController:Set(state, ignoreSave, ignoreCallback)
+                Toggle.State = state
+                UpdateVisual(true, ignoreSave)
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(Toggle.State) end) 
+                end
+            end
+
+            -- Mendaftarkan sakelar aktif ke sistem pelacak tema dinamis
+            table.insert(Library.Toggles, {
+                Controller = toggleController,
+                UpdateVisual = UpdateVisual
+            })
+
+            Library.Elements[actualFlag] = toggleController
+            return toggleController
+        end
+
+        -- ========================================================
+        -- [[ 5c. TAB ELEMENT: CREATE SLIDER ]]
+        -- ========================================================
+        function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = sliderText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = sliderText:gsub("%s+", "")
+            end
+
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Slider = {Value = (savedVal ~= nil and savedVal) or defaultVal or minVal}
+            Library.Flags[actualFlag] = Slider.Value
+            
+            local SliderFrame = Instance.new("Frame", TabContent)
+            SliderFrame.Size = UDim2.new(1, -6, 0, 48)
+            Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(SliderFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local SliderStroke = Instance.new("UIStroke", SliderFrame)
+            SliderStroke.Thickness = 1
+            RegisterThemeable(SliderStroke, { Color = "ElementStroke" })
+
+            local TitleLabel = Instance.new("TextLabel", SliderFrame)
+            TitleLabel.Size = UDim2.new(1, -20, 0, 20)
+            TitleLabel.Position = UDim2.new(0, 12, 0, 4)
+            TitleLabel.BackgroundTransparency = 1
+            TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+            TitleLabel.TextSize = 11
+            TitleLabel.Font = Enum.Font.MontserratMedium
+            TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
+
+            local SliderBg = Instance.new("TextButton", SliderFrame)
+            SliderBg.Size = UDim2.new(1, -24, 0, 4)
+            SliderBg.Position = UDim2.new(0, 12, 1, -12)
+            SliderBg.Text = ""
+            SliderBg.AutoButtonColor = false
+            Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
+            RegisterThemeable(SliderBg, { BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(35, 35, 40) or t.SidebarBg end })
+
+            local SliderFill = Instance.new("Frame", SliderBg)
+            SliderFill.Size = UDim2.new((Slider.Value - minVal) / (maxVal - minVal), 0, 1, 0)
+            SliderFill.BorderSizePixel = 0
+            Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+            RegisterRGB(SliderFill, "BackgroundColor3")
+            RegisterThemeable(SliderFill, { BackgroundColor3 = function(t) return t.IsRGB and SliderFill.BackgroundColor3 or t.Accent end })
+
+            local function UpdateVisuals(val, ignoreSave)
+                Slider.Value = math.clamp(val, minVal, maxVal)
+                local percentage = (Slider.Value - minVal) / (maxVal - minVal)
+                
+                TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
+                TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+                
+                Library.Flags[actualFlag] = Slider.Value
+                if not ignoreSave then
+                    Library:SaveConfig(true)
+                end
+            end
+
+            UpdateVisuals(Slider.Value, true)
+
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Slider.Value) end)
+            end
+
+            local sliding = false
+            local function Update(input)
+                local percentage = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+                local rawVal = minVal + (percentage * (maxVal - minVal))
+                local finalVal = math.floor(rawVal + 0.5)
+                
+                UpdateVisuals(finalVal)
+                if actualCallback then task.spawn(function() actualCallback(finalVal) end) end
+            end
+
+            SliderBg.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sliding = true
+                    Update(input)
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    Update(input)
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sliding = false
+                end
+            end)
+
+            local sliderController = {}
+            sliderController.DefaultValue = defaultVal or minVal
+            function sliderController:Set(val, ignoreSave, ignoreCallback)
+                UpdateVisuals(val, ignoreSave)
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(Slider.Value) end) 
+                end
+            end
+
+            Library.Elements[actualFlag] = sliderController
+            return sliderController
+        end
+
+        -- ========================================================
+        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN ]]
+        -- ========================================================
+        function Tab:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = dropdownText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = dropdownText:gsub("%s+", "")
+            end
+
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Dropdown = {
+                Open = false,
+                CurrentValue = (savedVal ~= nil and savedVal) or defaultVal or options[1],
+                OptionFrames = {}
+            }
+            Library.Flags[actualFlag] = Dropdown.CurrentValue
+            
+            local DropdownFrame = Instance.new("Frame", TabContent)
+            DropdownFrame.Size = UDim2.new(1, -6, 0, 34)
+            DropdownFrame.ClipsDescendants = true
+            Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(DropdownFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local FrameStroke = Instance.new("UIStroke", DropdownFrame)
+            FrameStroke.Thickness = 1
+            RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
+
+            local DropdownBtn = Instance.new("TextButton", DropdownFrame)
+            DropdownBtn.Size = UDim2.new(1, 0, 0, 34)
+            DropdownBtn.BackgroundTransparency = 1
+            DropdownBtn.Text = ""
+
+            local TextLabel = Instance.new("TextLabel", DropdownBtn)
+            TextLabel.Size = UDim2.new(1, -60, 1, 0)
+            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.Text = dropdownText .. " (" .. tostring(Dropdown.CurrentValue) .. ")"
+            TextLabel.TextSize = 11
+            TextLabel.Font = Enum.Font.MontserratMedium
+            TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(TextLabel, { TextColor3 = "TextPrimary" })
+
+            local ArrowIcon = Instance.new("ImageLabel", DropdownBtn)
+            ArrowIcon.Size = UDim2.new(0, 10, 0, 10)
+            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -5)
+            ArrowIcon.BackgroundTransparency = 1
+            ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
+            RegisterThemeable(ArrowIcon, { ImageColor3 = "TextSecondary" })
+
+            local OptionContainer = Instance.new("Frame", DropdownFrame)
+            OptionContainer.Size = UDim2.new(1, -24, 0, 0)
+            OptionContainer.Position = UDim2.new(0, 12, 0, 36)
+            OptionContainer.BackgroundTransparency = 1
+
+            local OptionList = Instance.new("UIListLayout", OptionContainer)
+            OptionList.Padding = UDim.new(0, 4)
+
+            local function Refresh()
+                for _, v in ipairs(Dropdown.OptionFrames) do v:Destroy() end
+                Dropdown.OptionFrames = {}
+                local t = Themes[CurrentThemeName]
+
+                for _, opt in ipairs(options) do
+                    local OptBtn = Instance.new("TextButton", OptionContainer)
+                    OptBtn.Size = UDim2.new(1, 0, 0, 26)
+                    OptBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(26, 26, 31) or t.SidebarBg
+                    OptBtn.BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    OptBtn.Text = ""
+                    OptBtn.AutoButtonColor = false
+                    Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
+
+                    local OptText = Instance.new("TextLabel", OptBtn)
+                    OptText.Size = UDim2.new(1, -20, 1, 0)
+                    OptText.Position = UDim2.new(0, 10, 0, 0)
+                    OptText.BackgroundTransparency = 1
+                    OptText.Text = tostring(opt)
+                    OptText.TextSize = 10
+                    OptText.TextXAlignment = Enum.TextXAlignment.Left
+
+                    if opt == Dropdown.CurrentValue then
+                        OptText.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.TextPrimary
+                        OptText.Font = Enum.Font.MontserratBold
+                        
+                        local Indicator = Instance.new("Frame", OptBtn)
+                        Indicator.Size = UDim2.new(0, 2.5, 1, -8)
+                        Indicator.Position = UDim2.new(0, 3, 0, 4)
+                        Instance.new("UICorner", Indicator)
+                        RegisterRGB(Indicator, "BackgroundColor3")
+                        RegisterThemeable(Indicator, { BackgroundColor3 = function(th) return th.IsRGB and Indicator.BackgroundColor3 or th.Accent end })
+                    else
+                        OptText.TextColor3 = t.TextDark
+                        OptText.Font = Enum.Font.Montserrat
+                    end
+
+                    OptBtn.MouseEnter:Connect(function()
+                        local th = Themes[CurrentThemeName]
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
+                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(32, 32, 38) or th.ElementBg,
+                            BackgroundTransparency = th.IsRGB and 0 or th.ElementTransparency
+                        }):Play()
+                    end)
+                    OptBtn.MouseLeave:Connect(function()
+                        local th = Themes[CurrentThemeName]
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
+                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(26, 26, 31) or th.SidebarBg,
+                            BackgroundTransparency = th.IsRGB and 0 or th.SidebarTransparency
+                        }):Play()
+                    end)
+
+                    OptBtn.MouseButton1Click:Connect(function()
+                        Dropdown.CurrentValue = opt
+                        TextLabel.Text = dropdownText .. " (" .. tostring(opt) .. ")"
+                        Dropdown.Open = false
+                        
+                        local th = Themes[CurrentThemeName]
+                        UnregisterRGB(FrameStroke, "Color")
+                        FrameStroke.Color = th.ElementStroke
+                        TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, 34)}):Play()
+                        TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
+                        
+                        Refresh()
+                        
+                        Library.Flags[actualFlag] = opt
+                        if not actualFlag:find("^__Meta") then
+                            Library:SaveConfig(true)
+                        end
+                        
+                        if actualCallback then task.spawn(function() actualCallback(opt) end) end
+                    end)
+
+                    table.insert(Dropdown.OptionFrames, OptBtn)
+                end
+            end
+
+            DropdownBtn.MouseButton1Click:Connect(function()
+                Dropdown.Open = not Dropdown.Open
+                local targetHeight = 34
+                local rotation = 0
+                local th = Themes[CurrentThemeName]
+                
+                if Dropdown.Open then
+                    Refresh()
+                    if th.IsRGB then
+                        RegisterRGB(FrameStroke, "Color")
+                    else
+                        UnregisterRGB(FrameStroke, "Color")
+                        FrameStroke.Color = th.Accent
+                    end
+                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
+                    targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
+                    rotation = 180
+                else
+                    UnregisterRGB(FrameStroke, "Color")
+                    FrameStroke.Color = th.ElementStroke
+                    OptionContainer.Size = UDim2.new(1, -24, 0, 0)
+                end
+                
+                TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
+            end)
+
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Dropdown.CurrentValue) end)
+            end
+
+            local dropdownController = {}
+            dropdownController.DefaultValue = defaultVal or options[1]
+            function dropdownController:Set(val, ignoreSave, ignoreCallback)
+                Dropdown.CurrentValue = val
+                TextLabel.Text = dropdownText .. " (" .. tostring(val) .. ")"
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave and not actualFlag:find("^__Meta") then
+                    Library:SaveConfig(true)
+                end
+                
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(val) end) 
+                end
+            end
+
+            function dropdownController:Refresh(newOptions)
+                options = newOptions
+                if Dropdown.Open then
+                    Refresh()
+                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
+                    local targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
+                    TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                end
+            end
+            dropdownController.Update = dropdownController.Refresh
+
+            Library.Elements[actualFlag] = dropdownController
+            return dropdownController
+        end
+
+        -- ========================================================
+        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX ]]
+        -- ========================================================
+        function Tab:CreateTextBox(labelText, placeholderText, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = labelText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = labelText:gsub("%s+", "")
+            end
+
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+
+            local TextBoxFrame = Instance.new("Frame", TabContent)
+            TextBoxFrame.Size = UDim2.new(1, -6, 0, 34)
+            Instance.new("UICorner", TextBoxFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(TextBoxFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local FrameStroke = Instance.new("UIStroke", TextBoxFrame)
+            FrameStroke.Thickness = 1
+            RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
+
+            local Label = Instance.new("TextLabel", TextBoxFrame)
+            Label.Size = UDim2.new(0.45, -12, 1, 0)
+            Label.Position = UDim2.new(0, 12, 0, 0)
+            Label.BackgroundTransparency = 1
+            Label.Text = labelText or "Input Text"
+            Label.TextSize = 11
+            Label.Font = Enum.Font.MontserratMedium
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(Label, { TextColor3 = "TextPrimary" })
+
+            local InputBox = Instance.new("TextBox", TextBoxFrame)
+            InputBox.Size = UDim2.new(0.55, -12, 0, 22)
+            InputBox.Position = UDim2.new(0.45, 0, 0.5, -11)
+            InputBox.Text = savedVal and tostring(savedVal) or ""
+            InputBox.PlaceholderText = placeholderText or "Type here..."
+            InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+            InputBox.TextSize = 10
+            InputBox.Font = Enum.Font.Montserrat
+            Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
+            RegisterThemeable(InputBox, { 
+                BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(30, 30, 35) or t.SidebarBg end,
+                BackgroundTransparency = function(t) return t.IsRGB and 0 or t.SidebarTransparency end,
+                TextColor3 = "TextPrimary"
+            })
+
+            local InputStroke = Instance.new("UIStroke", InputBox)
+            InputStroke.Thickness = 1
+            RegisterThemeable(InputStroke, { Color = "ElementStroke" })
+
+            Library.Flags[actualFlag] = InputBox.Text
+
+            InputBox.Focused:Connect(function()
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.Accent}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                }):Play()
+            end)
+
+            InputBox.FocusLost:Connect(function(enterPressed)
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.ElementStroke}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.ElementBg,
+                    BackgroundTransparency = t.ElementTransparency
+                }):Play()
+                
+                Library.Flags[actualFlag] = InputBox.Text
+                Library:SaveConfig(true)
+                
+                if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
+            end)
+
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(InputBox.Text, false) end)
+            end
+
+            local textboxController = {}
+            textboxController.DefaultValue = ""
+            function textboxController:Set(val, ignoreSave, ignoreCallback)
+                InputBox.Text = tostring(val)
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave then
+                    Library:SaveConfig(true)
+                end
+                
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(val, false) end) 
+                end
+            end
+
+            Library.Elements[actualFlag] = textboxController
+            return textboxController
+        end
+
+        -- ========================================================
+        -- [[ 5f. TAB ELEMENT: CREATE PARAGRAPH ]]
+        -- ========================================================
+        function Tab:CreateParagraph(titleText, descText)
+            local ParagraphFrame = Instance.new("Frame", TabContent)
+            ParagraphFrame.Size = UDim2.new(1, -6, 0, 52)
+            Instance.new("UICorner", ParagraphFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(ParagraphFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local FrameStroke = Instance.new("UIStroke", ParagraphFrame)
+            FrameStroke.Thickness = 1
+            RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
+
+            local TitleLabel = Instance.new("TextLabel", ParagraphFrame)
+            TitleLabel.Size = UDim2.new(1, -20, 0, 18)
+            TitleLabel.Position = UDim2.new(0, 12, 0, 6)
+            TitleLabel.BackgroundTransparency = 1
+            TitleLabel.Text = titleText or "Section Title"
+            TitleLabel.Font = Enum.Font.MontserratBold
+            TitleLabel.TextSize = 11
+            TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
+
+            local DescLabel = Instance.new("TextLabel", ParagraphFrame)
+            DescLabel.Size = UDim2.new(1, -20, 1, -26)
+            DescLabel.Position = UDim2.new(0, 12, 0, 22)
+            DescLabel.BackgroundTransparency = 1
+            DescLabel.Text = descText or "Description text details."
+            DescLabel.Font = Enum.Font.Montserrat
+            DescLabel.TextSize = 9
+            DescLabel.TextWrapped = true
+            DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(DescLabel, { TextColor3 = "TextSecondary" })
+        end
+
+        return Tab
+    end
+
+    -- ========================================================
+    -- [[ 5g. PERMANENT CONFIG MANAGER TAB (INTEGRASI FILE MANAGER) ]]
+    -- ========================================================
+    local ConfigTab = Window:CreateTab("Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150")
+    
+    ConfigTab:CreateParagraph("Configuration Profiles", "Manage your setup files here. They are directly saved into the folder 'workspace/" .. FolderName .. "' (accessible via ZArchiver).")
+
+    local profileDropdown
+    local initialProfiles = GetAvailableProfiles()
+
+    profileDropdown = ConfigTab:CreateDropdown("Selected Profile", initialProfiles, CurrentProfile, "__MetaProfile", function(selected)
+        CurrentProfile = selected
+        Library:SaveSettings()
+        Library:LoadConfig(true)
+    end)
+
+    -- File Manager: Mengizinkan input nama kustom untuk membuat profil baru secara dinamis
+    local inputNewProfile = CurrentProfile
+    local inputController = ConfigTab:CreateTextBox("New Profile Name", "Type custom name here...", "__MetaProfileInput", function(val)
+        inputNewProfile = val
+    end)
+
+    -- Mengatur nilai default TextBox agar menampilkan nama profil aktif saat ini
+    task.spawn(function()
+        repeat task.wait() until Library.Elements["__MetaProfileInput"]
+        Library.Elements["__MetaProfileInput"]:Set(CurrentProfile, true, true)
+    end)
+
+    ConfigTab:CreateButton("Create / Save Profile", function()
+        if inputNewProfile and inputNewProfile ~= "" then
+            CurrentProfile = inputNewProfile
+            Library:SaveSettings()
+            Library:SaveConfig(false)
+            
+            -- Muat ulang daftar config asli dari folder ZArchiver & perbarui tampilan dropdown secara real-time
+            local updatedList = GetAvailableProfiles()
+            profileDropdown:Refresh(updatedList)
+            profileDropdown:Set(CurrentProfile, true, true)
+        else
+            Library:Notify("File Error", "Profile name cannot be blank!", 3)
+        end
+    end)
+
+    ConfigTab:CreateButton("Load Selected Profile", function()
+        Library:LoadConfig(true)
+    end)
+
+    -- Tombol Baru: Menghapus profil terpilih secara permanen dari folder emulator (ZArchiver)
+    ConfigTab:CreateButton("Delete Selected Profile", function()
+        local fileName = FolderName .. "/Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
+        if isfile and isfile(fileName) then
+            local success, err = pcall(function()
+                if delfile then
+                    delfile(fileName)
+                elseif deletefile then
+                    deletefile(fileName)
+                else
+                    error("Executor missing filesystem support.")
+                end
+            end)
+            
+            if success then
+                Library:Notify("Config System", "Deleted profile: " .. CurrentProfile, 3)
+                
+                -- Cari profil yang tersisa atau kembalikan ke default jika kosong
+                local remaining = GetAvailableProfiles()
+                CurrentProfile = remaining[1] or "default"
+                
+                Library:SaveSettings()
+                
+                -- Segarkan ulang dropdown di layar
+                profileDropdown:Refresh(remaining)
+                profileDropdown:Set(CurrentProfile, true, true)
+                Library:LoadConfig(true)
+            else
+                Library:Notify("Delete Error", "File is read-only or unsupported by executor.", 3)
+            end
+        else
+            Library:Notify("Config System", "Profile file not found on disk.", 3)
+        end
+    end)
+
+    ConfigTab:CreateToggle("Auto Load Config", AutoLoadEnabled, "__MetaAutoLoad", function(state)
+        AutoLoadEnabled = state
+        Library:SaveSettings()
+    end)
+
+    -- ========================================================
+    -- [[ 5h. NEW: PERMANENT THEME MANAGER TAB ]]
+    -- ========================================================
+    local ThemeTab = Window:CreateTab("Theme", "rbxthumb://type=Asset&id=10734963400&w=150&h=150")
+    
+    ThemeTab:CreateParagraph("Theme Manager", "Customize the interface style to adapt to your desired aesthetic immediately.")
+
+    ThemeTab:CreateDropdown("Selected Theme", {"RGB", "Cute Pastel"}, CurrentThemeName, "__MetaTheme", function(selected)
+        ApplyTheme(selected)
+    end)
+
+    return Window
+end
+
+-- ========================================================
+-- [[ 6. EXTERNAL UTILITY BUTTON SYSTEM ]]
+-- ========================================================
+function Library:CreateExternalButton(id, text, defaultPos, callback)
+    local ScreenGui = GetMainGui()
+
+    local ExtBtn = Instance.new("TextButton")
+    ExtBtn.Name = "ExternalButton_" .. tostring(id)
+    ExtBtn.Text = text or "A"
+    ExtBtn.Font = Enum.Font.MontserratBold
+    ExtBtn.TextSize = 13
+    ExtBtn.AutoButtonColor = false
+    ExtBtn.Parent = ScreenGui
+    
+    -- Penghitungan lebar otomatis menggunakan TextService (Sangat stabil & anti-bug)
+    UpdateExtBtnSize(ExtBtn, ExtBtn.Text)
+
+    local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["ExtBtnPos_" .. tostring(id)]
+    if savedPos and type(savedPos) == "table" then
+        ExtBtn.Position = UDim2.new(
+            savedPos.X_Scale or 0, 
+            savedPos.X_Offset or 0, 
+            savedPos.Y_Scale or 0, 
+            savedPos.Y_Offset or 0
+        )
+    else
+        ExtBtn.Position = defaultPos or UDim2.new(0, 20, 0.5, 0)
+    end
+
+    RegisterThemeable(ExtBtn, { 
+        BackgroundColor3 = "ElementBg",
+        BackgroundTransparency = "ElementTransparency",
+        TextColor3 = "TextPrimary" 
+    })
+
+    local Corner = Instance.new("UICorner", ExtBtn)
+    Corner.CornerRadius = UDim.new(0, 6)
+
+    local Stroke = Instance.new("UIStroke", ExtBtn)
+    RegisterRGB(Stroke, "Color")
+    RegisterThemeable(Stroke, { 
+        Color = function(t) return t.IsRGB and Stroke.Color or t.Accent end,
+        Thickness = function(t) return t.IsRGB and 1 or 1.5 end -- Lebih tebal di tema pastel agar terlihat menonjol
+    })
+
+    EnableDrag(ExtBtn, ExtBtn, function()
+        Library.Flags["ExtBtnPos_" .. tostring(id)] = {
+            X_Scale = ExtBtn.Position.X.Scale,
+            X_Offset = ExtBtn.Position.X.Offset,
+            Y_Scale = ExtBtn.Position.Y.Scale,
+            Y_Offset = ExtBtn.Position.Y.Offset
+        }
+        Library:SaveConfig(true)
+    end)
+
+    Library.ExternalButtons[id] = {
+        Instance = ExtBtn,
+        DefaultPosition = defaultPos or UDim2.new(0, 20, 0.5, 0)
+    }
+
+    ExtBtn.MouseButton1Click:Connect(function()
+        if callback then task.spawn(callback) end
+    end)
+
+    local controller = {}
+    controller.Instance = ExtBtn
+    
+    function controller:SetVisible(state)
+        ExtBtn.Visible = state
+    end
+    function controller:SetText(val)
+        ExtBtn.Text = tostring(val)
+        UpdateExtBtnSize(ExtBtn, ExtBtn.Text)
+    end
+    function controller:SetDragLock(locked)
+        ExtBtn:SetAttribute("DragLocked", locked)
+    end
+    function controller:SetSize(size)
+        if typeof(size) == "UDim2" then
+            ExtBtn.Size = size
+        elseif type(size) == "number" then
+            ExtBtn.Size = UDim2.new(0, size, 0, size)
+        end
+    end
+
+    return controller
+end
+
+-- ========================================================
+-- [[ 7. REAL-TIME STATS HUD (FPS & PING) ]]
+-- ========================================================
+function Library:CreateStatsHUD()
+    local ScreenGui = GetMainGui()
+    
+    local HudFrame = Instance.new("Frame")
+    HudFrame.Name = "Louis_StatsHUD"
+    HudFrame.Size = UDim2.new(0, 150, 0, 28)
+    
+    local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["StatsHUDPos"]
+    if savedPos and type(savedPos) == "table" then
+        HudFrame.Position = UDim2.new(
+            savedPos.X_Scale or 0, 
+            savedPos.X_Offset or 0, 
+            savedPos.Y_Scale or 0, 
+            savedPos.Y_Offset or 0
+        )
+    else
+        HudFrame.Position = UDim2.new(1, -20, 0, 50)
+    end
+
+    HudFrame.AnchorPoint = Vector2.new(1, 0)
+    HudFrame.BorderSizePixel = 0
+    HudFrame.Parent = ScreenGui
+    HudFrame.Visible = true
+    RegisterThemeable(HudFrame, { 
+        BackgroundColor3 = "WindowBg",
+        BackgroundTransparency = "WindowTransparency"
+    })
+
+    local HudCorner = Instance.new("UICorner", HudFrame)
+    HudCorner.CornerRadius = UDim.new(0, 6)
+
+    local HudStroke = Instance.new("UIStroke", HudFrame)
+    HudStroke.Thickness = 1
+    RegisterRGB(HudStroke, "Color")
+    RegisterThemeable(HudStroke, { Color = function(t) return t.IsRGB and HudStroke.Color or t.ElementStroke end })
+
+    local StatLabel = Instance.new("TextLabel", HudFrame)
+    StatLabel.Size = UDim2.new(1, 0, 1, 0)
+    StatLabel.BackgroundTransparency = 1
+    StatLabel.Font = Enum.Font.MontserratBold
+    StatLabel.TextSize = 10
+    StatLabel.RichText = true
+    StatLabel.Text = "FPS: ...  •  PING: ... MS"
+    RegisterThemeable(StatLabel, { TextColor3 = "TextPrimary" })
+
+    EnableDrag(HudFrame, HudFrame, function()
+        Library.Flags["StatsHUDPos"] = {
+            X_Scale = HudFrame.Position.X.Scale,
+            X_Offset = HudFrame.Position.X.Offset,
+            Y_Scale = HudFrame.Position.Y.Scale,
+            Y_Offset = HudFrame.Position.Y.Offset
+        }
+        Library:SaveConfig(true)
+    end)
+
+    local fpsHistory = {}
+    local maxHistory = 30
+    local lastTextUpdate = 0
+    local textUpdateInterval = 0.1
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function(dt)
+        if not HudFrame or not HudFrame.Parent then
+            connection:Disconnect()
+            return
+        end
+        
+        table.insert(fpsHistory, dt)
+        if #fpsHistory > maxHistory then
+            table.remove(fpsHistory, 1)
+        end
+        
+        local now = os.clock()
+        if now - lastTextUpdate >= textUpdateInterval then
+            lastTextUpdate = now
+            
+            local totalTime = 0
+            for _, t in ipairs(fpsHistory) do
+                totalTime = totalTime + t
+            end
+            local currentFps = #fpsHistory > 0 and math.round(#fpsHistory / totalTime) or 60
+            
+            local currentPing = 0
+            local success, rawPing = pcall(function()
+                return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
+            end)
+            if success and rawPing then
+                currentPing = math.round(rawPing)
+            end
+            
+            local isPastel = (CurrentThemeName == "Cute Pastel")
+            local colorFps = isPastel and "rgb(50, 160, 100)" or "rgb(0, 255, 120)"
+            local colorPing = isPastel and "rgb(50, 120, 220)" or "rgb(0, 180, 255)"
+            
+            StatLabel.Text = string.format("FPS: <font color='%s'>%d</font>  •  PING: <font color='%s'>%d MS</font>", colorFps, currentFps, colorPing, currentPing)
+        end
+    end)
+
+    local hudController = {}
+    function hudController:SetVisible(state)
+        HudFrame.Visible = state
+    end
+    
+    return hudController
+end
+
+-- ========================================================
+-- [[ AUTO-INITIALIZATION ON LIBRARY LOAD ]]
+-- ========================================================
+task.spawn(function()
+    local statsHUD = Library:CreateStatsHUD()
+    statsHUD:SetVisible(true)
+    
+    pcall(function()
+        Library:LoadConfig()
+    end)
+end)
+
+return Library
