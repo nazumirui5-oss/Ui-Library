@@ -42,6 +42,7 @@ end
 -- ========================================================
 -- [[ CONFIGURABLE FLOATING ICON DECAL ]]
 -- ========================================================
+-- Configured with your custom branding Asset ID using robust rbxthumb format
 local FLOATING_ICON_DECAL = "rbxthumb://type=Asset&id=104436283956004&w=150&h=150"
 
 -- ========================================================
@@ -192,7 +193,7 @@ local function MakeDraggable(dragTrigger, frameToMove)
     local dragging, dragInput, dragStart, startPos
     
     Janitor:Add(dragTrigger.InputBegan:Connect(function(input)
-        -- Kunci posisi serempak jika diaktifkan di tab Setting [1]
+        -- Kunci posisi serempak jika diaktifkan di tab Setting
         if Library.Settings.DragLocked then return end
         
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -767,7 +768,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end
 
-    Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
+    FloatingToggle.MouseButton1Click:Connect(ToggleGui)
 
     -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan mengikat fungsi minimize UI kustom Anda [1]
     local LogoIcon = Instance.new("ImageButton", LogoArea)
@@ -865,6 +866,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
 
+        -- DYNAMIC REAL-TIME CANVAS TRACKING (SANGAT PRESTISIUS UNTUK MENJAWAB MASALAH DROPDOWN LEPAS SAAT SCROLL) [1]
         local function ResizeCanvas()
             local leftHeight = LeftList.AbsoluteContentSize.Y
             local rightHeight = RightList.AbsoluteContentSize.Y
@@ -1566,9 +1568,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Arrow.Image = GetIcon("chevron-down")
                 RegisterTheme(Arrow, { ImageColor3 = "TextSecondary" })
 
-                local ListFrame = Instance.new("Frame", ScreenGui)
+                -- DINAMIS SINKRONISASI COORD DROPDOWN TERHADAP SCROLL PAGE & UI SCALE (PROYEK AUDIT SEAMLESS) [1]
+                local ListFrame = Instance.new("Frame", MainFrame) -- Parent diubah ke MainFrame agar mengikuti resolusi skala UIScale secara otomatis!
                 ListFrame.Size = UDim2.new(0, 100, 0, 0)
                 ListFrame.Visible = false
+                ListFrame.ZIndex = 110 -- Selalu tampil di atas container manapun
                 RegisterTheme(ListFrame, { BackgroundColor3 = "SectionBg" })
                 Instance.new("UICorner", ListFrame).CornerRadius = UDim.new(0, 4)
                 local Stroke = Instance.new("UIStroke", ListFrame)
@@ -1609,18 +1613,46 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end
                 end
 
-                Trigger.MouseButton1Click:Connect(function()
+                -- Fungsi Rekalkulasi Posisi Dropdown Terhadap Multi-Skala & Canvas Scroll [1]
+                local canvasConn
+                local function UpdatePosition()
+                    if ListFrame.Visible then
+                        local triggerPos = Trigger.AbsolutePosition
+                        local mainPos = MainFrame.AbsolutePosition
+                        local scale = UiScale.Scale
+                        
+                        -- Mengkonversi Screen Pixels Delta ke Skala Proposional Frame Utama
+                        local x = (triggerPos.X - mainPos.X) / scale
+                        local y = (triggerPos.Y - mainPos.Y) / scale
+                        local h = Trigger.AbsoluteSize.Y / scale
+                        
+                        ListFrame.Position = UDim2.new(0, x, 0, y + h + 4)
+                    end
+                end
+
+                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
-                        ListFrame.Size = UDim2.new(0, Trigger.AbsoluteSize.X, 0, math.min(#options * 23 + 4, 100))
-                        ListFrame.Position = UDim2.new(0, Trigger.AbsolutePosition.X, 0, Trigger.AbsolutePosition.Y + Trigger.AbsoluteSize.Y + 4)
+                        
+                        local scale = UiScale.Scale
+                        local targetWidth = Trigger.AbsoluteSize.X / scale
+                        
+                        ListFrame.Size = UDim2.new(0, targetWidth, 0, math.min(#options * 23 + 4, 100))
+                        UpdatePosition()
                         ListScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 23)
                         ListFrame.Visible = true
+                        
+                        -- Mulai melacak pergeseran scroll halaman secara asinkron (Mencegah dropdown melayang lepas) [1]
+                        canvasConn = TabPage:GetPropertyChangedSignal("CanvasPosition"):Connect(UpdatePosition)
                     else
                         ListFrame.Visible = false
+                        if canvasConn then
+                            canvasConn:Disconnect()
+                            canvasConn = nil
+                        end
                     end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
@@ -1694,9 +1726,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Arrow.Image = GetIcon("chevron-down")
                 RegisterTheme(Arrow, { ImageColor3 = "TextSecondary" })
 
-                local ListFrame = Instance.new("Frame", ScreenGui)
+                -- DINAMIS SINKRONISASI COORD DROPDOWN TERHADAP SCROLL PAGE & UI SCALE (PROYEK AUDIT SEAMLESS) [1]
+                local ListFrame = Instance.new("Frame", MainFrame) -- Parent diubah ke MainFrame agar mengikuti resolusi skala UIScale secara otomatis!
                 ListFrame.Size = UDim2.new(0, 100, 0, 0)
                 ListFrame.Visible = false
+                ListFrame.ZIndex = 110 -- Selalu tampil di atas container manapun
                 RegisterTheme(ListFrame, { BackgroundColor3 = "SectionBg" })
                 Instance.new("UICorner", ListFrame).CornerRadius = UDim.new(0, 4)
                 local Stroke = Instance.new("UIStroke", ListFrame)
@@ -1743,18 +1777,46 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                     end
                 end
 
-                Trigger.MouseButton1Click:Connect(function()
+                -- Fungsi Rekalkulasi Posisi Dropdown Terhadap Multi-Skala & Canvas Scroll [1]
+                local canvasConn
+                local function UpdatePosition()
+                    if ListFrame.Visible then
+                        local triggerPos = Trigger.AbsolutePosition
+                        local mainPos = MainFrame.AbsolutePosition
+                        local scale = UiScale.Scale
+                        
+                        -- Mengkonversi Screen Pixels Delta ke Skala Proposional Frame Utama
+                        local x = (triggerPos.X - mainPos.X) / scale
+                        local y = (triggerPos.Y - mainPos.Y) / scale
+                        local h = Trigger.AbsoluteSize.Y / scale
+                        
+                        ListFrame.Position = UDim2.new(0, x, 0, y + h + 4)
+                    end
+                end
+
+                Janitor:Add(Trigger.MouseButton1Click:Connect(function()
                     Dropdown.Open = not Dropdown.Open
                     if Dropdown.Open then
                         PopulateOptions()
-                        ListFrame.Size = UDim2.new(0, Trigger.AbsoluteSize.X, 0, math.min(#options * 23 + 4, 100))
-                        ListFrame.Position = UDim2.new(0, Trigger.AbsolutePosition.X, 0, Trigger.AbsolutePosition.Y + Trigger.AbsoluteSize.Y + 4)
+                        
+                        local scale = UiScale.Scale
+                        local targetWidth = Trigger.AbsoluteSize.X / scale
+                        
+                        ListFrame.Size = UDim2.new(0, targetWidth, 0, math.min(#options * 23 + 4, 100))
+                        UpdatePosition()
                         ListScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 23)
                         ListFrame.Visible = true
+                        
+                        -- Mulai melacak pergeseran scroll halaman secara asinkron (Mencegah dropdown melayang lepas) [1]
+                        canvasConn = TabPage:GetPropertyChangedSignal("CanvasPosition"):Connect(UpdatePosition)
                     else
                         ListFrame.Visible = false
+                        if canvasConn then
+                            canvasConn:Disconnect()
+                            canvasConn = nil
+                        end
                     end
-                end)
+                end))
 
                 local ctrl = {}
                 function ctrl:Set(val)
