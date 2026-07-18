@@ -27,7 +27,7 @@ local ExampleTab = Win:CreateTab("Feature Tab", "apple", false)
 -- Section 1: left layout elements
 local Sec1 = ExampleTab:CreateSection("Left Section")
 
--- 1. Toggle Switch (Featuring the new Interactive Info Modal system)
+-- 1. Toggle Switch (Featuring dynamic info popup & custom mobile floating toggle pin)
 Sec1:CreateToggle("Toggle Switch", false, "Toggle_Key1", { 
     info = "This is a detailed description of how this toggle works. Clicking the info icon opens this beautifully animated pop-up modal dialog box without clashing with other layout elements!", 
     keybind = "E",
@@ -93,18 +93,18 @@ Win:CreateCategory("Premium Member")
 --
 -- The third argument (isPremiumLocked) is a boolean that controls the Premium Lock Overlay:
 --
--- 1. Setting this argument to `true` (e.g., Win:CreateTab("Premium Features", "shield", true)):
+-- 1. Setting this argument to `true`:
 --    * This will LOCK the tab.
---    * A dark, 65% semi-transparent overlay frame will cover the entire tab content [1].
---    * It displays a lock icon and "PREMIUM MEMBER ONLY" text to restrict standard users [1].
---    * You must call `PremiumTab:Unlock()` later in the code to unlock it dynamically [1].
+--    * A dark, 65% semi-transparent overlay frame will cover the entire tab content.
+--    * It displays a lock icon and "PREMIUM MEMBER ONLY" text to restrict standard users.
+--    * You must call `PremiumTab:Unlock()` later in the code to unlock it dynamically.
 --
--- 2. Setting this argument to `false` (e.g., Win:CreateTab("Premium Features", "shield", false)):
+-- 2. Setting this argument to `false`:
 --    * This will UNLOCK the tab immediately.
---    * No lock overlay is created [1].
---    * The tab is completely free and instantly accessible to any user upon script execution [1].
+--    * No lock overlay is created.
+--    * The tab is completely free and instantly accessible to any user upon script execution.
 -- ======================================================================================
-local PremiumTab = Win:CreateTab("Premium Features", "shield", true) -- Currently set to TRUE (locked on startup) [1]
+local PremiumTab = Win:CreateTab("Premium Features", "shield", true) -- Currently set to TRUE (locked on startup)
 
 local PremSec = PremiumTab:CreateSection("Locked Content")
 PremSec:CreateToggle("Super Silent Aimbot", false, "Prem_Toggle1", {}, function(state)
@@ -113,6 +113,6 @@ end)
 
 -- Creating a demonstration button in the free tab to show how to dynamically unlock the Premium Tab via loader API
 Sec1:CreateButton("Unlock Premium Tab Demo", function()
-    PremiumTab:Unlock() -- Smoothly fades away and destroys the lock overlay instantly [1]
+    PremiumTab:Unlock() -- Smoothly fades away and destroys the lock overlay instantly
     Library:CreateNotification("Access Granted", "Premium features unlocked successfully!", 4)
 end)
