@@ -93,7 +93,8 @@ local function GetIcon(iconName)
         ["chevron-down"] = "rbxassetid://10709790644",
         ["chevrons-left"] = "rbxassetid://10709790644", -- fallback
         ["chevrons-right"] = "rbxassetid://10709790644", -- fallback
-        ["shield"] = "rbxassetid://10723375133"
+        ["shield"] = "rbxassetid://10723375133",
+        ["crown"] = "rbxassetid://10723375133" -- fallback for premium tab icon
     }
     return Fallbacks[iconName] or "rbxassetid://10723375133"
 end
@@ -528,13 +529,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     LogoArea.BackgroundTransparency = 1
     MakeDraggable(LogoArea, MainFrame)
 
-    -- Logo Utama diperbesar (32x32) dan diubah menjadi ImageButton untuk meminimalkan UI
-    local LogoIcon = Instance.new("ImageButton", LogoArea)
-    LogoIcon.Size = UDim2.new(0, 32, 0, 32)
-    LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
-    LogoIcon.BackgroundTransparency = 1
-    LogoIcon.Image = FLOATING_ICON_DECAL
-
     local TitleLabel = Instance.new("TextLabel", LogoArea)
     TitleLabel.Size = UDim2.new(1, -90, 1, 0)
     TitleLabel.Position = UDim2.new(0, 52, 0, 0) -- Digeser sedikit ke kanan mencegah tabrakan dengan logo
@@ -600,17 +594,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
     ContentArea.BackgroundTransparency = 1
 
-    local UiScale = Instance.new("UIScale", MainFrame)
-    UiScale.Scale = Library.Settings.Scale
-
-    local TargetSize = UDim2.new(0, 640, 0, 460)
-    local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
-
     -- ========================================================
     -- [[ SIDEBAR COLLAPSE / EXPAND MECHANISM ]]
     -- ========================================================
-    local CollapseBtn = Instance.new("ImageButton", LogoArea)
+    local CollapseBtn = Instance.new("ImageButton", Sidebar)
     CollapseBtn.Size = UDim2.new(0, 16, 0, 16)
+    -- Di reposisi rapi di bagian tengah vertikal sebelah kanan pembatas sidebar
     CollapseBtn.Position = UDim2.new(1, -26, 0.5, -8)
     CollapseBtn.BackgroundTransparency = 1
     CollapseBtn.Image = GetIcon("chevrons-left")
@@ -679,6 +668,12 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         SetSidebarCollapsed(not Window.SidebarCollapsed)
     end))
 
+    local UiScale = Instance.new("UIScale", MainFrame)
+    UiScale.Scale = Library.Settings.Scale
+
+    local TargetSize = UDim2.new(0, 640, 0, 460)
+    local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+
     local function ApplyUiSettings(mode, scale)
         Library.Settings.Mode = mode
         Library.Settings.Scale = scale
@@ -702,6 +697,92 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end
     ApplyUiSettings(Library.Settings.Mode, Library.Settings.Scale)
+
+    -- ========================================================
+    -- [[ MOBILE FLOATING TOGGLE ICON ]]
+    -- ========================================================
+    local FloatingToggle = Instance.new("TextButton", ScreenGui)
+    FloatingToggle.Name = "Nexus_Floating_Toggler"
+    FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
+    FloatingToggle.Position = UDim2.new(0, 20, 0.5, -24)
+    FloatingToggle.BorderSizePixel = 0
+    FloatingToggle.Text = ""
+    FloatingToggle.Visible = true -- Tampil dari awal (sebelum UI muncul)
+    FloatingToggle.ClipsDescendants = true
+    RegisterTheme(FloatingToggle, { BackgroundColor3 = "SidebarBg" })
+
+    -- Ikon melayang berbentuk squircle tumpul modern
+    local ToggleCorner = Instance.new("UICorner", FloatingToggle)
+    ToggleCorner.CornerRadius = UDim.new(0, 12)
+
+    local ToggleStroke = Instance.new("UIStroke", FloatingToggle)
+    ToggleStroke.Thickness = 1.5
+    RegisterTheme(ToggleStroke, { Color = "Accent" })
+
+    local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
+    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang (0.85)
+    ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
+    ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
+    ToggleIconImage.BackgroundTransparency = 1
+    -- Memuat decal kustom kustom Anda dengan rbxthumb (Warna asli penuh tanpa tint)
+    ToggleIconImage.Image = FLOATING_ICON_DECAL
+
+    MakeDraggable(FloatingToggle, FloatingToggle)
+
+    local function ToggleGui()
+        Window.Visible = not Window.Visible
+        
+        -- Sesuaikan Target Ukuran Sebelum Dimulai Animasi
+        if Library.Settings.Mode == "PC" then
+            TargetSize = UDim2.new(0, 640, 0, 460)
+            TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
+        else
+            TargetSize = UDim2.new(0, 500, 0, 340)
+            TargetPosition = UDim2.new(0.5, -250, 0.5, -170)
+        end
+
+        if Window.Visible then
+            MainFrame.Visible = true
+            -- Set ukuran ke 0 terlebih dahulu di tengah layar sebelum pop-out dimulai
+            MainFrame.Size = UDim2.new(0, 0, 0, 0)
+            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            
+            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = TargetSize, Position = TargetPosition}):Play()
+            -- Ikon melayang mengecil/hilang ketika UI dibuka (seperti sistem toggle aslinya)
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+        else
+            local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
+            shrink:Play()
+            shrink.Completed:Connect(function()
+                if not Window.Visible then
+                    MainFrame.Visible = false
+                end
+            end)
+            
+            -- Ikon melayang muncul kembali ketika UI ditutup
+            TweenService:Create(FloatingToggle, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+        end
+    end
+
+    Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
+
+    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan mengikat fungsi minimize UI kustom Anda
+    local LogoIcon = Instance.new("ImageButton", LogoArea)
+    LogoIcon.Size = UDim2.new(0, 32, 0, 32)
+    LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
+    LogoIcon.BackgroundTransparency = 1
+    LogoIcon.Image = FLOATING_ICON_DECAL
+
+    Janitor:Add(LogoIcon.MouseButton1Click:Connect(function()
+        ToggleGui() -- Klik Logo LouisHub untuk me-minimize UI utama dan memunculkan floating icon kembali [1]
+    end))
+
+    Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.KeyCode == Enum.KeyCode.Insert then
+            ToggleGui()
+        end
+    end))
 
     -- ========================================================
     -- [[ CATEGORY HEADER SYSTEM ]]
@@ -892,7 +973,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             LockOverlay.BackgroundTransparency = 0.65 -- Exactly 65% transparency as requested
             LockOverlay.ZIndex = 99
             
-            -- SAFE PREMIUM ENFORCEMENT: Menghalangi sentuhan mouse agar element di bawah tidak dapat diaktifkan
+            -- SAFE PREMIUM ENFORCEMENT: Menghalangi sentuhan mouse agar element di bawah tidak dapat diaktifkan [3]
             LockOverlay.Active = true 
             
             RegisterTheme(LockOverlay, { BackgroundColor3 = "WindowBg" })
@@ -904,6 +985,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             LockStroke.Thickness = 1.5
             RegisterTheme(LockStroke, { Color = "Accent" })
             
+            -- Ikon perisai (shield) tetap dipertahankan khusus untuk visual kunci frame premium
             local LockIcon = Instance.new("ImageLabel", LockOverlay)
             LockIcon.Size = UDim2.new(0, 48, 0, 48)
             LockIcon.Position = UDim2.new(0.5, -24, 0.5, -34)
@@ -1752,7 +1834,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             -- [[ SECTION ELEMENT: BUTTON ]]
             -- ========================================================
             function Section:CreateButton(btnText, config, callback)
-                -- Dukungan deklarasi callback fleksibel
                 local realCallback = callback
                 local realConfig = config
                 if typeof(config) == "function" then
@@ -1792,7 +1873,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         pinActive = not pinActive
                         if pinActive then
                             TweenService:Create(PinBtn, TweenInfo.new(0.2), { ImageColor3 = CurrentTheme.Accent }):Play()
-                            Library:CreateExternalButton(btnText, "Click", Library.Settings.ExternalShape, btnText .. "_Ext", function()
+                            Library:CreateExternalButton(btnText, realConfig.external.buttonType or "Click", Library.Settings.ExternalShape, btnText .. "_Ext", function()
                                 if realCallback then task.spawn(realCallback) end
                             end)
                         else
@@ -2130,7 +2211,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             end
         end))
 
-        -- Safe diagnostics loop (Real Ping and Framerate updating)
+        -- Safe diagnostics loop (Real Ping and Framerate updating) [1]
         task.spawn(function()
             while task.wait(1) do
                 pcall(function()
@@ -2265,7 +2346,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterTheme(ToggleStroke, { Color = "Accent" })
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
-    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang
+    -- Logo kustom diperbesar rasionya di dalam tombol tanpa merubah ukuran bingkai tombol melayang (0.85)
     ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
     ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
     ToggleIconImage.BackgroundTransparency = 1
@@ -2313,31 +2394,18 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end
 
-    Janitor:Add(FloatingToggle.MouseButton1Click:Connect(ToggleGui))
+    FloatingToggle.MouseButton1Click:Connect(ToggleGui)
 
-    -- Wadah Tombol Minimalkan Bulat Tumpul Baru di Kanan Atas
-    local MinimizeContainer = Instance.new("Frame", MainFrame)
-    MinimizeContainer.Size = UDim2.new(0, 24, 0, 24)
-    MinimizeContainer.Position = UDim2.new(1, -34, 0, -23) -- Dempet/overlapping top border lurus nempel presisi
-    RegisterTheme(MinimizeContainer, { BackgroundColor3 = "ElementBg" })
+    -- Logo Utama Pojok Kiri Atas diperbesar (32x32) dan mengikat fungsi minimize UI kustom Anda
+    local LogoIcon = Instance.new("ImageButton", LogoArea)
+    LogoIcon.Size = UDim2.new(0, 32, 0, 32)
+    LogoIcon.Position = UDim2.new(0, 12, 0.5, -16)
+    LogoIcon.BackgroundTransparency = 1
+    LogoIcon.Image = FLOATING_ICON_DECAL
 
-    local MinCorner = Instance.new("UICorner", MinimizeContainer)
-    MinCorner.CornerRadius = UDim.new(0, 6)
-
-    local MinStroke = Instance.new("UIStroke", MinimizeContainer)
-    MinStroke.Thickness = 1
-    RegisterTheme(MinStroke, { Color = "StrokeColor" })
-
-    local MinimizeBtn = Instance.new("TextButton", MinimizeContainer)
-    MinimizeBtn.Size = UDim2.new(1, 0, 1, 0)
-    MinimizeBtn.BackgroundTransparency = 1
-    MinimizeBtn.Text = "-"
-    MinimizeBtn.TextYAlignment = Enum.TextYAlignment.Center
-    RegisterTheme(MinimizeBtn, { TextColor3 = "TextSecondary" })
-    RegisterFont(MinimizeBtn, true)
-    RegisterText(MinimizeBtn, 18)
-
-    Janitor:Add(MinimizeBtn.MouseButton1Click:Connect(ToggleGui))
+    Janitor:Add(LogoIcon.MouseButton1Click:Connect(function()
+        ToggleGui() -- Klik Logo LouisHub untuk me-minimize UI utama dan memunculkan floating icon kembali [1]
+    end))
 
     Janitor:Add(UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
