@@ -18,87 +18,31 @@ local Win = Library:CreateWindow("LouisHub", "V2.6", {
     BoldFont = Enum.Font.GothamBold    -- Sourced bold text font
 })
 
--- Trigger a premium Toast Notification as a startup diagnostic showcase
-Library:CreateNotification("Nexus Diagnostics", "UI System initiated safely. Theme engine connected successfully.", 4)
-
-
 -- ========================================================
--- [[ CATEGORY 1: STANDARD BOILERPLATE SHOWCASE ]]
+-- [[ CUSTOM CATEGORY & TAB INITIALIZATION ]]
 -- ========================================================
-Win:CreateCategory("Boilerplate")
 
--- Custom Tab featuring dynamic Lucide "apple" icon downloading
-local ExampleTab = Win:CreateTab("Feature Tab", "apple", false)   
+-- 1. Free/General Category
+Win:CreateCategory("General")
 
--- Section 1: left layout elements
-local Sec1 = ExampleTab:CreateSection("Left Section")
+-- Creating a free tab (isPremiumLocked = false)
+local MainTab = Win:CreateTab("Main", "user", false)
+local MainSection = MainTab:CreateSection("Combat")
 
--- 1. Toggle Switch (Featuring dynamic info popup & custom mobile floating toggle pin)
-Sec1:CreateToggle("Toggle Switch", false, "Toggle_Key1", { 
-    info = "This is a detailed description of how this toggle works. Clicking the info icon opens this beautifully animated pop-up modal dialog box without clashing with other layout elements!", 
-    keybind = "E",
-    external = { buttonType = "Toggle" } -- Turn on this pin in the UI to spawn an external dynamic Toggle button on mobile!
-}, function(state)
-    print("Toggle State: ", state)
-end)
-
--- 2. Bind Button (PC Background inputs & Mobile text-input keycode typing compatible)
-Sec1:CreateKeybind("Select Keybind", Enum.KeyCode.LeftAlt, "Keybind_Key1", function(key)
-    print("Keybind State: ", key.Name)
-end)
-
--- 3. Slider (Supports direct input box typing)
-Sec1:CreateSlider("Numeric Slider", 0, 100, 50, "Slider_Key1", function(val)
-    print("Slider Value: ", val)
-end)
-
--- 4. Color Picker (Supports hex code entry like #ffffff or ffffff)
-Sec1:CreateColorPicker("Color Selector", Color3.fromRGB(0, 213, 239), "Color_Key1", function(color)
-    print("Selected Color (RGB): ", color)
-end)
+-- Add your free features below this line:
+-- e.g., MainSection:CreateToggle("Aim Lock", false, "Aim_Key", {}, function(state) end)
 
 
--- Section 2: right layout elements
-local Sec2 = ExampleTab:CreateSection("Right Section")
-
--- 5. Standard Dropdown Menu
-Sec2:CreateDropdown("Single Selection", {"Aimbot", "Rage", "Legit"}, "Aimbot", "Dropdown_Key1", function(option)
-    print("Dropdown Selected: ", option)
-end)
-
--- 6. Multi Selection Menu
-Sec2:CreateMultiDropdown("Multi Selection", {"ESP Boxes", "ESP Lines", "ESP Names"}, {"ESP Boxes"}, "MultiDropdown_Key1", function(options)
-    print("Multi-Dropdown Selected: ", table.concat(options, ", "))
-end)
-
--- 7. Standard Text Box (Supports horizontal scrolling & no ellipsis truncation)
-Sec2:CreateTextBox("Custom Input Box", "Type something here...", "TextBox_Key1", function(text)
-    print("TextBox Submitted: ", text)
-end)
-
--- 8. Command Button (Featuring custom mobile floating clicker pin)
-Sec2:CreateButton("Submit Settings", {
-    external = { buttonType = "Click" } -- Turn on this pin in the UI to spawn an external dynamic Clicker button on mobile!
-}, function()
-    print("Submit Button Clicked!")
-end)
-
--- 9. Text Paragraph
-Sec2:CreateParagraph("Information Box", "This is an example paragraph template. You can write any help descriptions, instructions, or credits here.")
-
-
--- ========================================================
--- [[ CATEGORY 2: PREMIUM LOCKED TABS SHOWCASE ]]
--- ========================================================
+-- 2. Premium Category
 Win:CreateCategory("Premium Member")
 
--- Tab button displays a dynamic Lucide "crown" icon.
--- The third argument (isPremiumLocked) uses 'not IS_PREMIUM_USER':
--- * If IS_PREMIUM_USER is true -> 'not' turns it false (Tab is created completely UNLOCKED) [1]
+-- Creating a premium tab (isPremiumLocked = not IS_PREMIUM_USER)
+-- * If IS_PREMIUM_USER is true -> 'not' turns it false (Tab is created unlocked) [1]
 -- * If IS_PREMIUM_USER is false -> 'not' turns it true (Tab is created locked with a 65% transparency shield overlay) [1]
+-- * The premium tab button in the sidebar will display a dynamic Lucide "crown" icon, while the overlay uses a "shield" icon.
 local PremiumTab = Win:CreateTab("Premium Features", "crown", not IS_PREMIUM_USER) 
 
-local PremSec = PremiumTab:CreateSection("Locked Content")
-PremSec:CreateToggle("Super Silent Aimbot", false, "Prem_Toggle1", {}, function(state)
-    print("Premium Feature Active: ", state)
-end)
+local PremiumSection = PremiumTab:CreateSection("Combat Premium")
+
+-- Add your premium features below this line:
+-- e.g., PremiumSection:CreateToggle("Silent Aim", false, "Silent_Key", {}, function(state) end)
