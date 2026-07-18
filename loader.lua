@@ -6,7 +6,7 @@
 -- and load it dynamically using loadstring() as shown below.
 
 -- 1. LOAD THE UI LIBRARY (Example Host Loading Template)
--- local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/YourUsername/YourRepo/main/UILibrary.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/tester.lua"))()
 -- For direct local execution, ensure the UI Library script is run right before this loader.
 local Library = Library or shared.LouisHubLibrary -- Fallback reference if executed in the same environment
 
