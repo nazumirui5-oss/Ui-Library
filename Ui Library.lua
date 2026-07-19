@@ -310,6 +310,9 @@ end
 
 function Library:LoadConfig(force, preloadOnly)
     if not isfile or not readfile then return end
+    
+    -- Membaca file settings global dihilangkan dari sini untuk mencegah 'CurrentProfile' ter-overwrite 
+    -- kembali ke profil lama oleh file cache disk akibat delay synchronous penulisan file.
 
     if not preloadOnly then
         if Library.Elements["__MetaProfile"] then
@@ -332,10 +335,10 @@ function Library:LoadConfig(force, preloadOnly)
                     Library.LoadedConfigCache = decoded
                     
                     if not preloadOnly then
-                        -- 1. Reset semua elemen UI ke DefaultValue masing-masing terlebih dahulu
+                        -- 1. Reset semua elemen UI ke DefaultValue masing-masing terlebih dahulu (agar tidak ada flag yang bernilai nil)
                         for flag, element in pairs(Library.Elements) do
                             if not flag:find("^__Meta") and element.DefaultValue ~= nil then
-                                element:Set(element.DefaultValue, true, true)
+                                element:Set(element.DefaultValue, true, true) -- ignoreSave=true, ignoreCallback=true
                             end
                         end
                         
@@ -352,7 +355,7 @@ function Library:LoadConfig(force, preloadOnly)
                             end
                             
                             if Library.Elements[flag] then
-                                Library.Elements[flag]:Set(val, true, false)
+                                Library.Elements[flag]:Set(val, true, false) -- ignoreSave=true, ignoreCallback=false (memicu callback asli)
                             end
                             if flag:find("^ExtBtnPos_") then
                                 local btnId = flag:gsub("^ExtBtnPos_", "")
@@ -824,8 +827,6 @@ function Library:CreateWindow(titleText, subtitleText)
     Library:LoadConfig(false, true)
 
     local Window = {
-        Categories = {},
-        CurrentCategory = nil,
         Tabs = {},
         CurrentTab = nil,
         DragLocked = false,
@@ -922,33 +923,10 @@ function Library:CreateWindow(titleText, subtitleText)
         BackgroundTransparency = function(t) return t.IsRGB and 0 or 1 end
     })
 
-    -- ========================================================
-    -- [[ CATEGORY SYSTEM CONTAINER ]]
-    -- ========================================================
-    local CategoryBar = Instance.new("ScrollingFrame", MainFrame)
-    CategoryBar.Name = "CategoryBar"
-    CategoryBar.Size = UDim2.new(1, -24, 0, 28)
-    CategoryBar.Position = UDim2.new(0, 12, 0, 52)
-    CategoryBar.BackgroundTransparency = 1
-    CategoryBar.ScrollBarThickness = 0
-    CategoryBar.Visible = false
-    CategoryBar.CanvasSize = UDim2.new(0, 0, 0, 0)
-    
-    local CategoryLayout = Instance.new("UIListLayout", CategoryBar)
-    CategoryLayout.FillDirection = Enum.FillDirection.Horizontal
-    CategoryLayout.Padding = UDim.new(0, 6)
-    CategoryLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-    local UIPaddingCat = Instance.new("UIPadding", CategoryBar)
-    UIPaddingCat.PaddingLeft = UDim.new(0, 4)
-    UIPaddingCat.PaddingRight = UDim.new(0, 4)
-
-    CategoryLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        CategoryBar.CanvasSize = UDim2.new(0, CategoryLayout.AbsoluteContentSize.X + 10, 0, 0)
-    end)
-
-    -- Sidebar Container (Mengatur posisi dinamis tergantung ketersediaan Kategori)
+    -- Sidebar Container
     local Sidebar = Instance.new("Frame", MainFrame)
+    Sidebar.Size = UDim2.new(0, 140, 1, -58)
+    Sidebar.Position = UDim2.new(0, 12, 0, 52)
     Sidebar.BorderSizePixel = 0
     Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6)
     RegisterThemeable(Sidebar, { 
@@ -972,6 +950,8 @@ function Library:CreateWindow(titleText, subtitleText)
 
     -- Primary Content Workspace
     local ContentArea = Instance.new("Frame", MainFrame)
+    ContentArea.Size = UDim2.new(1, -174, 1, -58)
+    ContentArea.Position = UDim2.new(0, 162, 0, 52)
     ContentArea.BorderSizePixel = 0
     Instance.new("UICorner", ContentArea).CornerRadius = UDim.new(0, 6)
     RegisterThemeable(ContentArea, { 
@@ -982,34 +962,6 @@ function Library:CreateWindow(titleText, subtitleText)
     local ContentStroke = Instance.new("UIStroke", ContentArea)
     ContentStroke.Thickness = 1
     RegisterThemeable(ContentStroke, { Color = "ElementStroke" })
-
-    -- Logika Penyesuaian Tata Letak Dinamis (Backward Compatibility)
-    local function RecalculateLayout()
-        local hasCustomCategories = false
-        local catCount = 0
-        for id, _ in pairs(Window.Categories) do
-            if id ~= "__DefaultCategory" then
-                hasCustomCategories = true
-            end
-            catCount = catCount + 1
-        end
-
-        if hasCustomCategories and catCount > 1 then
-            CategoryBar.Visible = true
-            Sidebar.Position = UDim2.new(0, 12, 0, 86)
-            Sidebar.Size = UDim2.new(0, 140, 1, -98)
-            ContentArea.Position = UDim2.new(0, 162, 0, 86)
-            ContentArea.Size = UDim2.new(1, -174, 1, -98)
-        else
-            CategoryBar.Visible = false
-            Sidebar.Position = UDim2.new(0, 12, 0, 52)
-            Sidebar.Size = UDim2.new(0, 140, 1, -58)
-            ContentArea.Position = UDim2.new(0, 162, 0, 52)
-            ContentArea.Size = UDim2.new(1, -174, 1, -58)
-        end
-    end
-
-    RecalculateLayout()
 
     TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
@@ -1032,23 +984,19 @@ function Library:CreateWindow(titleText, subtitleText)
         if Window.Minimized then
             local sidebarFade = TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
             local contentFade = TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
-            local catBarFade = TweenService:Create(CategoryBar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {CanvasTransparency = 1})
             sidebarFade:Play()
             contentFade:Play()
-            catBarFade:Play()
             
             sidebarFade.Completed:Connect(function()
                 if Window.Minimized then
                     Sidebar.Visible = false
                     ContentArea.Visible = false
-                    CategoryBar.Visible = false
                 end
             end)
             TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
         else
             Sidebar.Visible = true
             ContentArea.Visible = true
-            RecalculateLayout()
             local t = Themes[CurrentThemeName]
             TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.SidebarTransparency}):Play()
             TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.ContentTransparency}):Play()
@@ -1071,7 +1019,7 @@ function Library:CreateWindow(titleText, subtitleText)
         TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = t.TextSecondary}):Play()
     end)
 
-    -- Floating Icon Open/Close
+    -- [[ 4a. FLOATING ICON OPEN CLOSE ]]
     local FloatingToggle = Instance.new("TextButton", ScreenGui)
     FloatingToggle.Name = "FloatingToggleIcon"
     FloatingToggle.Size = UDim2.new(0, 48, 0, 48)
@@ -1079,7 +1027,7 @@ function Library:CreateWindow(titleText, subtitleText)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
     FloatingToggle.Visible = false
-    FloatingToggle.ClipsDescendants = true
+    FloatingToggle.ClipsDescendants = true -- Memotong sisa gambar ikon kustom saat animasi menyusut
     RegisterThemeable(FloatingToggle, { 
         BackgroundColor3 = "ElementBg",
         BackgroundTransparency = "ElementTransparency"
@@ -1095,8 +1043,11 @@ function Library:CreateWindow(titleText, subtitleText)
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Name = "Icon"
+    
+    -- Menggunakan skala (%) agar ikon mengecil bersamaan secara mulus dengan tombol luar
     ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0) 
     ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
+    
     ToggleIconImage.BackgroundTransparency = 1
     ToggleIconImage.ScaleType = Enum.ScaleType.Fit
     RegisterRGB(ToggleIconImage, "ImageColor3")
@@ -1223,153 +1174,29 @@ function Library:CreateWindow(titleText, subtitleText)
     end
 
     -- ========================================================
-    -- [[ CATEGORY IMPLEMENTATION & NAVIGATION ]]
+    -- [[ 5. METHODS: CREATE NEW TAB ]]
     -- ========================================================
-    function Window:CreateCategory(categoryName)
-        local catId = categoryName:gsub("%s+", "")
-        if Window.Categories[catId] then
-            return Window.Categories[catId]
-        end
-
-        local Category = {
-            Name = categoryName,
-            Id = catId,
-            Tabs = {},
-            Button = nil,
-            ButtonStroke = nil
-        }
-        Window.Categories[catId] = Category
-
-        if catId ~= "__DefaultCategory" then
-            local CatBtn = Instance.new("TextButton", CategoryBar)
-            CatBtn.Name = "Category_" .. catId
-            CatBtn.Text = categoryName:upper()
-            CatBtn.Font = Enum.Font.MontserratBold
-            CatBtn.TextSize = 9
-            CatBtn.AutoButtonColor = false
-            Instance.new("UICorner", CatBtn).CornerRadius = UDim.new(0, 4)
-
-            local CatBtnStroke = Instance.new("UIStroke", CatBtn)
-            CatBtnStroke.Thickness = 1
-
-            local function UpdateCatSize()
-                local textBound = TextService:GetTextSize(CatBtn.Text, CatBtn.TextSize, CatBtn.Font, Vector2.new(1000, 24))
-                CatBtn.Size = UDim2.new(0, textBound.X + 16, 0, 20)
-            end
-            UpdateCatSize()
-
-            Category.Button = CatBtn
-            Category.ButtonStroke = CatBtnStroke
-
-            RecalculateLayout()
-
-            local function SelectCategory()
-                Window.CurrentCategory = Category
-                local t = Themes[CurrentThemeName]
-
-                -- Pembaruan visual semua tombol category
-                for _, cat in pairs(Window.Categories) do
-                    if cat.Button then
-                        local selected = (cat == Category)
-                        TweenService:Create(cat.Button, TweenInfo.new(0.15), {
-                            BackgroundColor3 = selected and t.Accent or t.SidebarBg,
-                            BackgroundTransparency = selected and 0 or 0.4
-                        }):Play()
-                        TweenService:Create(cat.ButtonStroke, TweenInfo.new(0.15), {
-                            Color = selected and t.Accent or t.ElementStroke,
-                            Transparency = selected and 0 or 0.5
-                        }):Play()
-                        cat.Button.TextColor3 = selected and Color3.new(1,1,1) or t.TextSecondary
-                    end
-                end
-
-                -- Menampilkan hanya tab milik Kategori aktif
-                for _, cat in pairs(Window.Categories) do
-                    for _, tab in ipairs(cat.Tabs) do
-                        tab.Button.Visible = (cat == Category)
-                    end
-                end
-
-                -- Auto-Select Tab pertama dari Category yang baru dipilih
-                local firstTab = Category.Tabs[1]
-                if firstTab then
-                    firstTab:Select()
-                end
-            end
-
-            CatBtn.MouseButton1Click:Connect(SelectCategory)
-
-            -- Dukungan Tema Dinamis untuk Tombol Kategori
-            RegisterThemeable(CatBtn, {
-                BackgroundColor3 = function(t) return Window.CurrentCategory == Category and t.Accent or t.SidebarBg end,
-                TextColor3 = function(t) return Window.CurrentCategory == Category and Color3.new(1,1,1) or t.TextSecondary end
-            })
-            RegisterThemeable(CatBtnStroke, {
-                Color = function(t) return Window.CurrentCategory == Category and t.Accent or t.ElementStroke end
-            })
-
-            task.spawn(function()
-                task.wait(0.1)
-                if not Window.CurrentCategory then
-                    SelectCategory()
-                end
-            end)
-        end
-
-        function Category:CreateTab(tabName, iconAssetId)
-            local Tab = Window:_InternalCreateTab(tabName, iconAssetId, Category)
-            table.insert(Category.Tabs, Tab)
-            Tab.Button.Visible = (Window.CurrentCategory == Category)
-            return Tab
-        end
-
-        return Category
-    end
-
-    -- Fallback/Legacy API support: Mengarahkan CreateWindow:CreateTab langsung ke Kategori Default
     function Window:CreateTab(tabName, iconAssetId)
-        if not Window.Categories["__DefaultCategory"] then
-            Window:CreateCategory("__DefaultCategory")
-        end
-        return Window.Categories["__DefaultCategory"]:CreateTab(tabName, iconAssetId)
-    end
-
-    -- Helper Internal Pembuat Tab Baru
-    function Window:_InternalCreateTab(tabName, iconAssetId, Category)
-        local Tab = {
-            Pages = {},
-            CurrentPage = nil,
-            Button = nil,
-            DefaultPage = nil
-        }
+        local Tab = {}
         
-        -- Workspace Frame Tab yang menampung Page & Selector-nya
-        local TabContainerFrame = Instance.new("Frame", ContentArea)
-        TabContainerFrame.Size = UDim2.new(1, -16, 1, -16)
-        TabContainerFrame.Position = UDim2.new(0, 8, 0, 8)
-        TabContainerFrame.BackgroundTransparency = 1
-        TabContainerFrame.Visible = false
-        Tab.Frame = TabContainerFrame
+        local TabContent = Instance.new("ScrollingFrame", ContentArea)
+        TabContent.Size = UDim2.new(1, -16, 1, -16)
+        TabContent.Position = UDim2.new(0, 8, 0, 8)
+        TabContent.BackgroundTransparency = 1
+        TabContent.ScrollBarThickness = 2
+        TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+        TabContent.Visible = false
 
-        -- Bar Pemilih Halaman (Page Bar)
-        local PageBar = Instance.new("ScrollingFrame", TabContainerFrame)
-        PageBar.Name = "PageBar"
-        PageBar.Size = UDim2.new(1, 0, 0, 24)
-        PageBar.Position = UDim2.new(0, 0, 0, 0)
-        PageBar.BackgroundTransparency = 1
-        PageBar.ScrollBarThickness = 0
-        PageBar.Visible = false
-        PageBar.CanvasSize = UDim2.new(0, 0, 0, 0)
-        Tab.PageBar = PageBar
-        
-        local PageLayout = Instance.new("UIListLayout", PageBar)
-        PageLayout.FillDirection = Enum.FillDirection.Horizontal
-        PageLayout.Padding = UDim.new(0, 4)
-        PageLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-        Tab.PageLayout = PageLayout
+        -- Scrollbar yang sepenuhnya disamakan dengan gaya tema RGB (Abu-abu tipis netral & bersih)
+        TabContent.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
+        TabContent.ScrollBarImageTransparency = 0.4
 
-        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            PageBar.CanvasSize = UDim2.new(0, PageLayout.AbsoluteContentSize.X + 8, 0, 0)
+        local ContentLayout = Instance.new("UIListLayout", TabContent)
+        ContentLayout.Padding = UDim.new(0, 6)
+        ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabContent.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y)
         end)
 
         local TabButton = Instance.new("TextButton", TabContainer)
@@ -1411,13 +1238,14 @@ function Library:CreateWindow(titleText, subtitleText)
             Button = TabButton,
             ButtonStroke = TabBtnStroke,
             Text = TabText,
-            Frame = TabContainerFrame,
+            Frame = TabContent,
             Icon = IconLabel,
             Indicator = TabIndicator
         }
         table.insert(Window.Tabs, tabData)
 
         local function Select()
+            -- Cek proteksi klik ganda: jika tab saat ini ditekan kembali, abaikan fungsi
             if Window.CurrentTab and Window.CurrentTab.Button == TabButton then 
                 return 
             end
@@ -1431,16 +1259,14 @@ function Library:CreateWindow(titleText, subtitleText)
                 end)
             end
             
-            TabContainerFrame.Size = UDim2.new(1, -16, 0.95, -16)
-            TabContainerFrame.Position = UDim2.new(0, 8, 0, 12)
-            TabContainerFrame.Visible = true
-            TweenService:Create(TabContainerFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 1, -16), Position = UDim2.new(0, 8, 0, 8)}):Play()
+            TabContent.Size = UDim2.new(1, -16, 0.95, -16)
+            TabContent.Position = UDim2.new(0, 8, 0, 12)
+            TabContent.Visible = true
+            TweenService:Create(TabContent, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 1, -16), Position = UDim2.new(0, 8, 0, 8)}):Play()
 
             Window.CurrentTab = tabData
             Window:UpdateAllTabsVisual()
         end
-
-        Tab.Select = Select
 
         TabButton.MouseEnter:Connect(function()
             if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
@@ -1477,931 +1303,665 @@ function Library:CreateWindow(titleText, subtitleText)
             end)
         end
 
-        -- Pemosisian Page Workspace Dinamis
-        local function RecalculatePageLayout()
-            local pageCount = #Tab.Pages
-            if pageCount > 1 then
-                Tab.PageBar.Visible = true
-                for _, page in ipairs(Tab.Pages) do
-                    page.Frame.Position = UDim2.new(0, 0, 0, 30)
-                    page.Frame.Size = UDim2.new(1, 0, 1, -30)
-                end
-            else
-                Tab.PageBar.Visible = false
-                for _, page in ipairs(Tab.Pages) do
-                    page.Frame.Position = UDim2.new(0, 0, 0, 0)
-                    page.Frame.Size = UDim2.new(1, 0, 1, 0)
-                end
-            end
-        end
-
         -- ========================================================
-        -- [[ PAGE IMPLEMENTATION SYSTEM ]]
+        -- [[ 5a. TAB ELEMENT: CREATE BUTTON ]]
         -- ========================================================
-        function Tab:CreatePage(pageName)
-            local Page = {
-                Name = pageName,
-                Tab = Tab,
-                Sections = {},
-                Button = nil,
-                ButtonStroke = nil,
-                Frame = nil,
-                DefaultSection = nil
-            }
+        function Tab:CreateButton(buttonText, callback)
+            local Button = Instance.new("TextButton", TabContent)
+            Button.Size = UDim2.new(1, -6, 0, 34)
+            Button.Text = ""
+            Button.AutoButtonColor = false
+            Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(Button, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
 
-            -- Area scrollable utama di dalam halaman
-            local PageContent = Instance.new("ScrollingFrame", TabContainerFrame)
-            PageContent.Size = UDim2.new(1, 0, 1, 0)
-            PageContent.BackgroundTransparency = 1
-            PageContent.ScrollBarThickness = 2
-            PageContent.CanvasSize = UDim2.new(0, 0, 0, 0)
-            PageContent.Visible = false
-            PageContent.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
-            PageContent.ScrollBarImageTransparency = 0.4
+            local BtnStroke = Instance.new("UIStroke", Button)
+            BtnStroke.Thickness = 1
+            RegisterThemeable(BtnStroke, { Color = "ElementStroke" })
 
-            local PageLayout = Instance.new("UIListLayout", PageContent)
-            PageLayout.Padding = UDim.new(0, 6)
-            PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            local BtnText = Instance.new("TextLabel", Button)
+            BtnText.Size = UDim2.new(1, -35, 1, 0)
+            BtnText.Position = UDim2.new(0, 12, 0, 0)
+            BtnText.BackgroundTransparency = 1
+            BtnText.Text = buttonText or "Button"
+            BtnText.TextSize = 11
+            BtnText.Font = Enum.Font.MontserratMedium
+            BtnText.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(BtnText, { TextColor3 = "TextPrimary" })
 
-            PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                PageContent.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 10)
+            local ArrowIcon = Instance.new("ImageLabel", Button)
+            ArrowIcon.Size = UDim2.new(0, 12, 0, 12)
+            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -6)
+            ArrowIcon.BackgroundTransparency = 1
+            ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094678&w=150&h=150"
+            RegisterThemeable(ArrowIcon, { ImageColor3 = "TextSecondary" })
+
+            Button.MouseEnter:Connect(function()
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(Button, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                }):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextPrimary, Position = UDim2.new(1, -20, 0.5, -6)}):Play()
+            end)
+            Button.MouseLeave:Connect(function()
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(Button, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.ElementBg,
+                    BackgroundTransparency = t.ElementTransparency
+                }):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextSecondary, Position = UDim2.new(1, -22, 0.5, -6)}):Play()
             end)
 
-            Page.Frame = PageContent
-            table.insert(Tab.Pages, Page)
-
-            -- Tombol Page Bar
-            local PageBtn = Instance.new("TextButton", Tab.PageBar)
-            PageBtn.Text = pageName
-            PageBtn.Font = Enum.Font.MontserratBold
-            PageBtn.TextSize = 9
-            PageBtn.AutoButtonColor = false
-            Instance.new("UICorner", PageBtn).CornerRadius = UDim.new(0, 4)
-
-            local PageBtnStroke = Instance.new("UIStroke", PageBtn)
-            PageBtnStroke.Thickness = 1
-
-            local function UpdatePageBtnSize()
-                local textBound = TextService:GetTextSize(PageBtn.Text, PageBtn.TextSize, PageBtn.Font, Vector2.new(1000, 24))
-                PageBtn.Size = UDim2.new(0, textBound.X + 16, 1, 0)
-            end
-            UpdatePageBtnSize()
-
-            Page.Button = PageBtn
-            Page.ButtonStroke = PageBtnStroke
-
-            local function SelectPage()
-                Tab.CurrentPage = Page
+            Button.MouseButton1Click:Connect(function()
                 local t = Themes[CurrentThemeName]
+                local press = TweenService:Create(Button, TweenInfo.new(0.05), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 42) or t.ContentBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.ContentTransparency
+                })
+                press:Play()
+                press.Completed:Connect(function()
+                    TweenService:Create(Button, TweenInfo.new(0.1), {
+                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
+                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    }):Play()
+                end)
+                if callback then task.spawn(callback) end
+            end)
+        end
 
-                for _, pg in ipairs(Tab.Pages) do
-                    local isSelected = (pg == Page)
-                    pg.Frame.Visible = isSelected
+        -- ========================================================
+        -- [[ 5b. TAB ELEMENT: CREATE TOGGLE ]]
+        -- ========================================================
+        function Tab:CreateToggle(toggleText, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = toggleText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = toggleText:gsub("%s+", "")
+            end
 
-                    if pg.Button then
-                        TweenService:Create(pg.Button, TweenInfo.new(0.15), {
-                            BackgroundColor3 = isSelected and t.Accent or t.ElementBg,
-                            BackgroundTransparency = isSelected and 0 or t.ElementTransparency
-                        }):Play()
-                        TweenService:Create(pg.ButtonStroke, TweenInfo.new(0.15), {
-                            Color = isSelected and t.Accent or t.ElementStroke,
-                            Transparency = isSelected and 0 or 0.3
-                        }):Play()
-                        pg.Button.TextColor3 = isSelected and Color3.new(1,1,1) or t.TextSecondary
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Toggle = {State = (savedVal ~= nil and savedVal) or defaultVal or false}
+            Library.Flags[actualFlag] = Toggle.State
+
+            local ToggleBtn = Instance.new("TextButton", TabContent)
+            ToggleBtn.Size = UDim2.new(1, -6, 0, 34)
+            ToggleBtn.Text = ""
+            ToggleBtn.AutoButtonColor = false
+            Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(ToggleBtn, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+
+            local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
+            ToggleStroke.Thickness = 1
+            RegisterThemeable(ToggleStroke, { Color = "ElementStroke" })
+
+            local TextLabel = Instance.new("TextLabel", ToggleBtn)
+            TextLabel.Size = UDim2.new(1, -65, 1, 0)
+            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.Text = toggleText or "Toggle"
+            TextLabel.TextSize = 11
+            TextLabel.Font = Enum.Font.MontserratMedium
+            TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(TextLabel, { TextColor3 = "TextPrimary" })
+
+            local SwitchBg = Instance.new("Frame", ToggleBtn)
+            SwitchBg.Size = UDim2.new(0, 32, 0, 16)
+            SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
+            SwitchBg.BorderSizePixel = 0
+            Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
+
+            local SwitchBall = Instance.new("Frame", SwitchBg)
+            SwitchBall.Size = UDim2.new(0, 12, 0, 12)
+            SwitchBall.Position = UDim2.new(0, 2, 0.5, -6)
+            SwitchBall.BorderSizePixel = 0
+            Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
+            RegisterThemeable(SwitchBall, { BackgroundColor3 = "TextDark" })
+
+            local function UpdateVisual(animate, ignoreSave)
+                local duration = animate and 0.2 or 0
+                local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local t = Themes[CurrentThemeName]
+                
+                if Toggle.State then
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                    
+                    if t.IsRGB then
+                        RegisterRGB(SwitchBg, "BackgroundColor3")
+                    else
+                        UnregisterRGB(SwitchBg, "BackgroundColor3")
+                        TweenService:Create(SwitchBg, info, {BackgroundColor3 = t.Accent}):Play()
                     end
+                    
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
+                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
+                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    }):Play()
+                else
+                    UnregisterRGB(SwitchBg, "BackgroundColor3")
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = t.TextDark}):Play()
+                    TweenService:Create(SwitchBg, TweenInfo.new(duration), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 40) or t.ElementStroke}):Play()
+                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
+                        BackgroundColor3 = t.ElementBg,
+                        BackgroundTransparency = t.ElementTransparency
+                    }):Play()
+                end
+
+                Library.Flags[actualFlag] = Toggle.State
+                if not ignoreSave then
+                    Library:SaveConfig(true)
                 end
             end
 
-            PageBtn.MouseButton1Click:Connect(SelectPage)
+            UpdateVisual(false, true)
 
-            RegisterThemeable(PageBtn, {
-                BackgroundColor3 = function(t) return Tab.CurrentPage == Page and t.Accent or t.ElementBg end,
-                BackgroundTransparency = function(t) return Tab.CurrentPage == Page and 0 or t.ElementTransparency end,
-                TextColor3 = function(t) return Tab.CurrentPage == Page and Color3.new(1,1,1) or t.TextSecondary end
-            })
-            RegisterThemeable(PageBtnStroke, {
-                Color = function(t) return Tab.CurrentPage == Page and t.Accent or t.ElementStroke end
-            })
-
-            RecalculatePageLayout()
-            Tab.PageBar.CanvasSize = UDim2.new(0, Tab.PageLayout.AbsoluteContentSize.X + 10, 0, 0)
-
-            if #Tab.Pages == 1 then
-                SelectPage()
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Toggle.State) end)
             end
 
-            function Page:CreateSection(sectionName)
-                return Window:_InternalCreateSection(sectionName, Page, false)
+            ToggleBtn.MouseButton1Click:Connect(function()
+                Toggle.State = not Toggle.State
+                UpdateVisual(true)
+                if actualCallback then task.spawn(function() actualCallback(Toggle.State) end) end
+            end)
+
+            local toggleController = {}
+            toggleController.DefaultValue = defaultVal or false
+            function toggleController:Set(state, ignoreSave, ignoreCallback)
+                Toggle.State = state
+                UpdateVisual(true, ignoreSave)
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(Toggle.State) end) 
+                end
             end
 
-            return Page
+            -- Mendaftarkan sakelar aktif ke sistem pelacak tema dinamis
+            table.insert(Library.Toggles, {
+                Controller = toggleController,
+                UpdateVisual = UpdateVisual
+            })
+
+            Library.Elements[actualFlag] = toggleController
+            return toggleController
         end
 
-        -- Helper internal pembuat section
-        function Window:_InternalCreateSection(sectionName, Page, isDefault)
-            local Section = {
-                Name = sectionName,
-                Collapsed = false,
-                ContentContainer = nil,
-                Frame = nil
-            }
-
-            local SectionFrame = Instance.new("Frame", Page.Frame)
-            SectionFrame.Name = "Section_" .. (sectionName or "Unnamed")
-            SectionFrame.ClipsDescendants = true
-            Instance.new("UICorner", SectionFrame).CornerRadius = UDim.new(0, 5)
-            Section.Frame = SectionFrame
-
-            local SectionLayout = Instance.new("UIListLayout", SectionFrame)
-            SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            SectionLayout.Padding = UDim.new(0, 0)
-
-            if not isDefault then
-                RegisterThemeable(SectionFrame, {
-                    BackgroundColor3 = "ElementBg",
-                    BackgroundTransparency = "ElementTransparency"
-                })
-                local SectionStroke = Instance.new("UIStroke", SectionFrame)
-                SectionStroke.Thickness = 1
-                RegisterRGB(SectionStroke, "Color")
-                RegisterThemeable(SectionStroke, { Color = function(t) return t.IsRGB and SectionStroke.Color or t.ElementStroke end })
-            else
-                SectionFrame.BackgroundTransparency = 1
+        -- ========================================================
+        -- [[ 5c. TAB ELEMENT: CREATE SLIDER ]]
+        -- ========================================================
+        function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = sliderText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = sliderText:gsub("%s+", "")
             end
 
-            -- Header Section (Berisi Title, tombol Expand/Collapse)
-            local HeaderFrame = Instance.new("Frame", SectionFrame)
-            HeaderFrame.Size = UDim2.new(1, 0, 0, 26)
-            HeaderFrame.BackgroundTransparency = 1
-            HeaderFrame.LayoutOrder = 1
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Slider = {Value = (savedVal ~= nil and savedVal) or defaultVal or minVal}
+            Library.Flags[actualFlag] = Slider.Value
+            
+            local SliderFrame = Instance.new("Frame", TabContent)
+            SliderFrame.Size = UDim2.new(1, -6, 0, 48)
+            Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(SliderFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local SliderStroke = Instance.new("UIStroke", SliderFrame)
+            SliderStroke.Thickness = 1
+            RegisterThemeable(SliderStroke, { Color = "ElementStroke" })
 
-            local TitleLabel = Instance.new("TextLabel", HeaderFrame)
-            TitleLabel.Size = UDim2.new(1, -40, 1, 0)
-            TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+            local TitleLabel = Instance.new("TextLabel", SliderFrame)
+            TitleLabel.Size = UDim2.new(1, -20, 0, 20)
+            TitleLabel.Position = UDim2.new(0, 12, 0, 4)
             TitleLabel.BackgroundTransparency = 1
-            TitleLabel.Text = (sectionName or "SECTION"):upper()
-            TitleLabel.Font = Enum.Font.MontserratBold
-            TitleLabel.TextSize = 10
+            TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+            TitleLabel.TextSize = 11
+            TitleLabel.Font = Enum.Font.MontserratMedium
             TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
             RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
 
-            local ArrowIcon = Instance.new("ImageButton", HeaderFrame)
-            ArrowIcon.Size = UDim2.new(0, 12, 0, 12)
-            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -6)
+            local SliderBg = Instance.new("TextButton", SliderFrame)
+            SliderBg.Size = UDim2.new(1, -24, 0, 4)
+            SliderBg.Position = UDim2.new(0, 12, 1, -12)
+            SliderBg.Text = ""
+            SliderBg.AutoButtonColor = false
+            Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
+            RegisterThemeable(SliderBg, { BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(35, 35, 40) or t.SidebarBg end })
+
+            local SliderFill = Instance.new("Frame", SliderBg)
+            SliderFill.Size = UDim2.new((Slider.Value - minVal) / (maxVal - minVal), 0, 1, 0)
+            SliderFill.BorderSizePixel = 0
+            Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+            RegisterRGB(SliderFill, "BackgroundColor3")
+            RegisterThemeable(SliderFill, { BackgroundColor3 = function(t) return t.IsRGB and SliderFill.BackgroundColor3 or t.Accent end })
+
+            local function UpdateVisuals(val, ignoreSave)
+                Slider.Value = math.clamp(val, minVal, maxVal)
+                local percentage = (Slider.Value - minVal) / (maxVal - minVal)
+                
+                TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
+                TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+                
+                Library.Flags[actualFlag] = Slider.Value
+                if not ignoreSave then
+                    Library:SaveConfig(true)
+                end
+            end
+
+            UpdateVisuals(Slider.Value, true)
+
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Slider.Value) end)
+            end
+
+            local sliding = false
+            local function Update(input)
+                local percentage = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+                local rawVal = minVal + (percentage * (maxVal - minVal))
+                local finalVal = math.floor(rawVal + 0.5)
+                
+                UpdateVisuals(finalVal)
+                if actualCallback then task.spawn(function() actualCallback(finalVal) end) end
+            end
+
+            SliderBg.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sliding = true
+                    Update(input)
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    Update(input)
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    sliding = false
+                end
+            end)
+
+            local sliderController = {}
+            sliderController.DefaultValue = defaultVal or minVal
+            function sliderController:Set(val, ignoreSave, ignoreCallback)
+                UpdateVisuals(val, ignoreSave)
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(Slider.Value) end) 
+                end
+            end
+
+            Library.Elements[actualFlag] = sliderController
+            return sliderController
+        end
+
+        -- ========================================================
+        -- [[ 5d. TAB ELEMENT: CREATE DROPDOWN ]]
+        -- ========================================================
+        function Tab:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = dropdownText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = dropdownText:gsub("%s+", "")
+            end
+
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+            local Dropdown = {
+                Open = false,
+                CurrentValue = (savedVal ~= nil and savedVal) or defaultVal or options[1],
+                OptionFrames = {}
+            }
+            Library.Flags[actualFlag] = Dropdown.CurrentValue
+            
+            local DropdownFrame = Instance.new("Frame", TabContent)
+            DropdownFrame.Size = UDim2.new(1, -6, 0, 34)
+            DropdownFrame.ClipsDescendants = true
+            Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(DropdownFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local FrameStroke = Instance.new("UIStroke", DropdownFrame)
+            FrameStroke.Thickness = 1
+            RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
+
+            local DropdownBtn = Instance.new("TextButton", DropdownFrame)
+            DropdownBtn.Size = UDim2.new(1, 0, 0, 34)
+            DropdownBtn.BackgroundTransparency = 1
+            DropdownBtn.Text = ""
+
+            local TextLabel = Instance.new("TextLabel", DropdownBtn)
+            TextLabel.Size = UDim2.new(1, -60, 1, 0)
+            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.Text = dropdownText .. " (" .. tostring(Dropdown.CurrentValue) .. ")"
+            TextLabel.TextSize = 11
+            TextLabel.Font = Enum.Font.MontserratMedium
+            TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(TextLabel, { TextColor3 = "TextPrimary" })
+
+            local ArrowIcon = Instance.new("ImageLabel", DropdownBtn)
+            ArrowIcon.Size = UDim2.new(0, 10, 0, 10)
+            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -5)
             ArrowIcon.BackgroundTransparency = 1
             ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
             RegisterThemeable(ArrowIcon, { ImageColor3 = "TextSecondary" })
 
-            if isDefault then
-                HeaderFrame.Visible = false
-                HeaderFrame.Size = UDim2.new(1, 0, 0, 0)
-            end
+            local OptionContainer = Instance.new("Frame", DropdownFrame)
+            OptionContainer.Size = UDim2.new(1, -24, 0, 0)
+            OptionContainer.Position = UDim2.new(0, 12, 0, 36)
+            OptionContainer.BackgroundTransparency = 1
 
-            -- Container Elemen di dalam Section
-            local ContentContainer = Instance.new("Frame", SectionFrame)
-            ContentContainer.Name = "Container"
-            ContentContainer.Size = UDim2.new(1, 0, 0, 0)
-            ContentContainer.BackgroundTransparency = 1
-            ContentContainer.LayoutOrder = 2
-            Section.ContentContainer = ContentContainer
+            local OptionList = Instance.new("UIListLayout", OptionContainer)
+            OptionList.Padding = UDim.new(0, 4)
 
-            local ContentList = Instance.new("UIListLayout", ContentContainer)
-            ContentList.Padding = UDim.new(0, 6)
-            ContentList.SortOrder = Enum.SortOrder.LayoutOrder
+            local function Refresh()
+                for _, v in ipairs(Dropdown.OptionFrames) do v:Destroy() end
+                Dropdown.OptionFrames = {}
+                local t = Themes[CurrentThemeName]
 
-            local UIPadding = Instance.new("UIPadding", ContentContainer)
-            if not isDefault then
-                UIPadding.PaddingLeft = UDim.new(0, 8)
-                UIPadding.PaddingRight = UDim.new(0, 8)
-                UIPadding.PaddingBottom = UDim.new(0, 8)
-                UIPadding.PaddingTop = UDim.new(0, 4)
-            else
-                UIPadding.PaddingLeft = UDim.new(0, 0)
-                UIPadding.PaddingRight = UDim.new(0, 0)
-                UIPadding.PaddingBottom = UDim.new(0, 0)
-                UIPadding.PaddingTop = UDim.new(0, 0)
-                ContentList.Padding = UDim.new(0, 6)
-            end
+                for _, opt in ipairs(options) do
+                    local OptBtn = Instance.new("TextButton", OptionContainer)
+                    OptBtn.Size = UDim2.new(1, 0, 0, 26)
+                    OptBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(26, 26, 31) or t.SidebarBg
+                    OptBtn.BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    OptBtn.Text = ""
+                    OptBtn.AutoButtonColor = false
+                    Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
 
-            -- Logika Perhitungan Tinggi Dinamis Section (Auto Height & Smooth Animation)
-            local function RecalculateHeight()
-                local targetHeight = 0
-                if isDefault then
-                    targetHeight = ContentList.AbsoluteContentSize.Y
-                else
-                    if Section.Collapsed then
-                        targetHeight = 26
+                    local OptText = Instance.new("TextLabel", OptBtn)
+                    OptText.Size = UDim2.new(1, -20, 1, 0)
+                    OptText.Position = UDim2.new(0, 10, 0, 0)
+                    OptText.BackgroundTransparency = 1
+                    OptText.Text = tostring(opt)
+                    OptText.TextSize = 10
+                    OptText.TextXAlignment = Enum.TextXAlignment.Left
+
+                    if opt == Dropdown.CurrentValue then
+                        OptText.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.TextPrimary
+                        OptText.Font = Enum.Font.MontserratBold
+                        
+                        local Indicator = Instance.new("Frame", OptBtn)
+                        Indicator.Size = UDim2.new(0, 2.5, 1, -8)
+                        Indicator.Position = UDim2.new(0, 3, 0, 4)
+                        Instance.new("UICorner", Indicator)
+                        RegisterRGB(Indicator, "BackgroundColor3")
+                        RegisterThemeable(Indicator, { BackgroundColor3 = function(th) return th.IsRGB and Indicator.BackgroundColor3 or th.Accent end })
                     else
-                        targetHeight = 26 + ContentList.AbsoluteContentSize.Y + 12 -- Header + Content + Padding
+                        OptText.TextColor3 = t.TextDark
+                        OptText.Font = Enum.Font.Montserrat
                     end
-                end
 
-                TweenService:Create(SectionFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Size = UDim2.new(1, -6, 0, targetHeight)
-                }):Play()
-            end
-
-            ContentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(RecalculateHeight)
-
-            if not isDefault then
-                local function ToggleCollapse()
-                    Section.Collapsed = not Section.Collapsed
-                    local targetRotation = Section.Collapsed and -90 or 0
-                    TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = targetRotation}):Play()
-                    RecalculateHeight()
-                end
-
-                ArrowIcon.MouseButton1Click:Connect(ToggleCollapse)
-                HeaderFrame.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        ToggleCollapse()
-                    end
-                end)
-            end
-
-            -- ========================================================
-            -- [[ SECTION ELEMENT CONSTRUCTORS ]]
-            -- ========================================================
-            function Section:CreateButton(buttonText, callback)
-                local Button = Instance.new("TextButton", ContentContainer)
-                Button.Size = UDim2.new(1, isDefault and -6 or 0, 0, 34)
-                Button.Text = ""
-                Button.AutoButtonColor = false
-                Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 5)
-                RegisterThemeable(Button, { 
-                    BackgroundColor3 = "ElementBg",
-                    BackgroundTransparency = "ElementTransparency"
-                })
-
-                local BtnStroke = Instance.new("UIStroke", Button)
-                BtnStroke.Thickness = 1
-                RegisterThemeable(BtnStroke, { Color = "ElementStroke" })
-
-                local BtnText = Instance.new("TextLabel", Button)
-                BtnText.Size = UDim2.new(1, -35, 1, 0)
-                BtnText.Position = UDim2.new(0, 12, 0, 0)
-                BtnText.BackgroundTransparency = 1
-                BtnText.Text = buttonText or "Button"
-                BtnText.TextSize = 11
-                BtnText.Font = Enum.Font.MontserratMedium
-                BtnText.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterThemeable(BtnText, { TextColor3 = "TextPrimary" })
-
-                local ArrowIconElement = Instance.new("ImageLabel", Button)
-                ArrowIconElement.Size = UDim2.new(0, 12, 0, 12)
-                ArrowIconElement.Position = UDim2.new(1, -22, 0.5, -6)
-                ArrowIconElement.BackgroundTransparency = 1
-                ArrowIconElement.Image = "rbxthumb://type=Asset&id=6031094678&w=150&h=150"
-                RegisterThemeable(ArrowIconElement, { ImageColor3 = "TextSecondary" })
-
-                Button.MouseEnter:Connect(function()
-                    local t = Themes[CurrentThemeName]
-                    TweenService:Create(Button, TweenInfo.new(0.15), {
-                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
-                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
-                    }):Play()
-                    TweenService:Create(ArrowIconElement, TweenInfo.new(0.15), {ImageColor3 = t.TextPrimary, Position = UDim2.new(1, -20, 0.5, -6)}):Play()
-                end)
-                Button.MouseLeave:Connect(function()
-                    local t = Themes[CurrentThemeName]
-                    TweenService:Create(Button, TweenInfo.new(0.15), {
-                        BackgroundColor3 = t.ElementBg,
-                        BackgroundTransparency = t.ElementTransparency
-                    }):Play()
-                    TweenService:Create(ArrowIconElement, TweenInfo.new(0.15), {ImageColor3 = t.TextSecondary, Position = UDim2.new(1, -22, 0.5, -6)}):Play()
-                end)
-
-                Button.MouseButton1Click:Connect(function()
-                    local t = Themes[CurrentThemeName]
-                    local press = TweenService:Create(Button, TweenInfo.new(0.05), {
-                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 42) or t.ContentBg,
-                        BackgroundTransparency = t.IsRGB and 0 or t.ContentTransparency
-                    })
-                    press:Play()
-                    press.Completed:Connect(function()
-                        TweenService:Create(Button, TweenInfo.new(0.1), {
-                            BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
-                            BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    OptBtn.MouseEnter:Connect(function()
+                        local th = Themes[CurrentThemeName]
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
+                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(32, 32, 38) or th.ElementBg,
+                            BackgroundTransparency = th.IsRGB and 0 or th.ElementTransparency
                         }):Play()
                     end)
-                    if callback then task.spawn(callback) end
-                end)
-            end
-
-            function Section:CreateToggle(toggleText, defaultVal, flag, callback)
-                local actualFlag = flag
-                local actualCallback = callback
-                
-                if type(flag) == "function" then
-                    actualCallback = flag
-                    actualFlag = toggleText:gsub("%s+", "")
-                elseif not flag then
-                    actualFlag = toggleText:gsub("%s+", "")
-                end
-
-                local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
-                local Toggle = {State = (savedVal ~= nil and savedVal) or defaultVal or false}
-                Library.Flags[actualFlag] = Toggle.State
-
-                local ToggleBtn = Instance.new("TextButton", ContentContainer)
-                ToggleBtn.Size = UDim2.new(1, isDefault and -6 or 0, 0, 34)
-                ToggleBtn.Text = ""
-                ToggleBtn.AutoButtonColor = false
-                Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
-                RegisterThemeable(ToggleBtn, { 
-                    BackgroundColor3 = "ElementBg",
-                    BackgroundTransparency = "ElementTransparency"
-                })
-
-                local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
-                ToggleStroke.Thickness = 1
-                RegisterThemeable(ToggleStroke, { Color = "ElementStroke" })
-
-                local TextLabel = Instance.new("TextLabel", ToggleBtn)
-                TextLabel.Size = UDim2.new(1, -65, 1, 0)
-                TextLabel.Position = UDim2.new(0, 12, 0, 0)
-                TextLabel.BackgroundTransparency = 1
-                TextLabel.Text = toggleText or "Toggle"
-                TextLabel.TextSize = 11
-                TextLabel.Font = Enum.Font.MontserratMedium
-                TextLabel.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterThemeable(TextLabel, { TextColor3 = "TextPrimary" })
-
-                local SwitchBg = Instance.new("Frame", ToggleBtn)
-                SwitchBg.Size = UDim2.new(0, 32, 0, 16)
-                SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
-                SwitchBg.BorderSizePixel = 0
-                Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
-
-                local SwitchBall = Instance.new("Frame", SwitchBg)
-                SwitchBall.Size = UDim2.new(0, 12, 0, 12)
-                SwitchBall.Position = UDim2.new(0, 2, 0.5, -6)
-                SwitchBall.BorderSizePixel = 0
-                Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
-                RegisterThemeable(SwitchBall, { BackgroundColor3 = "TextDark" })
-
-                local function UpdateVisual(animate, ignoreSave)
-                    local duration = animate and 0.2 or 0
-                    local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                    local t = Themes[CurrentThemeName]
-                    
-                    if Toggle.State then
-                        TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-                        
-                        if t.IsRGB then
-                            RegisterRGB(SwitchBg, "BackgroundColor3")
-                        else
-                            UnregisterRGB(SwitchBg, "BackgroundColor3")
-                            TweenService:Create(SwitchBg, info, {BackgroundColor3 = t.Accent}):Play()
-                        end
-                        
-                        TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
-                            BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
-                            BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    OptBtn.MouseLeave:Connect(function()
+                        local th = Themes[CurrentThemeName]
+                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
+                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(26, 26, 31) or th.SidebarBg,
+                            BackgroundTransparency = th.IsRGB and 0 or th.SidebarTransparency
                         }):Play()
-                    else
-                        UnregisterRGB(SwitchBg, "BackgroundColor3")
-                        TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = t.TextDark}):Play()
-                        TweenService:Create(SwitchBg, TweenInfo.new(duration), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 40) or t.ElementStroke}):Play()
-                        TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
-                            BackgroundColor3 = t.ElementBg,
-                            BackgroundTransparency = t.ElementTransparency
-                        }):Play()
-                    end
+                    end)
 
-                    Library.Flags[actualFlag] = Toggle.State
-                    if not ignoreSave then
-                        Library:SaveConfig(true)
-                    end
-                end
-
-                UpdateVisual(false, true)
-
-                if savedVal ~= nil and actualCallback then
-                    task.spawn(function() actualCallback(Toggle.State) end)
-                end
-
-                ToggleBtn.MouseButton1Click:Connect(function()
-                    Toggle.State = not Toggle.State
-                    UpdateVisual(true)
-                    if actualCallback then task.spawn(function() actualCallback(Toggle.State) end) end
-                end)
-
-                local toggleController = {}
-                toggleController.DefaultValue = defaultVal or false
-                function toggleController:Set(state, ignoreSave, ignoreCallback)
-                    Toggle.State = state
-                    UpdateVisual(true, ignoreSave)
-                    if actualCallback and not ignoreCallback then 
-                        task.spawn(function() actualCallback(Toggle.State) end) 
-                    end
-                end
-
-                table.insert(Library.Toggles, {
-                    Controller = toggleController,
-                    UpdateVisual = UpdateVisual
-                })
-
-                Library.Elements[actualFlag] = toggleController
-                return toggleController
-            end
-
-            function Section:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
-                local actualFlag = flag
-                local actualCallback = callback
-                
-                if type(flag) == "function" then
-                    actualCallback = flag
-                    actualFlag = sliderText:gsub("%s+", "")
-                elseif not flag then
-                    actualFlag = sliderText:gsub("%s+", "")
-                end
-
-                local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
-                local Slider = {Value = (savedVal ~= nil and savedVal) or defaultVal or minVal}
-                Library.Flags[actualFlag] = Slider.Value
-                
-                local SliderFrame = Instance.new("Frame", ContentContainer)
-                SliderFrame.Size = UDim2.new(1, isDefault and -6 or 0, 0, 48)
-                Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 5)
-                RegisterThemeable(SliderFrame, { 
-                    BackgroundColor3 = "ElementBg",
-                    BackgroundTransparency = "ElementTransparency"
-                })
-                
-                local SliderStroke = Instance.new("UIStroke", SliderFrame)
-                SliderStroke.Thickness = 1
-                RegisterThemeable(SliderStroke, { Color = "ElementStroke" })
-
-                local TitleLabelElement = Instance.new("TextLabel", SliderFrame)
-                TitleLabelElement.Size = UDim2.new(1, -20, 0, 20)
-                TitleLabelElement.Position = UDim2.new(0, 12, 0, 4)
-                TitleLabelElement.BackgroundTransparency = 1
-                TitleLabelElement.Text = sliderText .. ": " .. tostring(Slider.Value)
-                TitleLabelElement.TextSize = 11
-                TitleLabelElement.Font = Enum.Font.MontserratMedium
-                TitleLabelElement.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterThemeable(TitleLabelElement, { TextColor3 = "TextPrimary" })
-
-                local SliderBg = Instance.new("TextButton", SliderFrame)
-                SliderBg.Size = UDim2.new(1, -24, 0, 4)
-                SliderBg.Position = UDim2.new(0, 12, 1, -12)
-                SliderBg.Text = ""
-                SliderBg.AutoButtonColor = false
-                Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
-                RegisterThemeable(SliderBg, { BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(35, 35, 40) or t.SidebarBg end })
-
-                local SliderFill = Instance.new("Frame", SliderBg)
-                SliderFill.Size = UDim2.new((Slider.Value - minVal) / (maxVal - minVal), 0, 1, 0)
-                SliderFill.BorderSizePixel = 0
-                Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
-                RegisterRGB(SliderFill, "BackgroundColor3")
-                RegisterThemeable(SliderFill, { BackgroundColor3 = function(t) return t.IsRGB and SliderFill.BackgroundColor3 or t.Accent end })
-
-                local function UpdateVisuals(val, ignoreSave)
-                    Slider.Value = math.clamp(val, minVal, maxVal)
-                    local percentage = (Slider.Value - minVal) / (maxVal - minVal)
-                    
-                    TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
-                    TitleLabelElement.Text = sliderText .. ": " .. tostring(Slider.Value)
-                    
-                    Library.Flags[actualFlag] = Slider.Value
-                    if not ignoreSave then
-                        Library:SaveConfig(true)
-                    end
-                end
-
-                UpdateVisuals(Slider.Value, true)
-
-                if savedVal ~= nil and actualCallback then
-                    task.spawn(function() actualCallback(Slider.Value) end)
-                end
-
-                local sliding = false
-                local function Update(input)
-                    local percentage = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
-                    local rawVal = minVal + (percentage * (maxVal - minVal))
-                    local finalVal = math.floor(rawVal + 0.5)
-                    
-                    UpdateVisuals(finalVal)
-                    if actualCallback then task.spawn(function() actualCallback(finalVal) end) end
-                end
-
-                SliderBg.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        sliding = true
-                        Update(input)
-                    end
-                end)
-
-                UserInputService.InputChanged:Connect(function(input)
-                    if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                        Update(input)
-                    end
-                end)
-
-                UserInputService.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        sliding = false
-                    end
-                end)
-
-                local sliderController = {}
-                sliderController.DefaultValue = defaultVal or minVal
-                function sliderController:Set(val, ignoreSave, ignoreCallback)
-                    UpdateVisuals(val, ignoreSave)
-                    if actualCallback and not ignoreCallback then 
-                        task.spawn(function() actualCallback(Slider.Value) end) 
-                    end
-                end
-
-                Library.Elements[actualFlag] = sliderController
-                return sliderController
-            end
-
-            function Section:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
-                local actualFlag = flag
-                local actualCallback = callback
-                
-                if type(flag) == "function" then
-                    actualCallback = flag
-                    actualFlag = dropdownText:gsub("%s+", "")
-                elseif not flag then
-                    actualFlag = dropdownText:gsub("%s+", "")
-                end
-
-                local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
-                local Dropdown = {
-                    Open = false,
-                    CurrentValue = (savedVal ~= nil and savedVal) or defaultVal or options[1],
-                    OptionFrames = {}
-                }
-                Library.Flags[actualFlag] = Dropdown.CurrentValue
-                
-                local DropdownFrame = Instance.new("Frame", ContentContainer)
-                DropdownFrame.Size = UDim2.new(1, isDefault and -6 or 0, 0, 34)
-                DropdownFrame.ClipsDescendants = true
-                Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
-                RegisterThemeable(DropdownFrame, { 
-                    BackgroundColor3 = "ElementBg",
-                    BackgroundTransparency = "ElementTransparency"
-                })
-                
-                local FrameStroke = Instance.new("UIStroke", DropdownFrame)
-                FrameStroke.Thickness = 1
-                RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
-
-                local DropdownBtn = Instance.new("TextButton", DropdownFrame)
-                DropdownBtn.Size = UDim2.new(1, 0, 0, 34)
-                DropdownBtn.BackgroundTransparency = 1
-                DropdownBtn.Text = ""
-
-                local TextLabelDropdown = Instance.new("TextLabel", DropdownBtn)
-                TextLabelDropdown.Size = UDim2.new(1, -60, 1, 0)
-                TextLabelDropdown.Position = UDim2.new(0, 12, 0, 0)
-                TextLabelDropdown.BackgroundTransparency = 1
-                TextLabelDropdown.Text = dropdownText .. " (" .. tostring(Dropdown.CurrentValue) .. ")"
-                TextLabelDropdown.TextSize = 11
-                TextLabelDropdown.Font = Enum.Font.MontserratMedium
-                TextLabelDropdown.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterThemeable(TextLabelDropdown, { TextColor3 = "TextPrimary" })
-
-                local ArrowIconDropdown = Instance.new("ImageLabel", DropdownBtn)
-                ArrowIconDropdown.Size = UDim2.new(0, 10, 0, 10)
-                ArrowIconDropdown.Position = UDim2.new(1, -22, 0.5, -5)
-                ArrowIconDropdown.BackgroundTransparency = 1
-                ArrowIconDropdown.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
-                RegisterThemeable(ArrowIconDropdown, { ImageColor3 = "TextSecondary" })
-
-                local OptionContainer = Instance.new("Frame", DropdownFrame)
-                OptionContainer.Size = UDim2.new(1, -24, 0, 0)
-                OptionContainer.Position = UDim2.new(0, 12, 0, 36)
-                OptionContainer.BackgroundTransparency = 1
-
-                local OptionList = Instance.new("UIListLayout", OptionContainer)
-                OptionList.Padding = UDim.new(0, 4)
-
-                local function Refresh()
-                    for _, v in ipairs(Dropdown.OptionFrames) do v:Destroy() end
-                    Dropdown.OptionFrames = {}
-                    local t = Themes[CurrentThemeName]
-
-                    for _, opt in ipairs(options) do
-                        local OptBtn = Instance.new("TextButton", OptionContainer)
-                        OptBtn.Size = UDim2.new(1, 0, 0, 26)
-                        OptBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(26, 26, 31) or t.SidebarBg
-                        OptBtn.BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
-                        OptBtn.Text = ""
-                        OptBtn.AutoButtonColor = false
-                        Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
-
-                        local OptText = Instance.new("TextLabel", OptBtn)
-                        OptText.Size = UDim2.new(1, -20, 1, 0)
-                        OptText.Position = UDim2.new(0, 10, 0, 0)
-                        OptText.BackgroundTransparency = 1
-                        OptText.Text = tostring(opt)
-                        OptText.TextSize = 10
-                        OptText.TextXAlignment = Enum.TextXAlignment.Left
-
-                        if opt == Dropdown.CurrentValue then
-                            OptText.TextColor3 = t.IsRGB and Color3.new(1,1,1) or t.TextPrimary
-                            OptText.Font = Enum.Font.MontserratBold
-                            
-                            local Indicator = Instance.new("Frame", OptBtn)
-                            Indicator.Size = UDim2.new(0, 2.5, 1, -8)
-                            Indicator.Position = UDim2.new(0, 3, 0, 4)
-                            Instance.new("UICorner", Indicator)
-                            RegisterRGB(Indicator, "BackgroundColor3")
-                            RegisterThemeable(Indicator, { BackgroundColor3 = function(th) return th.IsRGB and Indicator.BackgroundColor3 or th.Accent end })
-                        else
-                            OptText.TextColor3 = t.TextDark
-                            OptText.Font = Enum.Font.Montserrat
-                        end
-
-                        OptBtn.MouseEnter:Connect(function()
-                            local th = Themes[CurrentThemeName]
-                            TweenService:Create(OptBtn, TweenInfo.new(0.1), {
-                                BackgroundColor3 = th.IsRGB and Color3.fromRGB(32, 32, 38) or th.ElementBg,
-                                BackgroundTransparency = th.IsRGB and 0 or th.ElementTransparency
-                            }):Play()
-                        end)
-                        OptBtn.MouseLeave:Connect(function()
-                            local th = Themes[CurrentThemeName]
-                            TweenService:Create(OptBtn, TweenInfo.new(0.1), {
-                                BackgroundColor3 = th.IsRGB and Color3.fromRGB(26, 26, 31) or th.SidebarBg,
-                                BackgroundTransparency = th.IsRGB and 0 or th.SidebarTransparency
-                            }):Play()
-                        end)
-
-                        OptBtn.MouseButton1Click:Connect(function()
-                            Dropdown.CurrentValue = opt
-                            TextLabelDropdown.Text = dropdownText .. " (" .. tostring(opt) .. ")"
-                            Dropdown.Open = false
-                            
-                            local th = Themes[CurrentThemeName]
-                            UnregisterRGB(FrameStroke, "Color")
-                            FrameStroke.Color = th.ElementStroke
-                            TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, isDefault and -6 or 0, 0, 34)}):Play()
-                            TweenService:Create(ArrowIconDropdown, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
-                            
-                            Refresh()
-                            
-                            Library.Flags[actualFlag] = opt
-                            if not actualFlag:find("^__Meta") then
-                                Library:SaveConfig(true)
-                            end
-                            
-                            if actualCallback then task.spawn(function() actualCallback(opt) end) end
-                        end)
-
-                        table.insert(Dropdown.OptionFrames, OptBtn)
-                    end
-                end
-
-                DropdownBtn.MouseButton1Click:Connect(function()
-                    Dropdown.Open = not Dropdown.Open
-                    local targetHeight = 34
-                    local rotation = 0
-                    local th = Themes[CurrentThemeName]
-                    
-                    if Dropdown.Open then
-                        Refresh()
-                        if th.IsRGB then
-                            RegisterRGB(FrameStroke, "Color")
-                        else
-                            UnregisterRGB(FrameStroke, "Color")
-                            FrameStroke.Color = th.Accent
-                        end
-                        OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
-                        targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
-                        rotation = 180
-                    else
+                    OptBtn.MouseButton1Click:Connect(function()
+                        Dropdown.CurrentValue = opt
+                        TextLabel.Text = dropdownText .. " (" .. tostring(opt) .. ")"
+                        Dropdown.Open = false
+                        
+                        local th = Themes[CurrentThemeName]
                         UnregisterRGB(FrameStroke, "Color")
                         FrameStroke.Color = th.ElementStroke
-                        OptionContainer.Size = UDim2.new(1, -24, 0, 0)
-                    end
-                    
-                    TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, isDefault and -6 or 0, 0, targetHeight)}):Play()
-                    TweenService:Create(ArrowIconDropdown, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
-                end)
-
-                if savedVal ~= nil and actualCallback then
-                    task.spawn(function() actualCallback(Dropdown.CurrentValue) end)
-                end
-
-                local dropdownController = {}
-                dropdownController.DefaultValue = defaultVal or options[1]
-                function dropdownController:Set(val, ignoreSave, ignoreCallback)
-                    Dropdown.CurrentValue = val
-                    TextLabelDropdown.Text = dropdownText .. " (" .. tostring(val) .. ")"
-                    
-                    Library.Flags[actualFlag] = val
-                    if not ignoreSave and not actualFlag:find("^__Meta") then
-                        Library:SaveConfig(true)
-                    end
-                    
-                    if actualCallback and not ignoreCallback then 
-                        task.spawn(function() actualCallback(val) end) 
-                    end
-                end
-
-                function dropdownController:Refresh(newOptions)
-                    options = newOptions
-                    if Dropdown.Open then
+                        TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, 34)}):Play()
+                        TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
+                        
                         Refresh()
-                        OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
-                        local targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
-                        TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, isDefault and -6 or 0, 0, targetHeight)}):Play()
-                    end
-                end
-                dropdownController.Update = dropdownController.Refresh
+                        
+                        Library.Flags[actualFlag] = opt
+                        if not actualFlag:find("^__Meta") then
+                            Library:SaveConfig(true)
+                        end
+                        
+                        if actualCallback then task.spawn(function() actualCallback(opt) end) end
+                    end)
 
-                Library.Elements[actualFlag] = dropdownController
-                return dropdownController
+                    table.insert(Dropdown.OptionFrames, OptBtn)
+                end
             end
 
-            function Section:CreateTextBox(labelText, placeholderText, flag, callback)
-                local actualFlag = flag
-                local actualCallback = callback
+            DropdownBtn.MouseButton1Click:Connect(function()
+                Dropdown.Open = not Dropdown.Open
+                local targetHeight = 34
+                local rotation = 0
+                local th = Themes[CurrentThemeName]
                 
-                if type(flag) == "function" then
-                    actualCallback = flag
-                    actualFlag = labelText:gsub("%s+", "")
-                elseif not flag then
-                    actualFlag = labelText:gsub("%s+", "")
+                if Dropdown.Open then
+                    Refresh()
+                    if th.IsRGB then
+                        RegisterRGB(FrameStroke, "Color")
+                    else
+                        UnregisterRGB(FrameStroke, "Color")
+                        FrameStroke.Color = th.Accent
+                    end
+                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
+                    targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
+                    rotation = 180
+                else
+                    UnregisterRGB(FrameStroke, "Color")
+                    FrameStroke.Color = th.ElementStroke
+                    OptionContainer.Size = UDim2.new(1, -24, 0, 0)
                 end
-
-                local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
-
-                local TextBoxFrame = Instance.new("Frame", ContentContainer)
-                TextBoxFrame.Size = UDim2.new(1, isDefault and -6 or 0, 0, 34)
-                Instance.new("UICorner", TextBoxFrame).CornerRadius = UDim.new(0, 5)
-                RegisterThemeable(TextBoxFrame, { 
-                    BackgroundColor3 = "ElementBg",
-                    BackgroundTransparency = "ElementTransparency"
-                })
                 
-                local FrameStroke = Instance.new("UIStroke", TextBoxFrame)
-                FrameStroke.Thickness = 1
-                RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
+                TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
+            end)
 
-                local Label = Instance.new("TextLabel", TextBoxFrame)
-                Label.Size = UDim2.new(0.45, -12, 1, 0)
-                Label.Position = UDim2.new(0, 12, 0, 0)
-                Label.BackgroundTransparency = 1
-                Label.Text = labelText or "Input Text"
-                Label.TextSize = 11
-                Label.Font = Enum.Font.MontserratMedium
-                Label.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterThemeable(Label, { TextColor3 = "TextPrimary" })
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(Dropdown.CurrentValue) end)
+            end
 
-                local InputBox = Instance.new("TextBox", TextBoxFrame)
-                InputBox.Size = UDim2.new(0.55, -12, 0, 22)
-                InputBox.Position = UDim2.new(0.45, 0, 0.5, -11)
-                InputBox.Text = savedVal and tostring(savedVal) or ""
-                InputBox.PlaceholderText = placeholderText or "Type here..."
-                InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
-                InputBox.TextSize = 10
-                InputBox.Font = Enum.Font.Montserrat
-                Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
-                RegisterThemeable(InputBox, { 
-                    BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(30, 30, 35) or t.SidebarBg end,
-                    BackgroundTransparency = function(t) return t.IsRGB and 0 or t.SidebarTransparency end,
-                    TextColor3 = "TextPrimary"
-                })
-
-                local InputStroke = Instance.new("UIStroke", InputBox)
-                InputStroke.Thickness = 1
-                RegisterThemeable(InputStroke, { Color = "ElementStroke" })
-
-                Library.Flags[actualFlag] = InputBox.Text
-
-                InputBox.Focused:Connect(function()
-                    local t = Themes[CurrentThemeName]
-                    TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.Accent}):Play()
-                    TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
-                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
-                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
-                    }):Play()
-                end)
-
-                InputBox.FocusLost:Connect(function(enterPressed)
-                    local t = Themes[CurrentThemeName]
-                    TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.ElementStroke}):Play()
-                    TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
-                        BackgroundColor3 = t.ElementBg,
-                        BackgroundTransparency = t.ElementTransparency
-                    }):Play()
-                    
-                    Library.Flags[actualFlag] = InputBox.Text
+            local dropdownController = {}
+            dropdownController.DefaultValue = defaultVal or options[1]
+            function dropdownController:Set(val, ignoreSave, ignoreCallback)
+                Dropdown.CurrentValue = val
+                TextLabel.Text = dropdownText .. " (" .. tostring(val) .. ")"
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave and not actualFlag:find("^__Meta") then
                     Library:SaveConfig(true)
-                    
-                    if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
-                end)
-
-                if savedVal ~= nil and actualCallback then
-                    task.spawn(function() actualCallback(InputBox.Text, false) end)
                 end
-
-                local textboxController = {}
-                textboxController.DefaultValue = ""
-                function textboxController:Set(val, ignoreSave, ignoreCallback)
-                    InputBox.Text = tostring(val)
-                    
-                    Library.Flags[actualFlag] = val
-                    if not ignoreSave then
-                        Library:SaveConfig(true)
-                    end
-                    
-                    if actualCallback and not ignoreCallback then 
-                        task.spawn(function() actualCallback(val, false) end) 
-                    end
-                end
-
-                Library.Elements[actualFlag] = textboxController
-                return textboxController
-            end
-
-            function Section:CreateParagraph(titleText, descText)
-                local ParagraphFrame = Instance.new("Frame", ContentContainer)
-                ParagraphFrame.Size = UDim2.new(1, isDefault and -6 or 0, 0, 52)
-                Instance.new("UICorner", ParagraphFrame).CornerRadius = UDim.new(0, 5)
-                RegisterThemeable(ParagraphFrame, { 
-                    BackgroundColor3 = "ElementBg",
-                    BackgroundTransparency = "ElementTransparency"
-                })
                 
-                local FrameStroke = Instance.new("UIStroke", ParagraphFrame)
-                FrameStroke.Thickness = 1
-                RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
-
-                local TitleLabelParagraph = Instance.new("TextLabel", ParagraphFrame)
-                TitleLabelParagraph.Size = UDim2.new(1, -20, 0, 18)
-                TitleLabelParagraph.Position = UDim2.new(0, 12, 0, 6)
-                TitleLabelParagraph.BackgroundTransparency = 1
-                TitleLabelParagraph.Text = titleText or "Section Title"
-                TitleLabelParagraph.Font = Enum.Font.MontserratBold
-                TitleLabelParagraph.TextSize = 11
-                TitleLabelParagraph.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterThemeable(TitleLabelParagraph, { TextColor3 = "TextPrimary" })
-
-                local DescLabel = Instance.new("TextLabel", ParagraphFrame)
-                DescLabel.Size = UDim2.new(1, -20, 1, -26)
-                DescLabel.Position = UDim2.new(0, 12, 0, 22)
-                DescLabel.BackgroundTransparency = 1
-                DescLabel.Text = descText or "Description text details."
-                DescLabel.Font = Enum.Font.Montserrat
-                DescLabel.TextSize = 9
-                DescLabel.TextWrapped = true
-                DescLabel.TextXAlignment = Enum.TextXAlignment.Left
-                RegisterThemeable(DescLabel, { TextColor3 = "TextSecondary" })
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(val) end) 
+                end
             end
 
-            return Section
+            function dropdownController:Refresh(newOptions)
+                options = newOptions
+                if Dropdown.Open then
+                    Refresh()
+                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
+                    local targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
+                    TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                end
+            end
+            dropdownController.Update = dropdownController.Refresh
+
+            Library.Elements[actualFlag] = dropdownController
+            return dropdownController
         end
 
         -- ========================================================
-        -- [[ DUKUNGAN LEGACY API (SINKRONISASI TAB KE SECTION) ]]
+        -- [[ 5e. TAB ELEMENT: CREATE TEXTBOX ]]
         -- ========================================================
-        function Tab:GetDefaultSection()
-            if not Tab.DefaultPage then
-                Tab.DefaultPage = Tab:CreatePage("Main")
-            end
-            if not Tab.DefaultPage.DefaultSection then
-                Tab.DefaultPage.DefaultSection = Window:_InternalCreateSection("", Tab.DefaultPage, true)
-            end
-            return Tab.DefaultPage.DefaultSection
-        end
-
-        function Tab:CreateButton(buttonText, callback)
-            return Tab:GetDefaultSection():CreateButton(buttonText, callback)
-        end
-
-        function Tab:CreateToggle(toggleText, defaultVal, flag, callback)
-            return Tab:GetDefaultSection():CreateToggle(toggleText, defaultVal, flag, callback)
-        end
-
-        function Tab:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
-            return Tab:GetDefaultSection():CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
-        end
-
-        function Tab:CreateDropdown(dropdownText, options, defaultVal, flag, callback)
-            return Tab:GetDefaultSection():CreateDropdown(dropdownText, options, defaultVal, flag, callback)
-        end
-
         function Tab:CreateTextBox(labelText, placeholderText, flag, callback)
-            return Tab:GetDefaultSection():CreateTextBox(labelText, placeholderText, flag, callback)
+            local actualFlag = flag
+            local actualCallback = callback
+            
+            if type(flag) == "function" then
+                actualCallback = flag
+                actualFlag = labelText:gsub("%s+", "")
+            elseif not flag then
+                actualFlag = labelText:gsub("%s+", "")
+            end
+
+            local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
+
+            local TextBoxFrame = Instance.new("Frame", TabContent)
+            TextBoxFrame.Size = UDim2.new(1, -6, 0, 34)
+            Instance.new("UICorner", TextBoxFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(TextBoxFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local FrameStroke = Instance.new("UIStroke", TextBoxFrame)
+            FrameStroke.Thickness = 1
+            RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
+
+            local Label = Instance.new("TextLabel", TextBoxFrame)
+            Label.Size = UDim2.new(0.45, -12, 1, 0)
+            Label.Position = UDim2.new(0, 12, 0, 0)
+            Label.BackgroundTransparency = 1
+            Label.Text = labelText or "Input Text"
+            Label.TextSize = 11
+            Label.Font = Enum.Font.MontserratMedium
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(Label, { TextColor3 = "TextPrimary" })
+
+            local InputBox = Instance.new("TextBox", TextBoxFrame)
+            InputBox.Size = UDim2.new(0.55, -12, 0, 22)
+            InputBox.Position = UDim2.new(0.45, 0, 0.5, -11)
+            InputBox.Text = savedVal and tostring(savedVal) or ""
+            InputBox.PlaceholderText = placeholderText or "Type here..."
+            InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+            InputBox.TextSize = 10
+            InputBox.Font = Enum.Font.Montserrat
+            Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 4)
+            RegisterThemeable(InputBox, { 
+                BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(30, 30, 35) or t.SidebarBg end,
+                BackgroundTransparency = function(t) return t.IsRGB and 0 or t.SidebarTransparency end,
+                TextColor3 = "TextPrimary"
+            })
+
+            local InputStroke = Instance.new("UIStroke", InputBox)
+            InputStroke.Thickness = 1
+            RegisterThemeable(InputStroke, { Color = "ElementStroke" })
+
+            Library.Flags[actualFlag] = InputBox.Text
+
+            InputBox.Focused:Connect(function()
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.Accent}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
+                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                }):Play()
+            end)
+
+            InputBox.FocusLost:Connect(function(enterPressed)
+                local t = Themes[CurrentThemeName]
+                TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.ElementStroke}):Play()
+                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
+                    BackgroundColor3 = t.ElementBg,
+                    BackgroundTransparency = t.ElementTransparency
+                }):Play()
+                
+                Library.Flags[actualFlag] = InputBox.Text
+                Library:SaveConfig(true)
+                
+                if actualCallback then task.spawn(function() actualCallback(InputBox.Text, enterPressed) end) end
+            end)
+
+            if savedVal ~= nil and actualCallback then
+                task.spawn(function() actualCallback(InputBox.Text, false) end)
+            end
+
+            local textboxController = {}
+            textboxController.DefaultValue = ""
+            function textboxController:Set(val, ignoreSave, ignoreCallback)
+                InputBox.Text = tostring(val)
+                
+                Library.Flags[actualFlag] = val
+                if not ignoreSave then
+                    Library:SaveConfig(true)
+                end
+                
+                if actualCallback and not ignoreCallback then 
+                    task.spawn(function() actualCallback(val, false) end) 
+                end
+            end
+
+            Library.Elements[actualFlag] = textboxController
+            return textboxController
         end
 
+        -- ========================================================
+        -- [[ 5f. TAB ELEMENT: CREATE PARAGRAPH ]]
+        -- ========================================================
         function Tab:CreateParagraph(titleText, descText)
-            return Tab:GetDefaultSection():CreateParagraph(titleText, descText)
+            local ParagraphFrame = Instance.new("Frame", TabContent)
+            ParagraphFrame.Size = UDim2.new(1, -6, 0, 52)
+            Instance.new("UICorner", ParagraphFrame).CornerRadius = UDim.new(0, 5)
+            RegisterThemeable(ParagraphFrame, { 
+                BackgroundColor3 = "ElementBg",
+                BackgroundTransparency = "ElementTransparency"
+            })
+            
+            local FrameStroke = Instance.new("UIStroke", ParagraphFrame)
+            FrameStroke.Thickness = 1
+            RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
+
+            local TitleLabel = Instance.new("TextLabel", ParagraphFrame)
+            TitleLabel.Size = UDim2.new(1, -20, 0, 18)
+            TitleLabel.Position = UDim2.new(0, 12, 0, 6)
+            TitleLabel.BackgroundTransparency = 1
+            TitleLabel.Text = titleText or "Section Title"
+            TitleLabel.Font = Enum.Font.MontserratBold
+            TitleLabel.TextSize = 11
+            TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
+
+            local DescLabel = Instance.new("TextLabel", ParagraphFrame)
+            DescLabel.Size = UDim2.new(1, -20, 1, -26)
+            DescLabel.Position = UDim2.new(0, 12, 0, 22)
+            DescLabel.BackgroundTransparency = 1
+            DescLabel.Text = descText or "Description text details."
+            DescLabel.Font = Enum.Font.Montserrat
+            DescLabel.TextSize = 9
+            DescLabel.TextWrapped = true
+            DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+            RegisterThemeable(DescLabel, { TextColor3 = "TextSecondary" })
         end
 
         return Tab
     end
 
     -- ========================================================
-    -- [[ 5g. PERMANENT CONFIG MANAGER TAB ]]
+    -- [[ 5g. PERMANENT CONFIG MANAGER TAB (INTEGRASI FILE MANAGER) ]]
     -- ========================================================
     local ConfigTab = Window:CreateTab("Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150")
     
@@ -2447,7 +2007,7 @@ function Library:CreateWindow(titleText, subtitleText)
         Library:LoadConfig(true)
     end)
 
-    -- Menghapus profil terpilih secara permanen dari folder emulator (ZArchiver)
+    -- Tombol Baru: Menghapus profil terpilih secara permanen dari folder emulator (ZArchiver)
     ConfigTab:CreateButton("Delete Selected Profile", function()
         local fileName = FolderName .. "/Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
         if isfile and isfile(fileName) then
