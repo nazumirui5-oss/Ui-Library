@@ -17,7 +17,7 @@ Library.ThemeCallbacks = {}
 Library.ExternalButtons = {}
 Library.SearchRegistry = {}
 
--- Connection Tracker / Janitor for memory leak prevention
+-- Connection Tracker / Janitor for complete memory leak prevention
 local Janitor = { Connections = {} }
 
 function Janitor:Add(connection)
@@ -457,7 +457,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local config = customConfig or {}
     Library.Settings = {
-        Mode = config.Mode or "Mobile", -- Defaulted to Mobile Layout
+        Mode = config.Mode or "Mobile", -- Defaulted to Mobile layout
         Scale = config.Scale or 1.0,
         Font = config.Font or Enum.Font.GothamMedium,
         BoldFont = config.BoldFont or Enum.Font.GothamBold,
@@ -528,7 +528,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(HudText, true)
     RegisterText(HudText, 10)
 
-    -- Sidebar
+    -- Sidebar Area
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 170, 1, 0)
     Sidebar.BorderSizePixel = 0
@@ -545,7 +545,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     SidebarMask.BackgroundTransparency = 0.4
     RegisterTheme(SidebarMask, { BackgroundColor3 = "SidebarBg" })
 
-    -- Content Area
+    -- Content Background
     local ContentBg = Instance.new("Frame", MainFrame)
     ContentBg.Size = UDim2.new(1, -170, 1, 0)
     ContentBg.Position = UDim2.new(0, 170, 0, 0)
@@ -587,7 +587,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(ScriptNameLabel, false)
     RegisterText(ScriptNameLabel, 9)
 
-    -- Shortened Tab Search Box (Next to Sidebar Status HUD)
+    -- Shortened Tab Search Box
     local TabSearchBox = Instance.new("TextBox", Sidebar)
     TabSearchBox.Size = UDim2.new(0, 100, 0, 24)
     TabSearchBox.Position = UDim2.new(0, 10, 0, 50)
@@ -651,21 +651,25 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TabScroll.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y)
     end))
 
-    -- Dynamic Sidebar Scrolling Easing Animation
+    -- Dynamic Sidebar Scrolling Proximity Easing Animation
     local function UpdateScrollAnimations()
+        if not TabScroll.Visible or TabScroll.AbsoluteWindowSize.Y == 0 then return end
         local viewTop = TabScroll.CanvasPosition.Y
         local viewBottom = viewTop + TabScroll.AbsoluteWindowSize.Y
         local viewCenter = (viewTop + viewBottom) / 2
         
         for _, child in ipairs(TabScroll:GetChildren()) do
-            if child:IsA("TextButton") or child:IsA("Frame") then
+            if child:IsA("TextButton") or (child:IsA("Frame") and child.Name ~= "TabBtn") then
                 local itemY = child.AbsolutePosition.Y - TabScroll.AbsolutePosition.Y + TabScroll.CanvasPosition.Y
                 local itemCenter = itemY + (child.AbsoluteSize.Y / 2)
                 local distanceFromCenter = math.abs(viewCenter - itemCenter)
                 local maxDistance = TabScroll.AbsoluteWindowSize.Y / 2
                 
                 local factor = math.clamp(1 - (distanceFromCenter / maxDistance), 0.15, 1)
-                local scaleObj = child:FindFirstChildOfClass("UIScale") or Instance.new("UIScale", child)
+                local scaleObj = child:FindFirstChildOfClass("UIScale")
+                if not scaleObj then
+                    scaleObj = Instance.new("UIScale", child)
+                end
                 
                 TweenService:Create(scaleObj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     Scale = 0.85 + (0.15 * factor)
@@ -705,7 +709,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end))
 
-    -- User Card Area
+    -- User Profile Frame
     local UserCard = Instance.new("Frame", Sidebar)
     UserCard.Size = UDim2.new(1, -20, 0, 50)
     UserCard.Position = UDim2.new(0, 10, 1, -60)
@@ -738,7 +742,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(SubtextLabel, true)
     RegisterText(SubtextLabel, 9)
 
-    -- Content Frame Workspace
+    -- Content View Workspace
     local ContentArea = Instance.new("Frame", MainFrame)
     ContentArea.Size = UDim2.new(1, -170, 1, 0)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
@@ -824,7 +828,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local TargetSize = UDim2.new(0, 640, 0, 460)
     local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
 
-    -- Mobile Overlap/Clutter Preventative responsive layout switching
+    -- Prevents overlapping/clutter on compact Mobile layout modes
     local function ApplyUiSettings(mode, scale)
         Library.Settings.Mode = mode
         Library.Settings.Scale = scale
@@ -879,6 +883,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local function ToggleGui()
         Window.Visible = not Window.Visible
+        MainFrame.ClipsDescendants = true -- Enable clipping safely during animations
         
         if Library.Settings.Mode == "PC" then
             TargetSize = UDim2.new(0, 640, 0, 460)
@@ -893,7 +898,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             MainFrame.Size = UDim2.new(0, 0, 0, 0)
             MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
             
-            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = TargetSize, Position = TargetPosition}):Play()
+            local tween = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = TargetSize, Position = TargetPosition})
+            tween:Play()
+            tween.Completed:Connect(function()
+                if Window.Visible then
+                    MainFrame.ClipsDescendants = false -- Disable clipping when open so dropdown lists render properly outside boundaries
+                end
+            end)
             TweenService:Create(FloatingToggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
         else
             local shrink = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
@@ -937,7 +948,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- ========================================================
     local FeatureSearchFrame = Instance.new("Frame", MainFrame)
     FeatureSearchFrame.Name = "Louis_Feature_Search"
-    FeatureSearchFrame.Size = UDim2.new(0, 0, 1, 0) -- Starts closed natively
+    FeatureSearchFrame.Size = UDim2.new(0, 0, 1, 0) -- Starts collapsed
     FeatureSearchFrame.Position = UDim2.new(1, 10, 0, 0)
     FeatureSearchFrame.ClipsDescendants = true
     RegisterTheme(FeatureSearchFrame, { BackgroundColor3 = "SidebarBg" })
@@ -971,16 +982,16 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         }):Play()
     end
 
-    -- Header Search Trigger Icon
+    -- Header Search Trigger Button
     local SearchToggleBtn = Instance.new("ImageButton", LogoArea)
     SearchToggleBtn.Size = UDim2.new(0, 18, 0, 18)
-    SearchToggleBtn.Position = UDim2.new(1, -52, 0.5, -8) -- repositioned cleanly
+    SearchToggleBtn.Position = UDim2.new(1, -52, 0.5, -8)
     SearchToggleBtn.BackgroundTransparency = 1
-    SearchToggleBtn.Image = GetIcon("info") -- Custom Search indicator fallback
+    SearchToggleBtn.Image = GetIcon("settings")
     RegisterTheme(SearchToggleBtn, { ImageColor3 = "TextSecondary" })
     Janitor:Add(SearchToggleBtn.MouseButton1Click:Connect(ToggleSearchFrame))
 
-    -- Inner close button inside search panel
+    -- Search options panel inner close button
     local SearchCloseBtn = Instance.new("ImageButton", FeatureSearchFrame)
     SearchCloseBtn.Size = UDim2.new(0, 16, 0, 16)
     SearchCloseBtn.Position = UDim2.new(1, -30, 0, 17)
@@ -1141,6 +1152,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
                 LeftColumn.Position = UDim2.new(0, 0, 0, 0)
                 
+                RightColumn.Visible = true
                 RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
                 RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
                 
@@ -1148,16 +1160,15 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
                 ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
             else
-                -- Stacked vertical responsive non-overlapping mobile mode
+                -- Stacked vertical columns on mobile layout to completely prevent overlaps
                 ColumnLayout.Enabled = true
                 
                 LeftColumn.Size = UDim2.new(1, 0, 0, leftHeight)
                 LeftColumn.AutomaticSize = Enum.AutomaticSize.None
                 
-                RightColumn.Size = UDim2.new(1, 0, 0, rightHeight)
-                RightColumn.AutomaticSize = Enum.AutomaticSize.None
+                RightColumn.Visible = false -- Hidden on Mobile layout to prevent dual-column crowding
                 
-                local targetHeight = leftHeight + rightHeight + 50
+                local targetHeight = leftHeight + 50
                 TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
                 ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
             end
@@ -2373,7 +2384,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                         TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight + 50)
                         PageContainer.Size = UDim2.new(1, 0, 0, targetHeight)
                     else
-                        -- Stacked vertical responsive page columns on Mobile Layout
+                        -- Stacked vertical responsive page columns on Mobile layout
                         PageLayout.Enabled = true
                         LeftCol.Size = UDim2.new(1, 0, 0, leftHeight)
                         RightCol.Size = UDim2.new(1, 0, 0, rightHeight)
@@ -2720,7 +2731,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return list
         end
 
-        -- Core preferences and built-in controls only
+        -- Strictly creates the two requested categories and tabs (Setting and Configs)
         Window:CreateCategory("UI Settings")
         
         local BuiltInTab = Window:CreateTab("Setting", "gear")
@@ -2824,8 +2835,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ScreenGui:Destroy()
         end)
 
-        -- Config Manager Workspace
-        local ConfigManagerTab = Window:CreateTab("Configs", "folder")
+        -- CONFIG tab (Configs File Manager Workspace)
+        local ConfigManagerTab = Window:CreateTab("CONFIG", "folder")
         
         local SaveSec = ConfigManagerTab:CreateSection("Save Configuration")
         SaveSec:CreateTextBox("Config Name", "Enter name...", "Sys_Save_Name")
@@ -3008,26 +3019,5 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     return Window
 end
-
--- ========================================================
--- [[ LOADER TESTS FOR NATIVE EXTERNAL BUTTON CONTROLLERS ]]
--- ========================================================
-task.spawn(function()
-    task.wait(1.5)
-    
-    -- Test Button 1: Toggle Type
-    local extBtn1 = Library:CreateExternalButton("External Toggle (Test)", "Toggle", "Round", "Flag_ExternalToggle", function(state)
-        print("External toggle test state:", state)
-    end)
-    -- Align cleanly on screen
-    extBtn1:SetSize(UDim2.new(0, 160, 0, 30))
-    
-    -- Test Button 2: Clicker Type
-    local extBtn2 = Library:CreateExternalButton("External Click (Test)", "Click", "Circle", "Flag_ExternalClick", function()
-        print("External clicker button test clicked")
-    end)
-    -- Offset slightly lower than Button 1 on startup
-    extBtn2:SetSize(UDim2.new(0, 160, 0, 30))
-end)
 
 return Library
