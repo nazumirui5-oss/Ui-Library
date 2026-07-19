@@ -1,20 +1,57 @@
--- [[ Louis Hub Loader ]]
--- Define the UI library source URL (Replace this with your uploaded raw GitHub link)
-local LibrarySourceURL = "https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/tester.lua"
+-- Loader Script (Execute this in your Executor)
+-- Sourcing the updated UI Library from your raw GitHub link
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
 
--- Load the UI Library from the link
-local Library = loadstring(game:HttpGet(LibrarySourceURL))()
+-- ========================================================
+-- [[ USER MEMBERSHIP CONFIGURATION (EASY TRUE/FALSE) ]]
+-- ========================================================
+-- Change to 'true' for Premium/VIP loaders (instant unlock)
+-- Change to 'false' for Free loaders (locked overlay is enabled)
+local IS_PREMIUM_USER = false 
 
--- Initialize the main window in Mobile mode (Default)
-local Window = Library:CreateWindow("Louis Hub", "Script Name", {
-    Mode = "Mobile", -- Defaulting layout mode to Mobile
-    Scale = 1.0
+-- Initialize Main Window (Set to "Mobile" mode by default)
+local Win = Library:CreateWindow("LouisHub", "V2.6", {
+    Mode = "Mobile",                   -- Default layout mode set to Mobile layout as requested
+    Scale = 1.0,                       -- Sizing Scale multiplier
+    TextSizeMultiplier = 1.0,          -- Text Size multiplier
+    Font = Enum.Font.GothamMedium,     -- Sourced text font
+    BoldFont = Enum.Font.GothamBold    -- Sourced bold text font
 })
+
+-- ========================================================
+-- [[ CUSTOM CATEGORY & TAB INITIALIZATION ]]
+-- ========================================================
+
+-- 1. Free/General Category
+Win:CreateCategory("General")
+
+-- Creating a free tab (isPremiumLocked = false)
+local MainTab = Win:CreateTab("Main", "user", false)
+local MainSection = MainTab:CreateSection("Combat")
+
+-- Add your free features below this line:
+-- e.g., MainSection:CreateToggle("Aim Lock", false, "Aim_Key", {}, function(state) end)
+
+
+-- 2. Premium Category
+Win:CreateCategory("Premium Member")
+
+-- Creating a premium tab (isPremiumLocked = not IS_PREMIUM_USER)
+-- * If IS_PREMIUM_USER is true -> 'not' turns it false (Tab is created unlocked)
+-- * If IS_PREMIUM_USER is false -> 'not' turns it true (Tab is created locked with a 65% transparency shield overlay)
+-- * The premium tab button in the sidebar will display a dynamic Lucide "crown" icon, while the overlay uses a "shield" icon.
+local PremiumTab = Win:CreateTab("Premium Features", "crown", not IS_PREMIUM_USER) 
+
+local PremiumSection = PremiumTab:CreateSection("Combat Premium")
+
+-- Add your premium features below this line:
+-- e.g., PremiumSection:CreateToggle("Silent Aim", false, "Silent_Key", {}, function(state) end)
+
 
 -- ========================================================
 -- [[ TEST EXTERNAL BUTTONS ]]
 -- ========================================================
--- These are the two types of external buttons created directly inside the loader for testing.
+-- Two types of external buttons created directly inside the loader for testing.
 
 -- 1. Toggle Type External Button
 local testToggleBtn = Library:CreateExternalButton(
