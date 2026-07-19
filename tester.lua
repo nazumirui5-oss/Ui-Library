@@ -270,7 +270,6 @@ function Library:CreateExternalButton(text, buttonType, shape, flag, callback)
     ExtBtnFrame.AutomaticSize = Enum.AutomaticSize.X
     ExtBtnFrame.Size = UDim2.new(0, 0, 0, 30)
     
-    -- Check for saved custom positioning
     local savedPos = Library.Flags["ExtPos_" .. flag]
     if savedPos and typeof(savedPos) == "table" then
         ExtBtnFrame.Position = UDim2.new(savedPos[1], savedPos[2], savedPos[3], savedPos[4])
@@ -342,7 +341,6 @@ function Library:CreateExternalButton(text, buttonType, shape, flag, callback)
     
     Library.ExternalButtons[flag] = ExtBtnFrame
     
-    -- Controller object with newly supported native methods
     local controller = {}
     
     function controller:SetVisible(visibleState)
@@ -459,7 +457,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     local config = customConfig or {}
     Library.Settings = {
-        Mode = config.Mode or "PC",
+        Mode = config.Mode or "Mobile", -- Defaulted to Mobile Layout
         Scale = config.Scale or 1.0,
         Font = config.Font or Enum.Font.GothamMedium,
         BoldFont = config.BoldFont or Enum.Font.GothamBold,
@@ -589,9 +587,9 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(ScriptNameLabel, false)
     RegisterText(ScriptNameLabel, 9)
 
-    -- Tab Search Box (filters through Categories and Tab buttons)
+    -- Shortened Tab Search Box (Next to Sidebar Status HUD)
     local TabSearchBox = Instance.new("TextBox", Sidebar)
-    TabSearchBox.Size = UDim2.new(1, -20, 0, 24)
+    TabSearchBox.Size = UDim2.new(0, 100, 0, 24)
     TabSearchBox.Position = UDim2.new(0, 10, 0, 50)
     TabSearchBox.PlaceholderText = "Search tabs..."
     TabSearchBox.Text = ""
@@ -603,7 +601,41 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(TabSearchBox, false)
     RegisterText(TabSearchBox, 9)
 
-    -- Sidebar Scroll
+    -- Sidebar Decorative Status HUD design
+    local SidebarHudFrame = Instance.new("Frame", Sidebar)
+    SidebarHudFrame.Size = UDim2.new(0, 45, 0, 24)
+    SidebarHudFrame.Position = UDim2.new(0, 115, 0, 50)
+    RegisterTheme(SidebarHudFrame, { BackgroundColor3 = "ElementBg" })
+    Instance.new("UICorner", SidebarHudFrame).CornerRadius = UDim.new(0, 4)
+    local hudStroke = Instance.new("UIStroke", SidebarHudFrame)
+    hudStroke.Thickness = 1
+    RegisterTheme(hudStroke, { Color = "StrokeColor" })
+
+    local StatusDot = Instance.new("Frame", SidebarHudFrame)
+    StatusDot.Size = UDim2.new(0, 6, 0, 6)
+    StatusDot.Position = UDim2.new(0, 8, 0.5, -3)
+    StatusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 120)
+    Instance.new("UICorner", StatusDot).CornerRadius = UDim.new(1, 0)
+
+    task.spawn(function()
+        while task.wait(1.5) do
+            local pulse = TweenService:Create(StatusDot, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0.5 })
+            pulse:Play()
+            pulse.Completed:Wait()
+            TweenService:Create(StatusDot, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 0 }):Play()
+        end
+    end)
+
+    local HudTextLabel = Instance.new("TextLabel", SidebarHudFrame)
+    HudTextLabel.Size = UDim2.new(1, -18, 1, 0)
+    HudTextLabel.Position = UDim2.new(0, 16, 0, 0)
+    HudTextLabel.BackgroundTransparency = 1
+    HudTextLabel.Text = "SYS"
+    RegisterTheme(HudTextLabel, { TextColor3 = "TextSecondary" })
+    RegisterFont(HudTextLabel, true)
+    RegisterText(HudTextLabel, 8)
+
+    -- Sidebar Scroll View
     local TabScroll = Instance.new("ScrollingFrame", Sidebar)
     TabScroll.Size = UDim2.new(1, -10, 1, -145)
     TabScroll.Position = UDim2.new(0, 5, 0, 80)
@@ -618,6 +650,44 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     Janitor:Add(TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         TabScroll.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y)
     end))
+
+    -- Dynamic Sidebar Scrolling Easing Animation
+    local function UpdateScrollAnimations()
+        local viewTop = TabScroll.CanvasPosition.Y
+        local viewBottom = viewTop + TabScroll.AbsoluteWindowSize.Y
+        local viewCenter = (viewTop + viewBottom) / 2
+        
+        for _, child in ipairs(TabScroll:GetChildren()) do
+            if child:IsA("TextButton") or child:IsA("Frame") then
+                local itemY = child.AbsolutePosition.Y - TabScroll.AbsolutePosition.Y + TabScroll.CanvasPosition.Y
+                local itemCenter = itemY + (child.AbsoluteSize.Y / 2)
+                local distanceFromCenter = math.abs(viewCenter - itemCenter)
+                local maxDistance = TabScroll.AbsoluteWindowSize.Y / 2
+                
+                local factor = math.clamp(1 - (distanceFromCenter / maxDistance), 0.15, 1)
+                local scaleObj = child:FindFirstChildOfClass("UIScale") or Instance.new("UIScale", child)
+                
+                TweenService:Create(scaleObj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Scale = 0.85 + (0.15 * factor)
+                }):Play()
+                
+                local label = child:FindFirstChildOfClass("TextLabel")
+                local icon = child:FindFirstChildOfClass("ImageLabel")
+                
+                if label then
+                    TweenService:Create(label, TweenInfo.new(0.2), {
+                        TextTransparency = math.clamp(1 - factor, 0, 0.6)
+                    }):Play()
+                end
+                if icon then
+                    TweenService:Create(icon, TweenInfo.new(0.2), {
+                        ImageTransparency = math.clamp(1 - factor, 0, 0.6)
+                    }):Play()
+                end
+            end
+        end
+    end
+    Janitor:Add(TabScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(UpdateScrollAnimations))
 
     Janitor:Add(TabSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
         local query = string.lower(TabSearchBox.Text)
@@ -703,11 +773,13 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TitleLabel.Visible = false
             ScriptNameLabel.Visible = false
             TabSearchBox.Visible = false
+            SidebarHudFrame.Visible = false
             CollapseBtn.Image = GetIcon("chevrons-right")
         else
             TitleLabel.Visible = true
             ScriptNameLabel.Visible = true
             TabSearchBox.Visible = true
+            SidebarHudFrame.Visible = true
             CollapseBtn.Image = GetIcon("chevrons-left")
         end
         
@@ -752,6 +824,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local TargetSize = UDim2.new(0, 640, 0, 460)
     local TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
 
+    -- Mobile Overlap/Clutter Preventative responsive layout switching
     local function ApplyUiSettings(mode, scale)
         Library.Settings.Mode = mode
         Library.Settings.Scale = scale
@@ -761,8 +834,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TargetSize = UDim2.new(0, 640, 0, 460)
             TargetPosition = UDim2.new(0.5, -320, 0.5, -230)
         elseif mode == "Mobile" then
-            TargetSize = UDim2.new(0, 520, 0, 350)
-            TargetPosition = UDim2.new(0.5, -260, 0.5, -175)
+            TargetSize = UDim2.new(0, 500, 0, 340)
+            TargetPosition = UDim2.new(0.5, -250, 0.5, -170)
         end
 
         if Window.Visible then
@@ -864,7 +937,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     -- ========================================================
     local FeatureSearchFrame = Instance.new("Frame", MainFrame)
     FeatureSearchFrame.Name = "Louis_Feature_Search"
-    FeatureSearchFrame.Size = UDim2.new(0, 200, 1, 0)
+    FeatureSearchFrame.Size = UDim2.new(0, 0, 1, 0) -- Starts closed natively
     FeatureSearchFrame.Position = UDim2.new(1, 10, 0, 0)
     FeatureSearchFrame.ClipsDescendants = true
     RegisterTheme(FeatureSearchFrame, { BackgroundColor3 = "SidebarBg" })
@@ -877,7 +950,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterTheme(SearchStroke, { Color = "StrokeColor" })
 
     local SearchInput = Instance.new("TextBox", FeatureSearchFrame)
-    SearchInput.Size = UDim2.new(1, -20, 0, 30)
+    SearchInput.Size = UDim2.new(1, -50, 0, 30)
     SearchInput.Position = UDim2.new(0, 10, 0, 10)
     SearchInput.PlaceholderText = "Search options..."
     SearchInput.Text = ""
@@ -888,6 +961,33 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     local inputStroke = Instance.new("UIStroke", SearchInput)
     inputStroke.Thickness = 1
     RegisterTheme(inputStroke, { Color = "StrokeColor" })
+
+    local searchOpen = false
+    local function ToggleSearchFrame()
+        searchOpen = not searchOpen
+        local targetWidth = searchOpen and 200 or 0
+        TweenService:Create(FeatureSearchFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, targetWidth, 1, 0)
+        }):Play()
+    end
+
+    -- Header Search Trigger Icon
+    local SearchToggleBtn = Instance.new("ImageButton", LogoArea)
+    SearchToggleBtn.Size = UDim2.new(0, 18, 0, 18)
+    SearchToggleBtn.Position = UDim2.new(1, -52, 0.5, -8) -- repositioned cleanly
+    SearchToggleBtn.BackgroundTransparency = 1
+    SearchToggleBtn.Image = GetIcon("info") -- Custom Search indicator fallback
+    RegisterTheme(SearchToggleBtn, { ImageColor3 = "TextSecondary" })
+    Janitor:Add(SearchToggleBtn.MouseButton1Click:Connect(ToggleSearchFrame))
+
+    -- Inner close button inside search panel
+    local SearchCloseBtn = Instance.new("ImageButton", FeatureSearchFrame)
+    SearchCloseBtn.Size = UDim2.new(0, 16, 0, 16)
+    SearchCloseBtn.Position = UDim2.new(1, -30, 0, 17)
+    SearchCloseBtn.BackgroundTransparency = 1
+    SearchCloseBtn.Image = GetIcon("shield")
+    RegisterTheme(SearchCloseBtn, { ImageColor3 = "TextSecondary" })
+    Janitor:Add(SearchCloseBtn.MouseButton1Click:Connect(ToggleSearchFrame))
 
     local ResultsScroll = Instance.new("ScrollingFrame", FeatureSearchFrame)
     ResultsScroll.Size = UDim2.new(1, -10, 1, -55)
@@ -1014,8 +1114,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         ColumnContainer.BackgroundTransparency = 1
 
         local LeftColumn = Instance.new("Frame", ColumnContainer)
-        LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
-        LeftColumn.Position = UDim2.new(0, 0, 0, 0)
         LeftColumn.BackgroundTransparency = 1
 
         local LeftList = Instance.new("UIListLayout", LeftColumn)
@@ -1023,20 +1121,46 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         LeftList.SortOrder = Enum.SortOrder.LayoutOrder
 
         local RightColumn = Instance.new("Frame", ColumnContainer)
-        RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
-        RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
         RightColumn.BackgroundTransparency = 1
 
         local RightList = Instance.new("UIListLayout", RightColumn)
         RightList.Padding = UDim.new(0, 12)
         RightList.SortOrder = Enum.SortOrder.LayoutOrder
 
+        local ColumnLayout = Instance.new("UIListLayout", ColumnContainer)
+        ColumnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        ColumnLayout.Padding = UDim.new(0, 12)
+
         local function ResizeCanvas()
             local leftHeight = LeftList.AbsoluteContentSize.Y
             local rightHeight = RightList.AbsoluteContentSize.Y
-            local targetHeight = math.max(leftHeight, rightHeight) + 30
-            TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
-            ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
+            
+            if Library.Settings.Mode == "PC" then
+                ColumnLayout.Enabled = false
+                
+                LeftColumn.Size = UDim2.new(0.5, -6, 1, 0)
+                LeftColumn.Position = UDim2.new(0, 0, 0, 0)
+                
+                RightColumn.Size = UDim2.new(0.5, -6, 1, 0)
+                RightColumn.Position = UDim2.new(0.5, 6, 0, 0)
+                
+                local targetHeight = math.max(leftHeight, rightHeight) + 30
+                TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
+                ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
+            else
+                -- Stacked vertical responsive non-overlapping mobile mode
+                ColumnLayout.Enabled = true
+                
+                LeftColumn.Size = UDim2.new(1, 0, 0, leftHeight)
+                LeftColumn.AutomaticSize = Enum.AutomaticSize.None
+                
+                RightColumn.Size = UDim2.new(1, 0, 0, rightHeight)
+                RightColumn.AutomaticSize = Enum.AutomaticSize.None
+                
+                local targetHeight = leftHeight + rightHeight + 50
+                TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight)
+                ColumnContainer.Size = UDim2.new(1, -20, 0, targetHeight)
+            end
         end
         Tab.ResizeCanvas = ResizeCanvas
 
@@ -1107,6 +1231,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             TweenService:Create(TabBtnAccent, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
             TweenService:Create(TabIcon, TweenInfo.new(0.2), {ImageColor3 = CurrentTheme.Accent}):Play()
             TweenService:Create(TabLabel, TweenInfo.new(0.2), {TextColor3 = CurrentTheme.TextPrimary}):Play()
+            ResizeCanvas()
         end
         Tab.SelectTab = SelectTab
 
@@ -1597,7 +1722,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             Arrow.Image = GetIcon("chevron-down")
             RegisterTheme(Arrow, { ImageColor3 = "TextSecondary" })
 
-            -- Parented inside MainFrame to avoid screen-scaling and alignment offset bugs
+            -- Parented relative inside MainFrame for perfect drag preservation and scaling
             local ListFrame = Instance.new("Frame", MainFrame)
             ListFrame.Size = UDim2.new(0, 100, 0, 0)
             ListFrame.Visible = false
@@ -1731,7 +1856,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             Arrow.Image = GetIcon("chevron-down")
             RegisterTheme(Arrow, { ImageColor3 = "TextSecondary" })
 
-            -- Parented inside MainFrame to avoid screen-scaling and alignment offset bugs
             local ListFrame = Instance.new("Frame", MainFrame)
             ListFrame.Size = UDim2.new(0, 100, 0, 0)
             ListFrame.Visible = false
@@ -1982,9 +2106,15 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
 
         function Tab._CreateTextBoxHelper(ContentFrame, labelText, placeholderText, flag, callback)
+            -- Multi-line fully wrapping auto-expanding TextBox structure
             local TextBoxElem = Instance.new("Frame", ContentFrame)
-            TextBoxElem.Size = UDim2.new(1, 0, 0, 44)
+            TextBoxElem.Size = UDim2.new(1, 0, 0, 0)
+            TextBoxElem.AutomaticSize = Enum.AutomaticSize.Y
             TextBoxElem.BackgroundTransparency = 1
+
+            local tbLayout = Instance.new("UIListLayout", TextBoxElem)
+            tbLayout.Padding = UDim.new(0, 4)
+            tbLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
             local Label = Instance.new("TextLabel", TextBoxElem)
             Label.Size = UDim2.new(1, 0, 0, 16)
@@ -1997,12 +2127,11 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
             local InputBox = Instance.new("TextBox", TextBoxElem)
             InputBox.Size = UDim2.new(1, 0, 0, 24)
-            InputBox.Position = UDim2.new(0, 0, 1, -24)
+            InputBox.AutomaticSize = Enum.AutomaticSize.Y
             InputBox.PlaceholderText = placeholderText or "Type here..."
             InputBox.Text = ""
             InputBox.ClearTextOnFocus = false
-            InputBox.TextWrapped = false
-            InputBox.TextTruncate = Enum.TextTruncate.None
+            InputBox.TextWrapped = true
             InputBox.ClipsDescendants = true
             
             RegisterTheme(InputBox, { BackgroundColor3 = "ElementBg", TextColor3 = "TextPrimary" })
@@ -2036,7 +2165,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             local Section = { Collapsed = false }
             
             local targetColumn = LeftColumn
-            if LeftList.AbsoluteContentSize.Y > RightList.AbsoluteContentSize.Y then
+            if LeftList.AbsoluteContentSize.Y > RightList.AbsoluteContentSize.Y and Library.Settings.Mode == "PC" then
                 targetColumn = RightColumn
             end
 
@@ -2213,27 +2342,46 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             PageContainer.Visible = false
             
             local LeftCol = Instance.new("Frame", PageContainer)
-            LeftCol.Size = UDim2.new(0.5, -6, 1, 0)
             LeftCol.BackgroundTransparency = 1
             local LeftList = Instance.new("UIListLayout", LeftCol)
             LeftList.Padding = UDim.new(0, 12)
             LeftList.SortOrder = Enum.SortOrder.LayoutOrder
 
             local RightCol = Instance.new("Frame", PageContainer)
-            RightCol.Size = UDim2.new(0.5, -6, 1, 0)
-            RightCol.Position = UDim2.new(0.5, 6, 0, 0)
             RightCol.BackgroundTransparency = 1
             local RightList = Instance.new("UIListLayout", RightCol)
             RightList.Padding = UDim.new(0, 12)
             RightList.SortOrder = Enum.SortOrder.LayoutOrder
             
+            local PageLayout = Instance.new("UIListLayout", PageContainer)
+            PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            PageLayout.Padding = UDim.new(0, 12)
+
             local function PageResizeCanvas()
                 if PageContainer.Visible then
                     local leftHeight = LeftList.AbsoluteContentSize.Y
                     local rightHeight = RightList.AbsoluteContentSize.Y
-                    local targetHeight = math.max(leftHeight, rightHeight) + 30
-                    TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight + 50)
-                    PageContainer.Size = UDim2.new(1, 0, 0, targetHeight)
+                    
+                    if Library.Settings.Mode == "PC" then
+                        PageLayout.Enabled = false
+                        LeftCol.Size = UDim2.new(0.5, -6, 1, 0)
+                        LeftCol.Position = UDim2.new(0, 0, 0, 0)
+                        RightCol.Size = UDim2.new(0.5, -6, 1, 0)
+                        RightCol.Position = UDim2.new(0.5, 6, 0, 0)
+                        
+                        local targetHeight = math.max(leftHeight, rightHeight) + 30
+                        TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight + 50)
+                        PageContainer.Size = UDim2.new(1, 0, 0, targetHeight)
+                    else
+                        -- Stacked vertical responsive page columns on Mobile Layout
+                        PageLayout.Enabled = true
+                        LeftCol.Size = UDim2.new(1, 0, 0, leftHeight)
+                        RightCol.Size = UDim2.new(1, 0, 0, rightHeight)
+                        
+                        local targetHeight = leftHeight + rightHeight + 50
+                        TabPage.CanvasSize = UDim2.new(0, 0, 0, targetHeight + 50)
+                        PageContainer.Size = UDim2.new(1, 0, 0, targetHeight)
+                    end
                 end
             end
             
@@ -2276,7 +2424,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 local Section = { Collapsed = false }
                 
                 local targetColumn = LeftCol
-                if LeftList.AbsoluteContentSize.Y > RightList.AbsoluteContentSize.Y then
+                if LeftList.AbsoluteContentSize.Y > RightList.AbsoluteContentSize.Y and Library.Settings.Mode == "PC" then
                     targetColumn = RightCol
                 end
 
@@ -2572,7 +2720,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             return list
         end
 
-        -- Embedded UI Settings Category
+        -- Core preferences and built-in controls only
         Window:CreateCategory("UI Settings")
         
         local BuiltInTab = Window:CreateTab("Setting", "gear")
@@ -2676,7 +2824,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             ScreenGui:Destroy()
         end)
 
-        -- Embedded Configs Folder Category
+        -- Config Manager Workspace
         local ConfigManagerTab = Window:CreateTab("Configs", "folder")
         
         local SaveSec = ConfigManagerTab:CreateSection("Save Configuration")
@@ -2774,22 +2922,6 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 end
             end
         end)
-
-        -- ========================================================
-        -- [[ CREDITS CATEGORY & SOCIAL MEDIA EMBEDS ]]
-        -- ========================================================
-        Window:CreateCategory("Credits")
-        local CreditsTab = Window:CreateTab("Discord", "info")
-        local CreditsSec = CreditsTab:CreateSection("Community & Support")
-        
-        CreditsSec:CreateParagraph("Louis Hub Discord Community", "Join our official server to stay updated with development logs, premium releases, and directly interact with developers!")
-        
-        CreditsSec:CreateButton("Copy Discord Invite Link", {
-            info = "Copies the Discord community invite URL directly to your system clipboard."
-        }, function()
-            setclipboard("https://discord.gg/P2FEVBz2PG")
-            Library:CreateNotification("Copied to Clipboard", "Discord invite has been copied to your clipboard!", 5)
-        end)
     end)
 
     -- ========================================================
@@ -2876,5 +3008,26 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
 
     return Window
 end
+
+-- ========================================================
+-- [[ LOADER TESTS FOR NATIVE EXTERNAL BUTTON CONTROLLERS ]]
+-- ========================================================
+task.spawn(function()
+    task.wait(1.5)
+    
+    -- Test Button 1: Toggle Type
+    local extBtn1 = Library:CreateExternalButton("External Toggle (Test)", "Toggle", "Round", "Flag_ExternalToggle", function(state)
+        print("External toggle test state:", state)
+    end)
+    -- Align cleanly on screen
+    extBtn1:SetSize(UDim2.new(0, 160, 0, 30))
+    
+    -- Test Button 2: Clicker Type
+    local extBtn2 = Library:CreateExternalButton("External Click (Test)", "Click", "Circle", "Flag_ExternalClick", function()
+        print("External clicker button test clicked")
+    end)
+    -- Offset slightly lower than Button 1 on startup
+    extBtn2:SetSize(UDim2.new(0, 160, 0, 30))
+end)
 
 return Library
