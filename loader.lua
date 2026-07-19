@@ -1,6 +1,6 @@
 -- Loader Script (Execute this in your Executor)
 -- Sourcing the updated UI Library from your raw GitHub link
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/test.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/Ui-Library/refs/heads/main/tester.lua"))()
 
 -- ========================================================
 -- [[ USER MEMBERSHIP CONFIGURATION (EASY TRUE/FALSE) ]]
