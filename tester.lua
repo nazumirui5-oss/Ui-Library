@@ -587,13 +587,14 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(ScriptNameLabel, false)
     RegisterText(ScriptNameLabel, 9)
 
-    -- Shortened Tab Search Box
+    -- Shortened Transparent Tab Search Box
     local TabSearchBox = Instance.new("TextBox", Sidebar)
     TabSearchBox.Size = UDim2.new(0, 100, 0, 24)
     TabSearchBox.Position = UDim2.new(0, 10, 0, 50)
     TabSearchBox.PlaceholderText = "Search tabs..."
     TabSearchBox.Text = ""
-    RegisterTheme(TabSearchBox, { BackgroundColor3 = "ElementBg", TextColor3 = "TextPrimary" })
+    TabSearchBox.BackgroundTransparency = 1 -- Fully transparent
+    RegisterTheme(TabSearchBox, { TextColor3 = "TextPrimary" })
     Instance.new("UICorner", TabSearchBox).CornerRadius = UDim.new(0, 4)
     local tabSearchStroke = Instance.new("UIStroke", TabSearchBox)
     tabSearchStroke.Thickness = 1
@@ -601,11 +602,21 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(TabSearchBox, false)
     RegisterText(TabSearchBox, 9)
 
+    local tabPadding = Instance.new("UIPadding", TabSearchBox)
+    tabPadding.PaddingLeft = UDim.new(0, 24)
+
+    local TabSearchIcon = Instance.new("ImageLabel", TabSearchBox)
+    TabSearchIcon.Size = UDim2.new(0, 12, 0, 12)
+    TabSearchIcon.Position = UDim2.new(0, 6, 0.5, -6)
+    TabSearchIcon.BackgroundTransparency = 1
+    TabSearchIcon.Image = GetIcon("info") -- Fallback search indicator
+    RegisterTheme(TabSearchIcon, { ImageColor3 = "TextSecondary" })
+
     -- Sidebar Decorative Status HUD design
     local SidebarHudFrame = Instance.new("Frame", Sidebar)
     SidebarHudFrame.Size = UDim2.new(0, 45, 0, 24)
     SidebarHudFrame.Position = UDim2.new(0, 115, 0, 50)
-    RegisterTheme(SidebarHudFrame, { BackgroundColor3 = "ElementBg" })
+    SidebarHudFrame.BackgroundTransparency = 1 -- Transparent
     Instance.new("UICorner", SidebarHudFrame).CornerRadius = UDim.new(0, 4)
     local hudStroke = Instance.new("UIStroke", SidebarHudFrame)
     hudStroke.Thickness = 1
@@ -709,7 +720,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         end
     end))
 
-    -- User Profile Frame
+    -- User Card Area
     local UserCard = Instance.new("Frame", Sidebar)
     UserCard.Size = UDim2.new(1, -20, 0, 50)
     UserCard.Position = UDim2.new(0, 10, 1, -60)
@@ -742,7 +753,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     RegisterFont(SubtextLabel, true)
     RegisterText(SubtextLabel, 9)
 
-    -- Content View Workspace
+    -- Content Frame Workspace
     local ContentArea = Instance.new("Frame", MainFrame)
     ContentArea.Size = UDim2.new(1, -170, 1, 0)
     ContentArea.Position = UDim2.new(0, 170, 0, 0)
@@ -951,6 +962,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     FeatureSearchFrame.Size = UDim2.new(0, 0, 1, 0) -- Starts collapsed
     FeatureSearchFrame.Position = UDim2.new(1, 10, 0, 0)
     FeatureSearchFrame.ClipsDescendants = true
+    FeatureSearchFrame.BackgroundTransparency = 0.6 -- Transparent glass overlay
     RegisterTheme(FeatureSearchFrame, { BackgroundColor3 = "SidebarBg" })
 
     local SearchCorner = Instance.new("UICorner", FeatureSearchFrame)
@@ -965,13 +977,24 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
     SearchInput.Position = UDim2.new(0, 10, 0, 10)
     SearchInput.PlaceholderText = "Search options..."
     SearchInput.Text = ""
-    RegisterTheme(SearchInput, { BackgroundColor3 = "ElementBg", TextColor3 = "TextPrimary" })
+    SearchInput.BackgroundTransparency = 1 -- Transparent
+    RegisterTheme(SearchInput, { TextColor3 = "TextPrimary" })
     RegisterFont(SearchInput, false)
     RegisterText(SearchInput, 11)
     Instance.new("UICorner", SearchInput).CornerRadius = UDim.new(0, 4)
     local inputStroke = Instance.new("UIStroke", SearchInput)
     inputStroke.Thickness = 1
     RegisterTheme(inputStroke, { Color = "StrokeColor" })
+
+    local searchPadding = Instance.new("UIPadding", SearchInput)
+    searchPadding.PaddingLeft = UDim.new(0, 24)
+
+    local SearchInputIcon = Instance.new("ImageLabel", SearchInput)
+    SearchInputIcon.Size = UDim2.new(0, 12, 0, 12)
+    SearchInputIcon.Position = UDim2.new(0, 6, 0.5, -6)
+    SearchInputIcon.BackgroundTransparency = 1
+    SearchInputIcon.Image = GetIcon("info") -- Fallback search indicator
+    RegisterTheme(SearchInputIcon, { ImageColor3 = "TextSecondary" })
 
     local searchOpen = false
     local function ToggleSearchFrame()
@@ -980,14 +1003,16 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
         TweenService:Create(FeatureSearchFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, targetWidth, 1, 0)
         }):Play()
+        -- Toggles icon cleanly between >> and << based on active state
+        SearchToggleBtn.Image = searchOpen and GetIcon("chevrons-left") or GetIcon("chevrons-right")
     end
 
-    -- Header Search Trigger Button
-    local SearchToggleBtn = Instance.new("ImageButton", LogoArea)
+    -- Header Search Trigger Button positioned cleanly on the right side of the main frame
+    SearchToggleBtn = Instance.new("ImageButton", MainFrame)
     SearchToggleBtn.Size = UDim2.new(0, 18, 0, 18)
-    SearchToggleBtn.Position = UDim2.new(1, -52, 0.5, -8)
+    SearchToggleBtn.Position = UDim2.new(1, -34, 0, 16)
     SearchToggleBtn.BackgroundTransparency = 1
-    SearchToggleBtn.Image = GetIcon("settings")
+    SearchToggleBtn.Image = GetIcon("chevrons-right")
     RegisterTheme(SearchToggleBtn, { ImageColor3 = "TextSecondary" })
     Janitor:Add(SearchToggleBtn.MouseButton1Click:Connect(ToggleSearchFrame))
 
@@ -1494,7 +1519,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             local ctrl = {}
             function ctrl:Set(val) SetState(val) end
             Library.Registry[flag] = { Type = "Toggle", Control = ctrl }
-            return ctrl
+            return ctrl, Elem
         end
 
         function Tab._CreateKeybindHelper(ContentFrame, bindText, defaultBind, flag, callback)
@@ -1578,7 +1603,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 BindBtn.Text = val.Name
             end
             Library.Registry[flag] = { Type = "Keybind", Control = ctrl }
-            return ctrl
+            return ctrl, Elem
         end
 
         function Tab._CreateSliderHelper(ContentFrame, sliderText, minVal, maxVal, defaultVal, flag, callback)
@@ -1684,7 +1709,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 ApplyValue(val)
             end
             Library.Registry[flag] = { Type = "Slider", Control = ctrl }
-            return ctrl
+            return ctrl, Elem
         end
 
         function Tab._CreateDropdownHelper(ContentFrame, ddText, options, defaultVal, flag, callback)
@@ -1810,7 +1835,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Library.Flags[flag] = Dropdown.Value
             end
             Library.Registry[flag] = { Type = "Dropdown", Control = ctrl }
-            return ctrl
+            return ctrl, Elem
         end
 
         function Tab._CreateMultiDropdownHelper(ContentFrame, ddText, options, defaultTable, flag, callback)
@@ -1943,7 +1968,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 UpdateDisplayText()
             end
             Library.Registry[flag] = { Type = "MultiDropdown", Control = ctrl }
-            return ctrl
+            return ctrl, Elem
         end
 
         function Tab._CreateColorPickerHelper(ContentFrame, pickerText, defaultColor, flag, callback)
@@ -2012,7 +2037,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 ApplyColor(val)
             end
             Library.Registry[flag] = { Type = "ColorPicker", Control = ctrl }
-            return ctrl
+            return ctrl, Elem
         end
 
         function Tab._CreateButtonHelper(ContentFrame, btnText, config, callback)
@@ -2071,6 +2096,8 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             Janitor:Add(Btn.MouseButton1Click:Connect(function()
                 if realCallback then task.spawn(realCallback) end
             end))
+
+            return nil, Btn
         end
 
         function Tab._CreateParagraphHelper(ContentFrame, paraTitle, paraDesc)
@@ -2113,7 +2140,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Desc.Text = val
                 ResizeParagraph()
             end
-            return ctrl
+            return ctrl, Elem
         end
 
         function Tab._CreateTextBoxHelper(ContentFrame, labelText, placeholderText, flag, callback)
@@ -2166,7 +2193,7 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Library.Flags[flag] = val
             end
             Library.Registry[flag] = { Type = "TextBox", Control = ctrl }
-            return ctrl
+            return ctrl, TextBoxElem
         end
 
         -- ========================================================
@@ -2273,55 +2300,55 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
             Janitor:Add(SecFrame:GetPropertyChangedSignal("Size"):Connect(ResizeCanvas))
 
             function Section:CreateToggle(toggleText, defaultVal, flag, config, callback)
-                local ctrl = Tab._CreateToggleHelper(Content, toggleText, defaultVal, flag, config, callback)
+                local ctrl, Elem = Tab._CreateToggleHelper(Content, toggleText, defaultVal, flag, config, callback)
                 Library:RegisterSearchItem(toggleText, "Toggle", Tab, Elem)
                 return ctrl
             end
 
             function Section:CreateKeybind(bindText, defaultBind, flag, callback)
-                local ctrl = Tab._CreateKeybindHelper(Content, bindText, defaultBind, flag, callback)
+                local ctrl, Elem = Tab._CreateKeybindHelper(Content, bindText, defaultBind, flag, callback)
                 Library:RegisterSearchItem(bindText, "Keybind", Tab, Elem)
                 return ctrl
             end
 
             function Section:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
-                local ctrl = Tab._CreateSliderHelper(Content, sliderText, minVal, maxVal, defaultVal, flag, callback)
+                local ctrl, Elem = Tab._CreateSliderHelper(Content, sliderText, minVal, maxVal, defaultVal, flag, callback)
                 Library:RegisterSearchItem(sliderText, "Slider", Tab, Elem)
                 return ctrl
             end
 
             function Section:CreateDropdown(ddText, options, defaultVal, flag, callback)
-                local ctrl = Tab._CreateDropdownHelper(Content, ddText, options, defaultVal, flag, callback)
+                local ctrl, Elem = Tab._CreateDropdownHelper(Content, ddText, options, defaultVal, flag, callback)
                 Library:RegisterSearchItem(ddText, "Dropdown", Tab, Elem)
                 return ctrl
             end
 
             function Section:CreateMultiDropdown(ddText, options, defaultTable, flag, callback)
-                local ctrl = Tab._CreateMultiDropdownHelper(Content, ddText, options, defaultTable, flag, callback)
+                local ctrl, Elem = Tab._CreateMultiDropdownHelper(Content, ddText, options, defaultTable, flag, callback)
                 Library:RegisterSearchItem(ddText, "MultiDropdown", Tab, Elem)
                 return ctrl
             end
 
             function Section:CreateColorPicker(pickerText, defaultColor, flag, callback)
-                local ctrl = Tab._CreateColorPickerHelper(Content, pickerText, defaultColor, flag, callback)
+                local ctrl, Elem = Tab._CreateColorPickerHelper(Content, pickerText, defaultColor, flag, callback)
                 Library:RegisterSearchItem(pickerText, "ColorPicker", Tab, Elem)
                 return ctrl
             end
 
             function Section:CreateButton(btnText, config, callback)
-                Tab._CreateButtonHelper(Content, btnText, config, callback)
-                Library:RegisterSearchItem(btnText, "Button", Tab, Content:GetChildren()[#Content:GetChildren()])
+                local _, Btn = Tab._CreateButtonHelper(Content, btnText, config, callback)
+                Library:RegisterSearchItem(btnText, "Button", Tab, Btn)
             end
 
             function Section:CreateParagraph(paraTitle, paraDesc)
-                local ctrl = Tab._CreateParagraphHelper(Content, paraTitle, paraDesc)
+                local ctrl, Elem = Tab._CreateParagraphHelper(Content, paraTitle, paraDesc)
                 Library:RegisterSearchItem(paraTitle, "Paragraph", Tab, Elem)
                 return ctrl
             end
 
             function Section:CreateTextBox(labelText, placeholderText, flag, callback)
-                local ctrl = Tab._CreateTextBoxHelper(Content, labelText, placeholderText, flag, callback)
-                Library:RegisterSearchItem(labelText, "TextBox", Tab, Elem)
+                local ctrl, TextBoxElem = Tab._CreateTextBoxHelper(Content, labelText, placeholderText, flag, callback)
+                Library:RegisterSearchItem(labelText, "TextBox", Tab, TextBoxElem)
                 return ctrl
             end
 
@@ -2529,55 +2556,55 @@ function Library:CreateWindow(titleText, subtitleText, customConfig)
                 Janitor:Add(SecFrame:GetPropertyChangedSignal("Size"):Connect(PageResizeCanvas))
 
                 function Section:CreateToggle(toggleText, defaultVal, flag, config, callback)
-                    local ctrl = Tab._CreateToggleHelper(Content, toggleText, defaultVal, flag, config, callback)
-                    Library:RegisterSearchItem(toggleText, "Toggle", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, Elem = Tab._CreateToggleHelper(Content, toggleText, defaultVal, flag, config, callback)
+                    Library:RegisterSearchItem(toggleText, "Toggle", Tab, Elem)
                     return ctrl
                 end
 
                 function Section:CreateKeybind(bindText, defaultBind, flag, callback)
-                    local ctrl = Tab._CreateKeybindHelper(Content, bindText, defaultBind, flag, callback)
-                    Library:RegisterSearchItem(bindText, "Keybind", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, Elem = Tab._CreateKeybindHelper(Content, bindText, defaultBind, flag, callback)
+                    Library:RegisterSearchItem(bindText, "Keybind", Tab, Elem)
                     return ctrl
                 end
 
                 function Section:CreateSlider(sliderText, minVal, maxVal, defaultVal, flag, callback)
-                    local ctrl = Tab._CreateSliderHelper(Content, sliderText, minVal, maxVal, defaultVal, flag, callback)
-                    Library:RegisterSearchItem(sliderText, "Slider", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, Elem = Tab._CreateSliderHelper(Content, sliderText, minVal, maxVal, defaultVal, flag, callback)
+                    Library:RegisterSearchItem(sliderText, "Slider", Tab, Elem)
                     return ctrl
                 end
 
                 function Section:CreateDropdown(ddText, options, defaultVal, flag, callback)
-                    local ctrl = Tab._CreateDropdownHelper(Content, ddText, options, defaultVal, flag, callback)
-                    Library:RegisterSearchItem(ddText, "Dropdown", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, Elem = Tab._CreateDropdownHelper(Content, ddText, options, defaultVal, flag, callback)
+                    Library:RegisterSearchItem(ddText, "Dropdown", Tab, Elem)
                     return ctrl
                 end
 
                 function Section:CreateMultiDropdown(ddText, options, defaultTable, flag, callback)
-                    local ctrl = Tab._CreateMultiDropdownHelper(Content, ddText, options, defaultTable, flag, callback)
-                    Library:RegisterSearchItem(ddText, "MultiDropdown", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, Elem = Tab._CreateMultiDropdownHelper(Content, ddText, options, defaultTable, flag, callback)
+                    Library:RegisterSearchItem(ddText, "MultiDropdown", Tab, Elem)
                     return ctrl
                 end
 
                 function Section:CreateColorPicker(pickerText, defaultColor, flag, callback)
-                    local ctrl = Tab._CreateColorPickerHelper(Content, pickerText, defaultColor, flag, callback)
-                    Library:RegisterSearchItem(pickerText, "ColorPicker", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, Elem = Tab._CreateColorPickerHelper(Content, pickerText, defaultColor, flag, callback)
+                    Library:RegisterSearchItem(pickerText, "ColorPicker", Tab, Elem)
                     return ctrl
                 end
 
                 function Section:CreateButton(btnText, config, callback)
-                    Tab._CreateButtonHelper(Content, btnText, config, callback)
-                    Library:RegisterSearchItem(btnText, "Button", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local _, Btn = Tab._CreateButtonHelper(Content, btnText, config, callback)
+                    Library:RegisterSearchItem(btnText, "Button", Tab, Btn)
                 end
 
                 function Section:CreateParagraph(paraTitle, paraDesc)
-                    local ctrl = Tab._CreateParagraphHelper(Content, paraTitle, paraDesc)
-                    Library:RegisterSearchItem(paraTitle, "Paragraph", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, Elem = Tab._CreateParagraphHelper(Content, paraTitle, paraDesc)
+                    Library:RegisterSearchItem(paraTitle, "Paragraph", Tab, Elem)
                     return ctrl
                 end
 
                 function Section:CreateTextBox(labelText, placeholderText, flag, callback)
-                    local ctrl = Tab._CreateTextBoxHelper(Content, labelText, placeholderText, flag, callback)
-                    Library:RegisterSearchItem(labelText, "TextBox", Tab, Content:GetChildren()[#Content:GetChildren()])
+                    local ctrl, TextBoxElem = Tab._CreateTextBoxHelper(Content, labelText, placeholderText, flag, callback)
+                    Library:RegisterSearchItem(labelText, "TextBox", Tab, TextBoxElem)
                     return ctrl
                 end
 
