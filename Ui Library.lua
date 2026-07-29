@@ -30,7 +30,7 @@ local SettingsFileName = FolderName .. "/Settings_" .. tostring(PlaceId) .. ".js
 local CurrentProfile = "default"
 local AutoLoadEnabled = false
 
--- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca
+-- Definisi Palet Tema Terpadu dengan Efek Transparansi Kaca & Tema CompKiller
 local Themes = {
     ["RGB"] = {
         WindowBg = Color3.fromRGB(15, 15, 18),
@@ -51,7 +51,8 @@ local Themes = {
         IsRGB = true,
         BgImage = "", 
         BgImageTransparency = 1,
-        FloatingIconImage = "rbxthumb://type=Asset&id=10734887784&w=150&h=150"
+        FloatingIconImage = "rbxthumb://type=Asset&id=10734887784&w=150&h=150",
+        LogoImage = ""
     },
     ["Cute Pastel"] = {
         WindowBg = Color3.fromRGB(255, 235, 243),      
@@ -72,7 +73,30 @@ local Themes = {
         IsRGB = false,
         BgImage = "rbxthumb://type=Asset&id=118470928936375&w=420&h=420", 
         BgImageTransparency = 0.8, 
-        FloatingIconImage = "rbxthumb://type=Asset&id=103242464029137&w=150&h=150" 
+        FloatingIconImage = "rbxthumb://type=Asset&id=103242464029137&w=150&h=150",
+        LogoImage = ""
+    },
+    ["CompKiller"] = {
+        WindowBg = Color3.fromRGB(19, 21, 31),
+        WindowTransparency = 0,
+        HeaderBg = Color3.fromRGB(26, 29, 40),
+        HeaderTransparency = 0,
+        SidebarBg = Color3.fromRGB(26, 29, 40),
+        SidebarTransparency = 0,
+        ContentBg = Color3.fromRGB(19, 21, 31),
+        ContentTransparency = 0,
+        ElementBg = Color3.fromRGB(25, 28, 39),
+        ElementTransparency = 0,
+        ElementStroke = Color3.fromRGB(38, 42, 58),
+        TextPrimary = Color3.fromRGB(235, 240, 250),
+        TextSecondary = Color3.fromRGB(115, 125, 150),
+        TextDark = Color3.fromRGB(80, 90, 115),
+        Accent = Color3.fromRGB(0, 229, 242), -- Sesuai warna khas Cyan CompKiller
+        IsRGB = false,
+        BgImage = "", 
+        BgImageTransparency = 1,
+        FloatingIconImage = "rbxthumb://type=Asset&id=10734887784&w=150&h=150",
+        LogoImage = "" -- Biarkan kosong secara default, dapat di-custom via asset/thumb ID
     }
 }
 
@@ -157,12 +181,11 @@ local function ApplyTheme(themeName)
         end
     end
     
-    -- Atur ulang elemen RGB jika beralih ke tema statis (Cute Pastel)
+    -- Atur ulang elemen RGB jika beralih ke tema statis
     if not IsThemeRGB then
         for _, item in ipairs(RGBElements) do
             if item.Instance and item.Instance:IsDescendantOf(game) then
                 pcall(function()
-                    -- Jaga agar ikon melayang tidak tercampur aksen pink agar warna aslinya terlihat
                     if item.Instance.Name == "Icon" and item.Instance.Parent and item.Instance.Parent.Name == "FloatingToggleIcon" then
                         item.Instance[item.Property] = Color3.fromRGB(255, 255, 255)
                     else
@@ -189,10 +212,11 @@ local function ApplyTheme(themeName)
     Library:SaveSettings()
 end
 
--- Dual Icon Resolver (Menerjemahkan nama ikon Lucide ke ID aset)
+-- Dual Icon Resolver (Menerjemahkan nama ikon Lucide GitHub ke ID aset Roblox)
 local function resolveIcon(icon)
-    if not icon then return "" end
+    if not icon or icon == "" then return "" end
     
+    -- Mapping Nama Ikon Lucide (github.com/lucide-icons/lucide/tree/main/icons) ke Asset ID Roblox
     local lucideIcons = {
         ["home"] = "rbxassetid://10723407389",
         ["swords"] = "rbxassetid://10734975692",
@@ -200,7 +224,24 @@ local function resolveIcon(icon)
         ["crosshair"] = "rbxassetid://10709818534",
         ["crown"] = "rbxassetid://10709818626",
         ["keyboard"] = "rbxassetid://10723416765",
-        ["sliders"] = "rbxassetid://10734963400"
+        ["sliders"] = "rbxassetid://10734963400",
+        ["settings"] = "rbxassetid://10734950309",
+        ["folder"] = "rbxassetid://10723387563",
+        ["apple"] = "rbxassetid://10709751939",
+        ["user"] = "rbxassetid://10747373176",
+        ["info"] = "rbxassetid://10723415903",
+        ["check"] = "rbxassetid://10709790644",
+        ["chevron-down"] = "rbxassetid://10709790948",
+        ["palette"] = "rbxassetid://10734924219",
+        ["list"] = "rbxassetid://10723434557",
+        ["mouse-pointer"] = "rbxassetid://10734918666",
+        ["file-text"] = "rbxassetid://10723374641",
+        ["lock"] = "rbxassetid://10723434791",
+        ["terminal"] = "rbxassetid://10734982144",
+        ["zap"] = "rbxassetid://10734983868",
+        ["shield"] = "rbxassetid://10734962068",
+        ["search"] = "rbxassetid://10734950020",
+        ["target"] = "rbxassetid://10734977012"
     }
     
     if type(icon) == "string" and lucideIcons[icon:lower()] then
@@ -310,9 +351,6 @@ end
 
 function Library:LoadConfig(force, preloadOnly)
     if not isfile or not readfile then return end
-    
-    -- Membaca file settings global dihilangkan dari sini untuk mencegah 'CurrentProfile' ter-overwrite 
-    -- kembali ke profil lama oleh file cache disk akibat delay synchronous penulisan file.
 
     if not preloadOnly then
         if Library.Elements["__MetaProfile"] then
@@ -335,19 +373,16 @@ function Library:LoadConfig(force, preloadOnly)
                     Library.LoadedConfigCache = decoded
                     
                     if not preloadOnly then
-                        -- 1. Reset semua elemen UI ke DefaultValue masing-masing terlebih dahulu (agar tidak ada flag yang bernilai nil)
                         for flag, element in pairs(Library.Elements) do
                             if not flag:find("^__Meta") and element.DefaultValue ~= nil then
-                                element:Set(element.DefaultValue, true, true) -- ignoreSave=true, ignoreCallback=true
+                                element:Set(element.DefaultValue, true, true)
                             end
                         end
                         
-                        -- Jaga meta flags tetap sinkron
                         Library.Flags["__MetaProfile"] = CurrentProfile
                         Library.Flags["__MetaAutoLoad"] = AutoLoadEnabled
                         Library.Flags["__MetaTheme"] = CurrentThemeName
                         
-                        -- 2. Terapkan nilai config yang dimuat dari file JSON
                         local mainGui = GetMainGui()
                         for flag, val in pairs(decoded) do
                             if flag:find("^__Meta") then
@@ -355,7 +390,7 @@ function Library:LoadConfig(force, preloadOnly)
                             end
                             
                             if Library.Elements[flag] then
-                                Library.Elements[flag]:Set(val, true, false) -- ignoreSave=true, ignoreCallback=false (memicu callback asli)
+                                Library.Elements[flag]:Set(val, true, false)
                             end
                             if flag:find("^ExtBtnPos_") then
                                 local btnId = flag:gsub("^ExtBtnPos_", "")
@@ -392,7 +427,6 @@ function Library:LoadConfig(force, preloadOnly)
                 warn("LouisHub UI: Gagal membaca config. Error: " .. tostring(err))
             end
         else
-            -- Jika file profil baru kosong / belum ada config, kembalikan UI ke default (Reset)
             if not preloadOnly then
                 for k in pairs(Library.Flags) do
                     Library.Flags[k] = nil
@@ -440,7 +474,7 @@ local function UnregisterRGB(instance, property)
 end
 
 RunService.RenderStepped:Connect(function()
-    if not IsThemeRGB then return end -- Hindari pemrosesan warna jika mode RGB mati
+    if not IsThemeRGB then return end
     local hue = (os.clock() % 4) / 4
     local rainbowColor = Color3.fromHSV(hue, 0.85, 0.95)
     
@@ -634,8 +668,8 @@ local function StartLoading(titleText, subtitleText, onComplete)
     local LoadingGui = Instance.new("Frame", ScreenGui)
     LoadingGui.Name = "Louis_Loading_Screen"
     LoadingGui.Size = UDim2.new(1, 0, 1, 0)
-    LoadingGui.BackgroundColor3 = Color3.fromRGB(12, 12, 15) -- Selalu solid gelap mewah
-    LoadingGui.BackgroundTransparency = 0 -- Hilangkan transparansi agar background game tidak bocor
+    LoadingGui.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+    LoadingGui.BackgroundTransparency = 0
     LoadingGui.BorderSizePixel = 0
     LoadingGui.ZIndex = 9990
 
@@ -838,8 +872,8 @@ function Library:CreateWindow(titleText, subtitleText)
     local ScreenGui = GetMainGui()
 
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 520, 0, 330)
-    MainFrame.Position = UDim2.new(0.5, -260, 0.5, -165)
+    MainFrame.Size = UDim2.new(0, 560, 0, 360)
+    MainFrame.Position = UDim2.new(0.5, -280, 0.5, -180)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
@@ -870,77 +904,70 @@ function Library:CreateWindow(titleText, subtitleText)
     RegisterRGB(MainStroke, "Color")
     RegisterThemeable(MainStroke, { Color = function(t) return t.IsRGB and MainStroke.Color or t.ElementStroke end })
 
-    -- Header Panel
-    local Header = Instance.new("Frame", MainFrame)
-    Header.Size = UDim2.new(1, 0, 0, 46)
-    Header.BorderSizePixel = 0
-    RegisterThemeable(Header, { 
-        BackgroundColor3 = "HeaderBg", 
-        BackgroundTransparency = "HeaderTransparency" 
-    })
-    
-    local HeaderCorner = Instance.new("UICorner", Header)
-    HeaderCorner.CornerRadius = UDim.new(0, 8)
-    
-    local BottomHeaderMask = Instance.new("Frame", Header)
-    BottomHeaderMask.Size = UDim2.new(1, 0, 0.5, 0)
-    BottomHeaderMask.Position = UDim2.new(0, 0, 0.5, 0)
-    BottomHeaderMask.BorderSizePixel = 0
-    BottomHeaderMask.ZIndex = -1
-    RegisterThemeable(BottomHeaderMask, { 
-        BackgroundColor3 = "HeaderBg", 
-        BackgroundTransparency = "HeaderTransparency" 
-    })
-    
-    EnableDrag(Header, MainFrame)
-
-    local TitleLabel = Instance.new("TextLabel", Header)
-    TitleLabel.Size = UDim2.new(0, 300, 0, 18)
-    TitleLabel.Position = UDim2.new(0, 16, 0, 10)
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = titleText or "LOUIS HUB"
-    TitleLabel.TextSize = 14
-    TitleLabel.Font = Enum.Font.MontserratBold
-    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
-
-    local SubtitleLabel = Instance.new("TextLabel", Header)
-    SubtitleLabel.Size = UDim2.new(0, 300, 0, 12)
-    SubtitleLabel.Position = UDim2.new(0, 16, 0, 26)
-    SubtitleLabel.BackgroundTransparency = 1
-    SubtitleLabel.Text = subtitleText or "Rebuilt Edition"
-    SubtitleLabel.TextSize = 9
-    SubtitleLabel.Font = Enum.Font.MontserratBold
-    SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    RegisterThemeable(SubtitleLabel, { TextColor3 = "TextSecondary" })
-
-    local BarBg = Instance.new("Frame", MainFrame)
-    BarBg.Size = UDim2.new(1, 0, 0, 1)
-    BarBg.Position = UDim2.new(0, 0, 0, 46)
-    BarBg.BorderSizePixel = 0
-    RegisterRGB(BarBg, "BackgroundColor3")
-    RegisterThemeable(BarBg, { 
-        BackgroundTransparency = function(t) return t.IsRGB and 0 or 1 end
-    })
-
-    -- Sidebar Container
+    -- Sidebar Container (Kiri untuk gaya CompKiller)
     local Sidebar = Instance.new("Frame", MainFrame)
-    Sidebar.Size = UDim2.new(0, 140, 1, -58)
-    Sidebar.Position = UDim2.new(0, 12, 0, 52)
+    Sidebar.Size = UDim2.new(0, 155, 1, 0)
+    Sidebar.Position = UDim2.new(0, 0, 0, 0)
     Sidebar.BorderSizePixel = 0
-    Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6)
     RegisterThemeable(Sidebar, { 
         BackgroundColor3 = "SidebarBg",
         BackgroundTransparency = "SidebarTransparency"
     })
-    
-    local SidebarStroke = Instance.new("UIStroke", Sidebar)
-    SidebarStroke.Thickness = 1
-    RegisterThemeable(SidebarStroke, { Color = "ElementStroke" })
 
+    -- Header Panel / Brand Logo Area
+    local Header = Instance.new("Frame", Sidebar)
+    Header.Size = UDim2.new(1, 0, 0, 50)
+    Header.Position = UDim2.new(0, 0, 0, 0)
+    Header.BackgroundTransparency = 1
+    EnableDrag(Header, MainFrame)
+
+    -- Logo Custom Thumb ID untuk Header
+    local HeaderLogo = Instance.new("ImageLabel", Header)
+    HeaderLogo.Name = "HeaderLogo"
+    HeaderLogo.Size = UDim2.new(0, 24, 0, 24)
+    HeaderLogo.Position = UDim2.new(0, 12, 0.5, -12)
+    HeaderLogo.BackgroundTransparency = 1
+    HeaderLogo.ScaleType = Enum.ScaleType.Fit
+    RegisterThemeable(HeaderLogo, {
+        Image = function(t) return resolveIcon(t.LogoImage or "") end,
+        ImageColor3 = "Accent",
+        Visible = function(t) return t.LogoImage ~= nil and t.LogoImage ~= "" end
+    })
+
+    local TitleLabel = Instance.new("TextLabel", Header)
+    TitleLabel.Size = UDim2.new(1, -20, 0, 18)
+    TitleLabel.Position = UDim2.new(0, 14, 0, 10)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = titleText or "COMPKILLER"
+    TitleLabel.TextSize = 13
+    TitleLabel.Font = Enum.Font.MontserratBold
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterThemeable(TitleLabel, { 
+        TextColor3 = "TextPrimary",
+        Position = function(t) 
+            return (t.LogoImage and t.LogoImage ~= "") and UDim2.new(0, 42, 0, 10) or UDim2.new(0, 14, 0, 10) 
+        end 
+    })
+
+    local SubtitleLabel = Instance.new("TextLabel", Header)
+    SubtitleLabel.Size = UDim2.new(1, -20, 0, 12)
+    SubtitleLabel.Position = UDim2.new(0, 14, 0, 27)
+    SubtitleLabel.BackgroundTransparency = 1
+    SubtitleLabel.Text = subtitleText or "Edition"
+    SubtitleLabel.TextSize = 9
+    SubtitleLabel.Font = Enum.Font.Montserrat
+    SubtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterThemeable(SubtitleLabel, { 
+        TextColor3 = "TextSecondary",
+        Position = function(t) 
+            return (t.LogoImage and t.LogoImage ~= "") and UDim2.new(0, 42, 0, 27) or UDim2.new(0, 14, 0, 27) 
+        end 
+    })
+
+    -- Container Tab di Sidebar
     local TabContainer = Instance.new("ScrollingFrame", Sidebar)
-    TabContainer.Size = UDim2.new(1, -12, 1, -12)
-    TabContainer.Position = UDim2.new(0, 6, 0, 6)
+    TabContainer.Size = UDim2.new(1, -12, 1, -100)
+    TabContainer.Position = UDim2.new(0, 6, 0, 52)
     TabContainer.BackgroundTransparency = 1
     TabContainer.ScrollBarThickness = 0
     TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -948,10 +975,50 @@ function Library:CreateWindow(titleText, subtitleText)
     local TabLayout = Instance.new("UIListLayout", TabContainer)
     TabLayout.Padding = UDim.new(0, 4)
 
+    -- Profile Card di Bagian Bawah Sidebar (Khas CompKiller)
+    local ProfileCard = Instance.new("Frame", Sidebar)
+    ProfileCard.Size = UDim2.new(1, -16, 0, 40)
+    ProfileCard.Position = UDim2.new(0, 8, 1, -48)
+    ProfileCard.BackgroundTransparency = 1
+    
+    local ProfileAvatar = Instance.new("ImageLabel", ProfileCard)
+    ProfileAvatar.Size = UDim2.new(0, 28, 0, 28)
+    ProfileAvatar.Position = UDim2.new(0, 4, 0.5, -14)
+    ProfileAvatar.BackgroundTransparency = 1
+    ProfileAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+    Instance.new("UICorner", ProfileAvatar).CornerRadius = UDim.new(1, 0)
+
+    task.spawn(function()
+        local success, content = pcall(function()
+            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+        end)
+        if success and content then ProfileAvatar.Image = content end
+    end)
+
+    local ProfileName = Instance.new("TextLabel", ProfileCard)
+    ProfileName.Size = UDim2.new(1, -42, 0, 14)
+    ProfileName.Position = UDim2.new(0, 38, 0, 4)
+    ProfileName.BackgroundTransparency = 1
+    ProfileName.Text = LocalPlayer.Name
+    ProfileName.Font = Enum.Font.MontserratBold
+    ProfileName.TextSize = 10
+    ProfileName.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterThemeable(ProfileName, { TextColor3 = "TextPrimary" })
+
+    local ProfileTag = Instance.new("TextLabel", ProfileCard)
+    ProfileTag.Size = UDim2.new(1, -42, 0, 12)
+    ProfileTag.Position = UDim2.new(0, 38, 0, 18)
+    ProfileTag.BackgroundTransparency = 1
+    ProfileTag.Text = "USER"
+    ProfileTag.Font = Enum.Font.Montserrat
+    ProfileTag.TextSize = 8
+    ProfileTag.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterThemeable(ProfileTag, { TextColor3 = "TextDark" })
+
     -- Primary Content Workspace
     local ContentArea = Instance.new("Frame", MainFrame)
-    ContentArea.Size = UDim2.new(1, -174, 1, -58)
-    ContentArea.Position = UDim2.new(0, 162, 0, 52)
+    ContentArea.Size = UDim2.new(1, -163, 1, -16)
+    ContentArea.Position = UDim2.new(0, 155, 0, 8)
     ContentArea.BorderSizePixel = 0
     Instance.new("UICorner", ContentArea).CornerRadius = UDim.new(0, 6)
     RegisterThemeable(ContentArea, { 
@@ -959,54 +1026,40 @@ function Library:CreateWindow(titleText, subtitleText)
         BackgroundTransparency = "ContentTransparency"
     })
 
-    local ContentStroke = Instance.new("UIStroke", ContentArea)
-    ContentStroke.Thickness = 1
-    RegisterThemeable(ContentStroke, { Color = "ElementStroke" })
+    local TopControls = Instance.new("Frame", MainFrame)
+    TopControls.Size = UDim2.new(0, 50, 0, 25)
+    TopControls.Position = UDim2.new(1, -55, 0, 6)
+    TopControls.BackgroundTransparency = 1
+    TopControls.ZIndex = 10
 
-    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
-    end)
-
-    local ToggleIcon = Instance.new("ImageButton", Header)
-    ToggleIcon.Size = UDim2.new(0, 18, 0, 18)
-    ToggleIcon.Position = UDim2.new(1, -52, 0, 14)
+    local ToggleIcon = Instance.new("ImageButton", TopControls)
+    ToggleIcon.Size = UDim2.new(0, 16, 0, 16)
+    ToggleIcon.Position = UDim2.new(0, 4, 0.5, -8)
     ToggleIcon.BackgroundTransparency = 1
-    ToggleIcon.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
+    ToggleIcon.Image = resolveIcon("chevron-down")
     RegisterThemeable(ToggleIcon, { ImageColor3 = "TextSecondary" })
 
     ToggleIcon.MouseButton1Click:Connect(function()
         Window.Minimized = not Window.Minimized
-        local targetSize = Window.Minimized and UDim2.new(0, 520, 0, 47) or UDim2.new(0, 520, 0, 330)
+        local targetSize = Window.Minimized and UDim2.new(0, 560, 0, 48) or UDim2.new(0, 560, 0, 360)
         local targetRotation = Window.Minimized and 180 or 0
         
         TweenService:Create(ToggleIcon, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = targetRotation}):Play()
         
         if Window.Minimized then
-            local sidebarFade = TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
-            local contentFade = TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
-            sidebarFade:Play()
-            contentFade:Play()
-            
-            sidebarFade.Completed:Connect(function()
-                if Window.Minimized then
-                    Sidebar.Visible = false
-                    ContentArea.Visible = false
-                end
-            end)
+            Sidebar.Visible = false
+            ContentArea.Visible = false
             TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
         else
             Sidebar.Visible = true
             ContentArea.Visible = true
-            local t = Themes[CurrentThemeName]
-            TweenService:Create(Sidebar, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.SidebarTransparency}):Play()
-            TweenService:Create(ContentArea, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundTransparency = t.ContentTransparency}):Play()
             TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
         end
     end)
 
-    local CloseBtn = Instance.new("ImageButton", Header)
-    CloseBtn.Size = UDim2.new(0, 18, 0, 18)
-    CloseBtn.Position = UDim2.new(1, -28, 0, 14)
+    local CloseBtn = Instance.new("ImageButton", TopControls)
+    CloseBtn.Size = UDim2.new(0, 16, 0, 16)
+    CloseBtn.Position = UDim2.new(0, 26, 0.5, -8)
     CloseBtn.BackgroundTransparency = 1
     CloseBtn.Image = "rbxthumb://type=Asset&id=10734898355&w=150&h=150"
     RegisterThemeable(CloseBtn, { ImageColor3 = "TextSecondary" })
@@ -1019,6 +1072,10 @@ function Library:CreateWindow(titleText, subtitleText)
         TweenService:Create(CloseBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {ImageColor3 = t.TextSecondary}):Play()
     end)
 
+    TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y)
+    end)
+
     -- [[ 4a. FLOATING ICON OPEN CLOSE ]]
     local FloatingToggle = Instance.new("TextButton", ScreenGui)
     FloatingToggle.Name = "FloatingToggleIcon"
@@ -1027,7 +1084,7 @@ function Library:CreateWindow(titleText, subtitleText)
     FloatingToggle.BorderSizePixel = 0
     FloatingToggle.Text = ""
     FloatingToggle.Visible = false
-    FloatingToggle.ClipsDescendants = true -- Memotong sisa gambar ikon kustom saat animasi menyusut
+    FloatingToggle.ClipsDescendants = true
     RegisterThemeable(FloatingToggle, { 
         BackgroundColor3 = "ElementBg",
         BackgroundTransparency = "ElementTransparency"
@@ -1043,11 +1100,8 @@ function Library:CreateWindow(titleText, subtitleText)
 
     local ToggleIconImage = Instance.new("ImageLabel", FloatingToggle)
     ToggleIconImage.Name = "Icon"
-    
-    -- Menggunakan skala (%) agar ikon mengecil bersamaan secara mulus dengan tombol luar
     ToggleIconImage.Size = UDim2.new(0.85, 0, 0.85, 0) 
     ToggleIconImage.Position = UDim2.new(0.075, 0, 0.075, 0)
-    
     ToggleIconImage.BackgroundTransparency = 1
     ToggleIconImage.ScaleType = Enum.ScaleType.Fit
     RegisterRGB(ToggleIconImage, "ImageColor3")
@@ -1073,9 +1127,9 @@ function Library:CreateWindow(titleText, subtitleText)
                 end
             end)
             
-            MainFrame.Size = UDim2.new(0, 520, 0, 0)
-            local targetHeight = Window.Minimized and 47 or 330
-            TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 520, 0, targetHeight)}):Play()
+            MainFrame.Size = UDim2.new(0, 560, 0, 0)
+            local targetHeight = Window.Minimized and 48 or 360
+            TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 560, 0, targetHeight)}):Play()
         end
     end
 
@@ -1083,7 +1137,7 @@ function Library:CreateWindow(titleText, subtitleText)
         if Window.Visible then
             Window.Visible = false
             
-            local hideTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 520, 0, 0)})
+            local hideTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 560, 0, 0)})
             hideTween:Play()
             hideTween.Completed:Connect(function()
                 if not Window.Visible then
@@ -1154,16 +1208,14 @@ function Library:CreateWindow(titleText, subtitleText)
             local isSelected = (Window.CurrentTab and Window.CurrentTab.Button == tabInfo.Button)
             
             TweenService:Create(tabInfo.Button, TweenInfo.new(0.15), {
-                BackgroundTransparency = isSelected and t.ElementTransparency or (t.IsRGB and 1 or t.SidebarTransparency),
-                BackgroundColor3 = isSelected and t.ElementBg or t.SidebarBg
+                BackgroundTransparency = isSelected and 0 or 1,
+                BackgroundColor3 = isSelected and (t.IsRGB and Color3.fromRGB(30, 30, 38) or t.ElementBg) or t.SidebarBg
             }):Play()
-            TweenService:Create(tabInfo.ButtonStroke, TweenInfo.new(0.15), {
-                Transparency = isSelected and 0 or (t.IsRGB and 1 or t.SidebarTransparency),
-                Color = t.ElementStroke
-            }):Play()
+            
             TweenService:Create(tabInfo.Text, TweenInfo.new(0.15), {
                 TextColor3 = isSelected and t.TextPrimary or t.TextDark
             }):Play()
+            
             tabInfo.Indicator.Visible = isSelected
             if tabInfo.Icon then
                 TweenService:Create(tabInfo.Icon, TweenInfo.new(0.15), {
@@ -1180,16 +1232,14 @@ function Library:CreateWindow(titleText, subtitleText)
         local Tab = {}
         
         local TabContent = Instance.new("ScrollingFrame", ContentArea)
-        TabContent.Size = UDim2.new(1, -16, 1, -16)
-        TabContent.Position = UDim2.new(0, 8, 0, 8)
+        TabContent.Size = UDim2.new(1, -12, 1, -12)
+        TabContent.Position = UDim2.new(0, 6, 0, 6)
         TabContent.BackgroundTransparency = 1
         TabContent.ScrollBarThickness = 2
         TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
         TabContent.Visible = false
-
-        -- Scrollbar yang sepenuhnya disamakan dengan gaya tema RGB (Abu-abu tipis netral & bersih)
-        TabContent.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
-        TabContent.ScrollBarImageTransparency = 0.4
+        TabContent.ScrollBarImageColor3 = Color3.fromRGB(120, 130, 150)
+        TabContent.ScrollBarImageTransparency = 0.5
 
         local ContentLayout = Instance.new("UIListLayout", TabContent)
         ContentLayout.Padding = UDim.new(0, 6)
@@ -1200,19 +1250,22 @@ function Library:CreateWindow(titleText, subtitleText)
         end)
 
         local TabButton = Instance.new("TextButton", TabContainer)
-        TabButton.Size = UDim2.new(1, 0, 0, 32)
+        TabButton.Size = UDim2.new(1, 0, 0, 30)
         TabButton.Text = ""
         TabButton.AutoButtonColor = false
         Instance.new("UICorner", TabButton).CornerRadius = UDim.new(0, 5)
 
         local TabBtnStroke = Instance.new("UIStroke", TabButton)
         TabBtnStroke.Thickness = 1
+        TabBtnStroke.Transparency = 1
 
+        -- Indikator vertical bar vertikal khas CompKiller (di sebelah kanan tombol tab)
         local TabIndicator = Instance.new("Frame", TabButton)
-        TabIndicator.Size = UDim2.new(0, 2.5, 1, -12)
-        TabIndicator.Position = UDim2.new(0, 4, 0, 6)
+        TabIndicator.Size = UDim2.new(0, 3, 1, -8)
+        TabIndicator.Position = UDim2.new(1, -3, 0, 4)
         TabIndicator.BorderSizePixel = 0
         TabIndicator.Visible = false
+        Instance.new("UICorner", TabIndicator).CornerRadius = UDim.new(1, 0)
         RegisterRGB(TabIndicator, "BackgroundColor3")
         RegisterThemeable(TabIndicator, { BackgroundColor3 = function(t) return t.IsRGB and TabIndicator.BackgroundColor3 or t.Accent end })
 
@@ -1227,7 +1280,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
         local TabText = Instance.new("TextLabel", TabButton)
         TabText.Size = UDim2.new(1, iconAssetId and -34 or -16, 1, 0)
-        TabText.Position = UDim2.new(0, iconAssetId and 28 or 10)
+        TabText.Position = UDim2.new(0, iconAssetId and 28 or 10, 0, 0)
         TabText.BackgroundTransparency = 1
         TabText.Text = tabName
         TabText.TextSize = 11
@@ -1245,24 +1298,21 @@ function Library:CreateWindow(titleText, subtitleText)
         table.insert(Window.Tabs, tabData)
 
         local function Select()
-            -- Cek proteksi klik ganda: jika tab saat ini ditekan kembali, abaikan fungsi
-            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then 
-                return 
-            end
+            if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
 
             if Window.CurrentTab then
                 local oldTab = Window.CurrentTab
-                local fadeOut = TweenService:Create(oldTab.Frame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0.95, -16), Position = UDim2.new(0, 8, 0, 12)})
+                local fadeOut = TweenService:Create(oldTab.Frame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -12, 0.95, -12), Position = UDim2.new(0, 6, 0, 10)})
                 fadeOut:Play()
                 fadeOut.Completed:Connect(function()
                     oldTab.Frame.Visible = false
                 end)
             end
             
-            TabContent.Size = UDim2.new(1, -16, 0.95, -16)
-            TabContent.Position = UDim2.new(0, 8, 0, 12)
+            TabContent.Size = UDim2.new(1, -12, 0.95, -12)
+            TabContent.Position = UDim2.new(0, 6, 0, 10)
             TabContent.Visible = true
-            TweenService:Create(TabContent, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 1, -16), Position = UDim2.new(0, 8, 0, 8)}):Play()
+            TweenService:Create(TabContent, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -12, 1, -12), Position = UDim2.new(0, 6, 0, 6)}):Play()
 
             Window.CurrentTab = tabData
             Window:UpdateAllTabsVisual()
@@ -1272,8 +1322,8 @@ function Library:CreateWindow(titleText, subtitleText)
             if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
             local t = Themes[CurrentThemeName]
             TweenService:Create(TabButton, TweenInfo.new(0.15), {
-                BackgroundTransparency = t.IsRGB and 0.5 or t.ElementTransparency,
-                BackgroundColor3 = t.IsRGB and Color3.fromRGB(20, 20, 24) or t.ElementBg
+                BackgroundTransparency = 0.5,
+                BackgroundColor3 = t.ElementBg
             }):Play()
             TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = t.TextPrimary}):Play()
             if IconLabel then
@@ -1285,7 +1335,7 @@ function Library:CreateWindow(titleText, subtitleText)
             if Window.CurrentTab and Window.CurrentTab.Button == TabButton then return end
             local t = Themes[CurrentThemeName]
             TweenService:Create(TabButton, TweenInfo.new(0.15), {
-                BackgroundTransparency = t.IsRGB and 1 or t.SidebarTransparency,
+                BackgroundTransparency = 1,
                 BackgroundColor3 = t.SidebarBg
             }):Play()
             TweenService:Create(TabText, TweenInfo.new(0.15), {TextColor3 = t.TextDark}):Play()
@@ -1308,13 +1358,13 @@ function Library:CreateWindow(titleText, subtitleText)
         -- ========================================================
         function Tab:CreateButton(buttonText, callback)
             local Button = Instance.new("TextButton", TabContent)
-            Button.Size = UDim2.new(1, -6, 0, 34)
+            Button.Size = UDim2.new(1, -4, 0, 32)
             Button.Text = ""
             Button.AutoButtonColor = false
             Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 5)
             RegisterThemeable(Button, { 
-                BackgroundColor3 = "ElementBg",
-                BackgroundTransparency = "ElementTransparency"
+                BackgroundColor3 = function(t) return (CurrentThemeName == "CompKiller" and t.Accent or t.ElementBg) end,
+                BackgroundTransparency = function(t) return (CurrentThemeName == "CompKiller" and 0 or t.ElementTransparency) end
             })
 
             local BtnStroke = Instance.new("UIStroke", Button)
@@ -1322,50 +1372,24 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterThemeable(BtnStroke, { Color = "ElementStroke" })
 
             local BtnText = Instance.new("TextLabel", Button)
-            BtnText.Size = UDim2.new(1, -35, 1, 0)
-            BtnText.Position = UDim2.new(0, 12, 0, 0)
+            BtnText.Size = UDim2.new(1, -20, 1, 0)
+            BtnText.Position = UDim2.new(0, 10, 0, 0)
             BtnText.BackgroundTransparency = 1
             BtnText.Text = buttonText or "Button"
             BtnText.TextSize = 11
-            BtnText.Font = Enum.Font.MontserratMedium
-            BtnText.TextXAlignment = Enum.TextXAlignment.Left
-            RegisterThemeable(BtnText, { TextColor3 = "TextPrimary" })
-
-            local ArrowIcon = Instance.new("ImageLabel", Button)
-            ArrowIcon.Size = UDim2.new(0, 12, 0, 12)
-            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -6)
-            ArrowIcon.BackgroundTransparency = 1
-            ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094678&w=150&h=150"
-            RegisterThemeable(ArrowIcon, { ImageColor3 = "TextSecondary" })
-
-            Button.MouseEnter:Connect(function()
-                local t = Themes[CurrentThemeName]
-                TweenService:Create(Button, TweenInfo.new(0.15), {
-                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
-                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
-                }):Play()
-                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextPrimary, Position = UDim2.new(1, -20, 0.5, -6)}):Play()
-            end)
-            Button.MouseLeave:Connect(function()
-                local t = Themes[CurrentThemeName]
-                TweenService:Create(Button, TweenInfo.new(0.15), {
-                    BackgroundColor3 = t.ElementBg,
-                    BackgroundTransparency = t.ElementTransparency
-                }):Play()
-                TweenService:Create(ArrowIcon, TweenInfo.new(0.15), {ImageColor3 = t.TextSecondary, Position = UDim2.new(1, -22, 0.5, -6)}):Play()
-            end)
+            BtnText.Font = Enum.Font.MontserratBold
+            BtnText.TextXAlignment = Enum.TextXAlignment.Center
+            RegisterThemeable(BtnText, { TextColor3 = function(t) return (CurrentThemeName == "CompKiller" and Color3.fromRGB(10, 15, 25) or t.TextPrimary) end })
 
             Button.MouseButton1Click:Connect(function()
                 local t = Themes[CurrentThemeName]
                 local press = TweenService:Create(Button, TweenInfo.new(0.05), {
-                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 42) or t.ContentBg,
-                    BackgroundTransparency = t.IsRGB and 0 or t.ContentTransparency
+                    BackgroundTransparency = 0.3
                 })
                 press:Play()
                 press.Completed:Connect(function()
                     TweenService:Create(Button, TweenInfo.new(0.1), {
-                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(28, 28, 33) or t.SidebarBg,
-                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                        BackgroundTransparency = (CurrentThemeName == "CompKiller" and 0 or t.ElementTransparency)
                     }):Play()
                 end)
                 if callback then task.spawn(callback) end
@@ -1391,7 +1415,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Library.Flags[actualFlag] = Toggle.State
 
             local ToggleBtn = Instance.new("TextButton", TabContent)
-            ToggleBtn.Size = UDim2.new(1, -6, 0, 34)
+            ToggleBtn.Size = UDim2.new(1, -4, 0, 32)
             ToggleBtn.Text = ""
             ToggleBtn.AutoButtonColor = false
             Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
@@ -1406,7 +1430,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
             local TextLabel = Instance.new("TextLabel", ToggleBtn)
             TextLabel.Size = UDim2.new(1, -65, 1, 0)
-            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.Position = UDim2.new(0, 10, 0, 0)
             TextLabel.BackgroundTransparency = 1
             TextLabel.Text = toggleText or "Toggle"
             TextLabel.TextSize = 11
@@ -1415,14 +1439,14 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterThemeable(TextLabel, { TextColor3 = "TextPrimary" })
 
             local SwitchBg = Instance.new("Frame", ToggleBtn)
-            SwitchBg.Size = UDim2.new(0, 32, 0, 16)
-            SwitchBg.Position = UDim2.new(1, -44, 0.5, -8)
+            SwitchBg.Size = UDim2.new(0, 30, 0, 15)
+            SwitchBg.Position = UDim2.new(1, -40, 0.5, -7.5)
             SwitchBg.BorderSizePixel = 0
             Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
 
             local SwitchBall = Instance.new("Frame", SwitchBg)
-            SwitchBall.Size = UDim2.new(0, 12, 0, 12)
-            SwitchBall.Position = UDim2.new(0, 2, 0.5, -6)
+            SwitchBall.Size = UDim2.new(0, 11, 0, 11)
+            SwitchBall.Position = UDim2.new(0, 2, 0.5, -5.5)
             SwitchBall.BorderSizePixel = 0
             Instance.new("UICorner", SwitchBall).CornerRadius = UDim.new(1, 0)
             RegisterThemeable(SwitchBall, { BackgroundColor3 = "TextDark" })
@@ -1433,7 +1457,7 @@ function Library:CreateWindow(titleText, subtitleText)
                 local t = Themes[CurrentThemeName]
                 
                 if Toggle.State then
-                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(1, -13, 0.5, -5.5), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
                     
                     if t.IsRGB then
                         RegisterRGB(SwitchBg, "BackgroundColor3")
@@ -1441,19 +1465,10 @@ function Library:CreateWindow(titleText, subtitleText)
                         UnregisterRGB(SwitchBg, "BackgroundColor3")
                         TweenService:Create(SwitchBg, info, {BackgroundColor3 = t.Accent}):Play()
                     end
-                    
-                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
-                        BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
-                        BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
-                    }):Play()
                 else
                     UnregisterRGB(SwitchBg, "BackgroundColor3")
-                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = t.TextDark}):Play()
+                    TweenService:Create(SwitchBall, info, {Position = UDim2.new(0, 2, 0.5, -5.5), BackgroundColor3 = t.TextDark}):Play()
                     TweenService:Create(SwitchBg, TweenInfo.new(duration), {BackgroundColor3 = t.IsRGB and Color3.fromRGB(35, 35, 40) or t.ElementStroke}):Play()
-                    TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {
-                        BackgroundColor3 = t.ElementBg,
-                        BackgroundTransparency = t.ElementTransparency
-                    }):Play()
                 end
 
                 Library.Flags[actualFlag] = Toggle.State
@@ -1484,7 +1499,6 @@ function Library:CreateWindow(titleText, subtitleText)
                 end
             end
 
-            -- Mendaftarkan sakelar aktif ke sistem pelacak tema dinamis
             table.insert(Library.Toggles, {
                 Controller = toggleController,
                 UpdateVisual = UpdateVisual
@@ -1513,7 +1527,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Library.Flags[actualFlag] = Slider.Value
             
             local SliderFrame = Instance.new("Frame", TabContent)
-            SliderFrame.Size = UDim2.new(1, -6, 0, 48)
+            SliderFrame.Size = UDim2.new(1, -4, 0, 46)
             Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 5)
             RegisterThemeable(SliderFrame, { 
                 BackgroundColor3 = "ElementBg",
@@ -1525,22 +1539,32 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterThemeable(SliderStroke, { Color = "ElementStroke" })
 
             local TitleLabel = Instance.new("TextLabel", SliderFrame)
-            TitleLabel.Size = UDim2.new(1, -20, 0, 20)
-            TitleLabel.Position = UDim2.new(0, 12, 0, 4)
+            TitleLabel.Size = UDim2.new(1, -60, 0, 20)
+            TitleLabel.Position = UDim2.new(0, 10, 0, 4)
             TitleLabel.BackgroundTransparency = 1
-            TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+            TitleLabel.Text = sliderText
             TitleLabel.TextSize = 11
             TitleLabel.Font = Enum.Font.MontserratMedium
             TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
             RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
 
+            local ValueLabel = Instance.new("TextLabel", SliderFrame)
+            ValueLabel.Size = UDim2.new(0, 45, 0, 20)
+            ValueLabel.Position = UDim2.new(1, -55, 0, 4)
+            ValueLabel.BackgroundTransparency = 1
+            ValueLabel.Text = tostring(Slider.Value)
+            ValueLabel.TextSize = 10
+            ValueLabel.Font = Enum.Font.MontserratBold
+            ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+            RegisterThemeable(ValueLabel, { TextColor3 = "TextSecondary" })
+
             local SliderBg = Instance.new("TextButton", SliderFrame)
-            SliderBg.Size = UDim2.new(1, -24, 0, 4)
-            SliderBg.Position = UDim2.new(0, 12, 1, -12)
+            SliderBg.Size = UDim2.new(1, -20, 0, 5)
+            SliderBg.Position = UDim2.new(0, 10, 1, -12)
             SliderBg.Text = ""
             SliderBg.AutoButtonColor = false
             Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
-            RegisterThemeable(SliderBg, { BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(35, 35, 40) or t.SidebarBg end })
+            RegisterThemeable(SliderBg, { BackgroundColor3 = function(t) return t.IsRGB and Color3.fromRGB(35, 35, 40) or t.ElementStroke end })
 
             local SliderFill = Instance.new("Frame", SliderBg)
             SliderFill.Size = UDim2.new((Slider.Value - minVal) / (maxVal - minVal), 0, 1, 0)
@@ -1549,12 +1573,19 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterRGB(SliderFill, "BackgroundColor3")
             RegisterThemeable(SliderFill, { BackgroundColor3 = function(t) return t.IsRGB and SliderFill.BackgroundColor3 or t.Accent end })
 
+            local Knob = Instance.new("Frame", SliderFill)
+            Knob.Size = UDim2.new(0, 11, 0, 11)
+            Knob.Position = UDim2.new(1, -5.5, 0.5, -5.5)
+            Knob.BorderSizePixel = 0
+            Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+            Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+
             local function UpdateVisuals(val, ignoreSave)
                 Slider.Value = math.clamp(val, minVal, maxVal)
                 local percentage = (Slider.Value - minVal) / (maxVal - minVal)
                 
                 TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percentage, 0, 1, 0)}):Play()
-                TitleLabel.Text = sliderText .. ": " .. tostring(Slider.Value)
+                ValueLabel.Text = tostring(Slider.Value)
                 
                 Library.Flags[actualFlag] = Slider.Value
                 if not ignoreSave then
@@ -1633,7 +1664,7 @@ function Library:CreateWindow(titleText, subtitleText)
             Library.Flags[actualFlag] = Dropdown.CurrentValue
             
             local DropdownFrame = Instance.new("Frame", TabContent)
-            DropdownFrame.Size = UDim2.new(1, -6, 0, 34)
+            DropdownFrame.Size = UDim2.new(1, -4, 0, 32)
             DropdownFrame.ClipsDescendants = true
             Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
             RegisterThemeable(DropdownFrame, { 
@@ -1646,13 +1677,13 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
 
             local DropdownBtn = Instance.new("TextButton", DropdownFrame)
-            DropdownBtn.Size = UDim2.new(1, 0, 0, 34)
+            DropdownBtn.Size = UDim2.new(1, 0, 0, 32)
             DropdownBtn.BackgroundTransparency = 1
             DropdownBtn.Text = ""
 
             local TextLabel = Instance.new("TextLabel", DropdownBtn)
             TextLabel.Size = UDim2.new(1, -60, 1, 0)
-            TextLabel.Position = UDim2.new(0, 12, 0, 0)
+            TextLabel.Position = UDim2.new(0, 10, 0, 0)
             TextLabel.BackgroundTransparency = 1
             TextLabel.Text = dropdownText .. " (" .. tostring(Dropdown.CurrentValue) .. ")"
             TextLabel.TextSize = 11
@@ -1662,14 +1693,14 @@ function Library:CreateWindow(titleText, subtitleText)
 
             local ArrowIcon = Instance.new("ImageLabel", DropdownBtn)
             ArrowIcon.Size = UDim2.new(0, 10, 0, 10)
-            ArrowIcon.Position = UDim2.new(1, -22, 0.5, -5)
+            ArrowIcon.Position = UDim2.new(1, -20, 0.5, -5)
             ArrowIcon.BackgroundTransparency = 1
-            ArrowIcon.Image = "rbxthumb://type=Asset&id=6031094670&w=150&h=150"
+            ArrowIcon.Image = resolveIcon("chevron-down")
             RegisterThemeable(ArrowIcon, { ImageColor3 = "TextSecondary" })
 
             local OptionContainer = Instance.new("Frame", DropdownFrame)
-            OptionContainer.Size = UDim2.new(1, -24, 0, 0)
-            OptionContainer.Position = UDim2.new(0, 12, 0, 36)
+            OptionContainer.Size = UDim2.new(1, -20, 0, 0)
+            OptionContainer.Position = UDim2.new(0, 10, 0, 34)
             OptionContainer.BackgroundTransparency = 1
 
             local OptionList = Instance.new("UIListLayout", OptionContainer)
@@ -1682,9 +1713,9 @@ function Library:CreateWindow(titleText, subtitleText)
 
                 for _, opt in ipairs(options) do
                     local OptBtn = Instance.new("TextButton", OptionContainer)
-                    OptBtn.Size = UDim2.new(1, 0, 0, 26)
-                    OptBtn.BackgroundColor3 = t.IsRGB and Color3.fromRGB(26, 26, 31) or t.SidebarBg
-                    OptBtn.BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
+                    OptBtn.Size = UDim2.new(1, 0, 0, 24)
+                    OptBtn.BackgroundColor3 = t.SidebarBg
+                    OptBtn.BackgroundTransparency = t.SidebarTransparency
                     OptBtn.Text = ""
                     OptBtn.AutoButtonColor = false
                     Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
@@ -1712,21 +1743,6 @@ function Library:CreateWindow(titleText, subtitleText)
                         OptText.Font = Enum.Font.Montserrat
                     end
 
-                    OptBtn.MouseEnter:Connect(function()
-                        local th = Themes[CurrentThemeName]
-                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
-                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(32, 32, 38) or th.ElementBg,
-                            BackgroundTransparency = th.IsRGB and 0 or th.ElementTransparency
-                        }):Play()
-                    end)
-                    OptBtn.MouseLeave:Connect(function()
-                        local th = Themes[CurrentThemeName]
-                        TweenService:Create(OptBtn, TweenInfo.new(0.1), {
-                            BackgroundColor3 = th.IsRGB and Color3.fromRGB(26, 26, 31) or th.SidebarBg,
-                            BackgroundTransparency = th.IsRGB and 0 or th.SidebarTransparency
-                        }):Play()
-                    end)
-
                     OptBtn.MouseButton1Click:Connect(function()
                         Dropdown.CurrentValue = opt
                         TextLabel.Text = dropdownText .. " (" .. tostring(opt) .. ")"
@@ -1735,7 +1751,7 @@ function Library:CreateWindow(titleText, subtitleText)
                         local th = Themes[CurrentThemeName]
                         UnregisterRGB(FrameStroke, "Color")
                         FrameStroke.Color = th.ElementStroke
-                        TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, 34)}):Play()
+                        TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -4, 0, 32)}):Play()
                         TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
                         
                         Refresh()
@@ -1754,7 +1770,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
             DropdownBtn.MouseButton1Click:Connect(function()
                 Dropdown.Open = not Dropdown.Open
-                local targetHeight = 34
+                local targetHeight = 32
                 local rotation = 0
                 local th = Themes[CurrentThemeName]
                 
@@ -1766,16 +1782,16 @@ function Library:CreateWindow(titleText, subtitleText)
                         UnregisterRGB(FrameStroke, "Color")
                         FrameStroke.Color = th.Accent
                     end
-                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
-                    targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
+                    OptionContainer.Size = UDim2.new(1, -20, 0, OptionList.AbsoluteContentSize.Y)
+                    targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 6)
                     rotation = 180
                 else
                     UnregisterRGB(FrameStroke, "Color")
                     FrameStroke.Color = th.ElementStroke
-                    OptionContainer.Size = UDim2.new(1, -24, 0, 0)
+                    OptionContainer.Size = UDim2.new(1, -20, 0, 0)
                 end
                 
-                TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -4, 0, targetHeight)}):Play()
                 TweenService:Create(ArrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = rotation}):Play()
             end)
 
@@ -1803,9 +1819,9 @@ function Library:CreateWindow(titleText, subtitleText)
                 options = newOptions
                 if Dropdown.Open then
                     Refresh()
-                    OptionContainer.Size = UDim2.new(1, -24, 0, OptionList.AbsoluteContentSize.Y)
-                    local targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 8)
-                    TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
+                    OptionContainer.Size = UDim2.new(1, -20, 0, OptionList.AbsoluteContentSize.Y)
+                    local targetHeight = 34 + (OptionList.AbsoluteContentSize.Y + 6)
+                    TweenService:Create(DropdownFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -4, 0, targetHeight)}):Play()
                 end
             end
             dropdownController.Update = dropdownController.Refresh
@@ -1831,7 +1847,7 @@ function Library:CreateWindow(titleText, subtitleText)
             local savedVal = Library.LoadedConfigCache and Library.LoadedConfigCache[actualFlag]
 
             local TextBoxFrame = Instance.new("Frame", TabContent)
-            TextBoxFrame.Size = UDim2.new(1, -6, 0, 34)
+            TextBoxFrame.Size = UDim2.new(1, -4, 0, 32)
             Instance.new("UICorner", TextBoxFrame).CornerRadius = UDim.new(0, 5)
             RegisterThemeable(TextBoxFrame, { 
                 BackgroundColor3 = "ElementBg",
@@ -1843,8 +1859,8 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterThemeable(FrameStroke, { Color = "ElementStroke" })
 
             local Label = Instance.new("TextLabel", TextBoxFrame)
-            Label.Size = UDim2.new(0.45, -12, 1, 0)
-            Label.Position = UDim2.new(0, 12, 0, 0)
+            Label.Size = UDim2.new(0.45, -10, 1, 0)
+            Label.Position = UDim2.new(0, 10, 0, 0)
             Label.BackgroundTransparency = 1
             Label.Text = labelText or "Input Text"
             Label.TextSize = 11
@@ -1853,8 +1869,8 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterThemeable(Label, { TextColor3 = "TextPrimary" })
 
             local InputBox = Instance.new("TextBox", TextBoxFrame)
-            InputBox.Size = UDim2.new(0.55, -12, 0, 22)
-            InputBox.Position = UDim2.new(0.45, 0, 0.5, -11)
+            InputBox.Size = UDim2.new(0.55, -10, 0, 20)
+            InputBox.Position = UDim2.new(0.45, 0, 0.5, -10)
             InputBox.Text = savedVal and tostring(savedVal) or ""
             InputBox.PlaceholderText = placeholderText or "Type here..."
             InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
@@ -1876,19 +1892,11 @@ function Library:CreateWindow(titleText, subtitleText)
             InputBox.Focused:Connect(function()
                 local t = Themes[CurrentThemeName]
                 TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.Accent}):Play()
-                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
-                    BackgroundColor3 = t.IsRGB and Color3.fromRGB(24, 24, 30) or t.SidebarBg,
-                    BackgroundTransparency = t.IsRGB and 0 or t.SidebarTransparency
-                }):Play()
             end)
 
             InputBox.FocusLost:Connect(function(enterPressed)
                 local t = Themes[CurrentThemeName]
                 TweenService:Create(InputStroke, TweenInfo.new(0.15), {Color = t.ElementStroke}):Play()
-                TweenService:Create(TextBoxFrame, TweenInfo.new(0.15), {
-                    BackgroundColor3 = t.ElementBg,
-                    BackgroundTransparency = t.ElementTransparency
-                }):Play()
                 
                 Library.Flags[actualFlag] = InputBox.Text
                 Library:SaveConfig(true)
@@ -1924,7 +1932,7 @@ function Library:CreateWindow(titleText, subtitleText)
         -- ========================================================
         function Tab:CreateParagraph(titleText, descText)
             local ParagraphFrame = Instance.new("Frame", TabContent)
-            ParagraphFrame.Size = UDim2.new(1, -6, 0, 52)
+            ParagraphFrame.Size = UDim2.new(1, -4, 0, 50)
             Instance.new("UICorner", ParagraphFrame).CornerRadius = UDim.new(0, 5)
             RegisterThemeable(ParagraphFrame, { 
                 BackgroundColor3 = "ElementBg",
@@ -1937,7 +1945,7 @@ function Library:CreateWindow(titleText, subtitleText)
 
             local TitleLabel = Instance.new("TextLabel", ParagraphFrame)
             TitleLabel.Size = UDim2.new(1, -20, 0, 18)
-            TitleLabel.Position = UDim2.new(0, 12, 0, 6)
+            TitleLabel.Position = UDim2.new(0, 10, 0, 5)
             TitleLabel.BackgroundTransparency = 1
             TitleLabel.Text = titleText or "Section Title"
             TitleLabel.Font = Enum.Font.MontserratBold
@@ -1946,8 +1954,8 @@ function Library:CreateWindow(titleText, subtitleText)
             RegisterThemeable(TitleLabel, { TextColor3 = "TextPrimary" })
 
             local DescLabel = Instance.new("TextLabel", ParagraphFrame)
-            DescLabel.Size = UDim2.new(1, -20, 1, -26)
-            DescLabel.Position = UDim2.new(0, 12, 0, 22)
+            DescLabel.Size = UDim2.new(1, -20, 1, -24)
+            DescLabel.Position = UDim2.new(0, 10, 0, 21)
             DescLabel.BackgroundTransparency = 1
             DescLabel.Text = descText or "Description text details."
             DescLabel.Font = Enum.Font.Montserrat
@@ -1961,11 +1969,11 @@ function Library:CreateWindow(titleText, subtitleText)
     end
 
     -- ========================================================
-    -- [[ 5g. PERMANENT CONFIG MANAGER TAB (INTEGRASI FILE MANAGER) ]]
+    -- [[ 5g. PERMANENT CONFIG MANAGER TAB ]]
     -- ========================================================
-    local ConfigTab = Window:CreateTab("Config", "rbxthumb://type=Asset&id=7734053495&w=150&h=150")
+    local ConfigTab = Window:CreateTab("Config", "folder")
     
-    ConfigTab:CreateParagraph("Configuration Profiles", "Manage your setup files here. They are directly saved into the folder 'workspace/" .. FolderName .. "' (accessible via ZArchiver).")
+    ConfigTab:CreateParagraph("Configuration Profiles", "Manage your setup files here. Saved into 'workspace/" .. FolderName .. "'.")
 
     local profileDropdown
     local initialProfiles = GetAvailableProfiles()
@@ -1976,13 +1984,11 @@ function Library:CreateWindow(titleText, subtitleText)
         Library:LoadConfig(true)
     end)
 
-    -- File Manager: Mengizinkan input nama kustom untuk membuat profil baru secara dinamis
     local inputNewProfile = CurrentProfile
     local inputController = ConfigTab:CreateTextBox("New Profile Name", "Type custom name here...", "__MetaProfileInput", function(val)
         inputNewProfile = val
     end)
 
-    -- Mengatur nilai default TextBox agar menampilkan nama profil aktif saat ini
     task.spawn(function()
         repeat task.wait() until Library.Elements["__MetaProfileInput"]
         Library.Elements["__MetaProfileInput"]:Set(CurrentProfile, true, true)
@@ -1994,7 +2000,6 @@ function Library:CreateWindow(titleText, subtitleText)
             Library:SaveSettings()
             Library:SaveConfig(false)
             
-            -- Muat ulang daftar config asli dari folder ZArchiver & perbarui tampilan dropdown secara real-time
             local updatedList = GetAvailableProfiles()
             profileDropdown:Refresh(updatedList)
             profileDropdown:Set(CurrentProfile, true, true)
@@ -2007,7 +2012,6 @@ function Library:CreateWindow(titleText, subtitleText)
         Library:LoadConfig(true)
     end)
 
-    -- Tombol Baru: Menghapus profil terpilih secara permanen dari folder emulator (ZArchiver)
     ConfigTab:CreateButton("Delete Selected Profile", function()
         local fileName = FolderName .. "/Config_" .. tostring(PlaceId) .. "_" .. CurrentProfile .. ".json"
         if isfile and isfile(fileName) then
@@ -2024,13 +2028,10 @@ function Library:CreateWindow(titleText, subtitleText)
             if success then
                 Library:Notify("Config System", "Deleted profile: " .. CurrentProfile, 3)
                 
-                -- Cari profil yang tersisa atau kembalikan ke default jika kosong
                 local remaining = GetAvailableProfiles()
                 CurrentProfile = remaining[1] or "default"
                 
                 Library:SaveSettings()
-                
-                -- Segarkan ulang dropdown di layar
                 profileDropdown:Refresh(remaining)
                 profileDropdown:Set(CurrentProfile, true, true)
                 Library:LoadConfig(true)
@@ -2048,13 +2049,13 @@ function Library:CreateWindow(titleText, subtitleText)
     end)
 
     -- ========================================================
-    -- [[ 5h. NEW: PERMANENT THEME MANAGER TAB ]]
+    -- [[ 5h. PERMANENT THEME MANAGER TAB ]]
     -- ========================================================
-    local ThemeTab = Window:CreateTab("Theme", "rbxthumb://type=Asset&id=10734963400&w=150&h=150")
+    local ThemeTab = Window:CreateTab("Theme", "palette")
     
     ThemeTab:CreateParagraph("Theme Manager", "Customize the interface style to adapt to your desired aesthetic immediately.")
 
-    ThemeTab:CreateDropdown("Selected Theme", {"RGB", "Cute Pastel"}, CurrentThemeName, "__MetaTheme", function(selected)
+    ThemeTab:CreateDropdown("Selected Theme", {"RGB", "Cute Pastel", "CompKiller"}, CurrentThemeName, "__MetaTheme", function(selected)
         ApplyTheme(selected)
     end)
 
@@ -2075,7 +2076,6 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     ExtBtn.AutoButtonColor = false
     ExtBtn.Parent = ScreenGui
     
-    -- Penghitungan lebar otomatis menggunakan TextService (Sangat stabil & anti-bug)
     UpdateExtBtnSize(ExtBtn, ExtBtn.Text)
 
     local savedPos = Library.LoadedConfigCache and Library.LoadedConfigCache["ExtBtnPos_" .. tostring(id)]
@@ -2103,7 +2103,7 @@ function Library:CreateExternalButton(id, text, defaultPos, callback)
     RegisterRGB(Stroke, "Color")
     RegisterThemeable(Stroke, { 
         Color = function(t) return t.IsRGB and Stroke.Color or t.Accent end,
-        Thickness = function(t) return t.IsRGB and 1 or 1.5 end -- Lebih tebal di tema pastel agar terlihat menonjol
+        Thickness = function(t) return t.IsRGB and 1 or 1.5 end
     })
 
     EnableDrag(ExtBtn, ExtBtn, function()
